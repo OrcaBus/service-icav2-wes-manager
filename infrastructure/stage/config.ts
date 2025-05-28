@@ -1,19 +1,63 @@
-import { getDefaultApiGatewayConfiguration } from '@orcabus/platform-cdk-constructs/api-gateway';
 import { StageName } from '@orcabus/platform-cdk-constructs/utils';
+import { StatefulApplicationStackConfig, StatelessApplicationStackConfig } from './interfaces';
+import { getDefaultApiGatewayConfiguration } from '@orcabus/platform-cdk-constructs/api-gateway';
 
-export const getStackProps = (stage: StageName) => {
-  const serviceDomainNameDict: Record<StageName, string> = {
-    BETA: 'service.dev.umccr.org',
-    GAMMA: 'service.stg.umccr.org',
-    PROD: 'service.prod.umccr.org',
-  };
+import {
+  DEFAULT_EVENT_PIPE_NAME,
+  DEFAULT_EXTERNAL_EVENT_BUS_NAME,
+  EVENT_BUS_NAME_INTERNAL,
+  EVENT_SOURCE,
+  ICAV2_ANALYSIS_STATE_CHANGE_JOB_EVENT_CODE,
+  ICAV2_DATA_COPY_SYNC_EVENT_DETAIL_TYPE_EXTERNAL,
+  ICAV2_WES_EVENT_REQUEST_SUBMISSION_STATUS,
+  ICAV2_WES_EVENT_STATE_CHANGE_EVENT_DETAIL_TYPE_EXTERNAL,
+  ICAV2_WES_MANAGER_TAG_KEY,
+  INTERNAL_EVENT_BUS_DESCRIPTION,
+  SLACK_TOPIC_NAME,
+  TABLE_INDEX_NAMES,
+  TABLE_NAME,
+} from './constants';
 
+export const getStatefulStackProps = (): StatefulApplicationStackConfig => {
   return {
-    apiGatewayConstructProps: {
+    // Table stuff
+    tableName: TABLE_NAME,
+    indexNames: TABLE_INDEX_NAMES,
+
+    // Internal Event stuff
+    internalEventBusName: EVENT_BUS_NAME_INTERNAL,
+    internalEventBusDescription: INTERNAL_EVENT_BUS_DESCRIPTION,
+    icav2EventPipeName: DEFAULT_EVENT_PIPE_NAME,
+    slackTopicName: SLACK_TOPIC_NAME,
+  };
+};
+
+export const getStatelessStackProps = (stage: StageName): StatelessApplicationStackConfig => {
+  return {
+    // Event stuff
+    eventSource: EVENT_SOURCE,
+    externalEventBusName: DEFAULT_EXTERNAL_EVENT_BUS_NAME,
+
+    // External event handling stuff
+    icav2WesAnalysisStateChangeDetailType: ICAV2_WES_EVENT_STATE_CHANGE_EVENT_DETAIL_TYPE_EXTERNAL,
+    icav2WesManagerTagKey: ICAV2_WES_MANAGER_TAG_KEY,
+    icav2WesRequestDetailType: ICAV2_WES_EVENT_REQUEST_SUBMISSION_STATUS,
+    icav2DataCopySyncDetailType: ICAV2_DATA_COPY_SYNC_EVENT_DETAIL_TYPE_EXTERNAL,
+
+    // Internal event handling stuff
+    internalEventBusName: EVENT_BUS_NAME_INTERNAL,
+    icav2EventPipeName: DEFAULT_EVENT_PIPE_NAME,
+    icav2AnalysisStateChangeEventCode: ICAV2_ANALYSIS_STATE_CHANGE_JOB_EVENT_CODE,
+
+    // Table stuff
+    tableName: TABLE_NAME,
+    indexNames: TABLE_INDEX_NAMES,
+
+    // API Gateway stuff
+    apiGatewayCognitoProps: {
       ...getDefaultApiGatewayConfiguration(stage),
-      apiName: 'ServiceAPI',
-      customDomainNamePrefix: 'service-orcabus',
+      apiName: 'ICAv2WesManager',
+      customDomainNamePrefix: 'icav2-wes',
     },
-    serviceDomainName: serviceDomainNameDict[stage],
   };
 };

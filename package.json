@@ -39,7 +39,11 @@
   },
   "dependencies": {
     "aws-cdk-lib": "^2.195.0",
+    "@aws-cdk/aws-lambda-python-alpha": "2.195.0-alpha.0",
+    "@aws-cdk/aws-pipes-alpha": "2.195.0-alpha.0",
+    "@aws-cdk/aws-pipes-sources-alpha": "2.195.0-alpha.0",
     "constructs": "^10.4.2",
-    "@orcabus/platform-cdk-constructs": "0.0.6"
+    "@orcabus/platform-cdk-constructs": "0.0.7-beta.9",
+    "sqs-dlq-monitoring": "^1.2.21"
   }
 }

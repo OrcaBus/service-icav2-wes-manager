@@ -5,14 +5,20 @@
 Submit jobs / events via the WES API.
 We'll handle the rest of the 'icav2' drama for you!
 
-### Events Overview
+## Events Overview
 
-Essentially we hanlde ICAv2 requests on an internal event bus
+Essentially we handle ICAv2 requests on an internal event bus
 but retrieve requests from the external event bus for the WES API.
 
 We also send back 'important' state change events to the external event bus.
 
+### Status Enum
+
 ICAv2 state change events comprise the following list of statuses:
+
+<details>
+
+<summary>Click to expand</summary>
 
 * REQUESTED
 * QUEUED
@@ -27,16 +33,82 @@ ICAv2 state change events comprise the following list of statuses:
 * FAILED_FINAL
 * ABORTED
 
-This is a lot and floods our external event bus.
-We trim this down to the following statuses for the WES API:
+</details>
 
-* QUEUED
-* IN_PROGRESS (renamed to RUNNING)
-* SUCCEEDED
-* FAILED
-* ABORTED
+This is a lot and floods our external event bus.
+We trim this down and map these to the equivalent states in [AWS BATCH](https://docs.aws.amazon.com/batch/latest/APIReference/API_JobDetail.html)
+Although we keep the 'ABORTED' status as is.
+
+<details>
+
+<summary>Click to expand</summary>
+
+* SUBMITTED: On post request from the WES API
+* PENDING: In the WES API Queue (:construction: Not yet implemented, will be added in the future when we add in the queue system)
+* RUNNABLE: Step Function to run the analysis has been triggered.
+* STARTING: Event from ICAv2 parsed through, the process has been registered on ICAv2
+  * (renamed from INITIALIZING)
+* RUNNING (renamed from IN_PROGRESS)
+* SUCCEEDED: The analysis has completed successfully.
+* FAILED: The analysis has failed.
+* ABORTED: The analysis has been aborted.
+
+</details>
 
 ![Events Overview](./docs/drawio-exports/icav2-wes-handler-events.drawio.svg)
+
+### WES State Change Requests
+
+<details>
+
+<summary>Click to expand!</summary>
+
+```json5
+{
+  "DetailType": "Icav2WesStateChange",
+  "source": "orcabus.icav2wesmanager",
+  "account": "843407916570",
+  "time": "2025-05-28T03:54:35Z",
+  "region": "ap-southeast-2",
+  "resources": [],
+  "detail": {
+    "id": "iwa.01JWAGE5PWS5JN48VWNPYSTJRN",
+    "name": "bclconvert-interop-qc",
+    "inputs": {
+      "bclconvert_report_directory": {
+        "class": "Directory",
+        "location": "s3://pipeline-dev-cache-503977275616-ap-southeast-2/byob-icav2/development/primary/20231010_pi1-07_0329_A222N7LTD3/202504179cac7411/Reports/"
+      },
+      "interop_directory": {
+        "class": "Directory",
+        "location": "s3://pipeline-dev-cache-503977275616-ap-southeast-2/byob-icav2/development/primary/20231010_pi1-07_0329_A222N7LTD3/202504179cac7411/InterOp/"
+      },
+      "instrument_run_id": "20231010_pi1-07_0329_A222N7LTD3"
+    },
+    "engineParameters": {
+      "pipelineId": "55a8bb47-d32b-48dd-9eac-373fd487ccec",
+      "projectId": "ea19a3f5-ec7c-4940-a474-c31cd91dbad4",
+      "outputUri": "s3://pipeline-dev-cache-503977275616-ap-southeast-2/byob-icav2/development/test_data/bclconvert-interop-qc-test/",
+      "logsUri": "s3://pipeline-dev-cache-503977275616-ap-southeast-2/byob-icav2/development/test_data/logs/bclconvert-interop-qc-test/"
+    },
+    "tags": {
+      "instrument_run_id": "20231010_pi1-07_0329_A222N7LTD3"
+    },
+    "status": "SUBMITTED",
+    "submissionTime": "2025-05-28T03:54:35.612655",
+    "stepsLaunchExecutionArn": "arn:aws:states:ap-southeast-2:843407916570:execution:icav2-wes-launchIcav2Analysis:3f176fc2-d8e0-4bd5-8d2f-f625d16f6bf6",
+    "icav2AnalysisId": null,
+    "startTime": "2025-05-28T03:54:35.662401+00:00",
+    "endTime": null
+  }
+}
+```
+
+Once an analysis has launched on ICAv2, we will forward sqs events in the ICAv2 WES analysis status changes enum list.
+
+We will also populate the analysis id in the `icav2AnalysisId` field once the analysis has been launched on ICAv2.
+
+</details>
 
 ### WES API Overview
 
@@ -71,7 +143,7 @@ The request body should contain the following keys:
 
 * **tags**:
   * A key-value store of tags.
-  * These will be added to the analysis jobs as user-defined tags
+  * These will be added to the analysis jobs as user tags
 
 * **engineParameters**:
   * projectId - the ICAv2 project context to run the analysis in
@@ -79,53 +151,100 @@ The request body should contain the following keys:
   * outputUri - the output location to store the results of the analysis
   * logsUri - the location to store the logs of the analysis (only available after the project has completed)
 
-:construction:
-
-In future we will support the following keys in the engineParameters object:
-  * queue: Enum - The queue to run the analysis in,
-    analyses are then not submitted to the ICAv2 API until a slot in the queue is available.
-  * priority: int - The priority of the analysis,
-    this is a number between 1 and 10, with 10 being the highest priority.
-  * preBundle: boolean - Whether to pre-bundle the analysis or not,
-    this is a boolean value, with true being pre-bundled and false being not pre-bundled.
-    Useful for if input data is not readily available in the project analysis context.
-    After the analysis is completed, bundles are unlinked from the project and deprecated.
-  * Validate Schema - Whether to pull in the JSON Schema from the workflow first and validate the inputs
-    against the JSON schema before submitting the analysis job to ICAv2.'
-  * Pipeline endpoint, push a pipeline in 'ZIP' format. This might be from nf-core or a CWL pipeline.
-    The pipeline can then be run via the WES API.
-    The pipeline endpoint will handle the 'icav2-drama' for you, for nextflow pipelines specifically,
-    this means adding in the icav2 config type. And for both CWL / nextflow pipelines, will generate
-    the correct input schema meaning the pipeline can be run both in the UI and API.
 
 <details>
 
 <summary>Click to expand</summary>
 
 ```json5
-{
-  "name": "my-analysis-job",
+ {
+  // The unique analysis name
+  "name": "bclconvert-interop-qc",
+  // The inputs to the analysis
   "inputs": {
-    "my-sample": {
-      "class": "File",
-      "location": "s3://my-bucket/my-sample.bam"
+    "bclconvert_report_directory": {
+      "class": "Directory",
+      "location": "s3://pipeline-dev-cache-503977275616-ap-southeast-2/byob-icav2/development/primary/20231010_pi1-07_0329_A222N7LTD3/202504179cac7411/Reports/"
     },
-    "my-boolean-parameter": False,
-    "my-string-parameter": "my-string-value"
+    "interop_directory": {
+      "class": "Directory",
+      "location": "s3://pipeline-dev-cache-503977275616-ap-southeast-2/byob-icav2/development/primary/20231010_pi1-07_0329_A222N7LTD3/202504179cac7411/InterOp/"
+    },
+    "instrument_run_id": "20231010_pi1-07_0329_A222N7LTD3"
   },
-  "tags": {
-    "libraryId": "L1234567"
-  },
+  // The engine parameters for the analysis
   "engineParameters": {
-    "projectId": "abcd-1234-efgh-5678-ijklmnop",  // pragma: allowlist secret
-    "pipelineId": "P1234567",
-    "outputUri": "s3://my-bucket/my-analysis-job-output/",
-    "logsUri": "s3://my-bucket/my-analysis-job-logs/"
-  }
+    // The ICAv2 pipeline id to run
+    "pipelineId": "55a8bb47-d32b-48dd-9eac-373fd487ccec",
+    // The ICAv2 project id to run the analysis in
+    "projectId": "ea19a3f5-ec7c-4940-a474-c31cd91dbad4",
+    // The output location to store the results of the analysis
+    "outputUri": "s3://pipeline-dev-cache-503977275616-ap-southeast-2/byob-icav2/development/test_data/bclconvert-interop-qc-test/",
+    // The location to store the logs of the analysis
+    "logsUri": "s3://pipeline-dev-cache-503977275616-ap-southeast-2/byob-icav2/development/test_data/logs/bclconvert-interop-qc-test/"
+  },
+  // Any tags to add to the analysis job (helpful for finding the analysis job later)
+  "tags": {
+    "instrument_run_id": "20231010_pi1-07_0329_A222N7LTD3"
+  },
+  "status": "SUBMITTED"
 }
 ```
 
 </details>
+
+To run this over the WES API, you can use the following curl command:
+
+```bash
+curl \
+  --silent --show-error --location --fail \
+  --request "POST" \
+  --header "Accept: application/json" \
+  --header "Authorization: Bearer ${ORCABUS_TOKEN}" \
+  --header "Content-Type: application/json" \
+  --data "$( \
+    jq --raw-output \
+      '
+        {
+          "name": "bclconvert-interop-qc--20231010_pi1-07_0329_A222N7LTD3",
+          "inputs": {
+            "bclconvert_report_directory": {
+              "class": "Directory",
+              "location": "s3://pipeline-dev-cache-503977275616-ap-southeast-2/byob-icav2/development/primary/20231010_pi1-07_0329_A222N7LTD3/202504179cac7411/Reports/"
+            },
+            "interop_directory": {
+              "class": "Directory",
+              "location": "s3://pipeline-dev-cache-503977275616-ap-southeast-2/byob-icav2/development/primary/20231010_pi1-07_0329_A222N7LTD3/202504179cac7411/InterOp/"
+            },
+            "instrument_run_id": "20231010_pi1-07_0329_A222N7LTD3"
+          },
+          "engineParameters": {
+            "pipelineId": "55a8bb47-d32b-48dd-9eac-373fd487ccec",
+            "projectId": "ea19a3f5-ec7c-4940-a474-c31cd91dbad4",
+            "outputUri": "s3://pipeline-dev-cache-503977275616-ap-southeast-2/byob-icav2/development/test_data/bclconvert-interop-qc-test/",
+            "logsUri": "s3://pipeline-dev-cache-503977275616-ap-southeast-2/byob-icav2/development/test_data/logs/bclconvert-interop-qc-test/"
+          },
+          "tags": {
+            "instrument_run_id": "20231010_pi1-07_0329_A222N7LTD3"
+          }
+        }
+      ' \
+  )" \
+  --url "https://icav2-wes.dev.umccr.org/api/v1/analysis/"
+```
+
+You can also use an event bus to submit the analysis job, which will be handled by the WES API.
+
+```json5
+{
+  "EventBusName": "OrcaBusMain",
+  "DetailType": "Icav2WesAnalysisRequest",
+  "Source": "your source",
+  "Detail": {
+    // The same as the POST request body above as a json body
+  }
+}
+```
 
 
 ### WES GET
@@ -141,6 +260,132 @@ Get requests contain the same information as a POST request but with the followi
 
 > To keep compatibility with both CWL AND Nextflow, we do not use output jsons as available in CWL,
 > instead we expect all data and metadata to be available in the analysis job output location.
+
+You can retrieve the analysis job by name or id.
+
+You can also retrieve all analyses jobs by using the `GET /api/v1/analyses/` endpoint.
+
+#### By Name
+
+<details>
+
+<summary>Click to expand</summary>
+
+```bash
+curl \
+  --silent --show-error --location --fail \
+  --request "GET" \
+  --header "Accept: application/json" \
+  --header "Authorization: Bearer ${ORCABUS_TOKEN}" \
+  --url "https://icav2-wes.dev.umccr.org/api/v1/analysis?name=bclconvert-interop-qc--20231010_pi1-07_0329_A222N7LTD3"
+```
+
+Will retrieve the following response in pagination format
+
+```json
+{
+  "links": {
+    "previous": null,
+    "next": null
+  },
+  "pagination": {
+    "page": 1,
+    "rowsPerPage": 100,
+    "count": 1
+  },
+  "results": [
+    {
+      "id": "iwa.01JWAGE5PWS5JN48VWNPYSTJRN",
+      "name": "bclconvert-interop-qc--20231010_pi1-07_0329_A222N7LTD3",
+      "inputs": {
+        "bclconvert_report_directory": {
+          "class": "Directory",
+          "location": "s3://pipeline-dev-cache-503977275616-ap-southeast-2/byob-icav2/development/primary/20231010_pi1-07_0329_A222N7LTD3/202504179cac7411/Reports/"
+        },
+        "instrument_run_id": "20231010_pi1-07_0329_A222N7LTD3",
+        "interop_directory": {
+          "class": "Directory",
+          "location": "s3://pipeline-dev-cache-503977275616-ap-southeast-2/byob-icav2/development/primary/20231010_pi1-07_0329_A222N7LTD3/202504179cac7411/InterOp/"
+        }
+      },
+      "engineParameters": {
+        "pipelineId": "55a8bb47-d32b-48dd-9eac-373fd487ccec",
+        "projectId": "ea19a3f5-ec7c-4940-a474-c31cd91dbad4",
+        "outputUri": "s3://pipeline-dev-cache-503977275616-ap-southeast-2/byob-icav2/development/test_data/bclconvert-interop-qc-test/",
+        "logsUri": "s3://pipeline-dev-cache-503977275616-ap-southeast-2/byob-icav2/development/test_data/logs/bclconvert-interop-qc-test/"
+      },
+      "tags": {
+        "instrument_run_id": "20231010_pi1-07_0329_A222N7LTD3"
+      },
+      "status": "SUCCEEDED",
+      "submissionTime": "2025-05-28T03:54:35.612655",
+      "stepsLaunchExecutionArn": "arn:aws:states:ap-southeast-2:843407916570:execution:icav2-wes-launchIcav2Analysis:3f176fc2-d8e0-4bd5-8d2f-f625d16f6bf6",
+      "icav2AnalysisId": "b7157552-74a1-4ff4-a6b3-b37a85a485cf",
+      "startTime": "2025-05-28T03:54:35.662401Z",
+      "endTime": "2025-05-28T04:32:26.456422Z"
+    }
+  ]
+}
+```
+
+</details>
+
+#### By Id
+
+Alternatively, you can retrieve the analysis job by id by appending the id to the endpoint.
+
+<details>
+
+<summary>Click to expand!</summary>
+
+```shell
+curl \
+  --silent --show-error --location --fail \
+  --request "GET" \
+  --header "Accept: application/json" \
+  --header "Authorization: Bearer ${ORCABUS_TOKEN}" \
+  --url "https://icav2-wes.dev.umccr.org/api/v1/analysis/iwa.01JWAGE5PWS5JN48VWNPYSTJRN"
+```
+
+Which will return the same response as above, but without the pagination links.
+
+```json
+{
+  "id": "iwa.01JWAGE5PWS5JN48VWNPYSTJRN",
+  "name": "bclconvert-interop-qc--20231010_pi1-07_0329_A222N7LTD3",
+  "inputs": {
+    "bclconvert_report_directory": {
+      "class": "Directory",
+      "location": "s3://pipeline-dev-cache-503977275616-ap-southeast-2/byob-icav2/development/primary/20231010_pi1-07_0329_A222N7LTD3/202504179cac7411/Reports/"
+    },
+    "instrument_run_id": "20231010_pi1-07_0329_A222N7LTD3",
+    "interop_directory": {
+      "class": "Directory",
+      "location": "s3://pipeline-dev-cache-503977275616-ap-southeast-2/byob-icav2/development/primary/20231010_pi1-07_0329_A222N7LTD3/202504179cac7411/InterOp/"
+    }
+  },
+  "engineParameters": {
+    "pipelineId": "55a8bb47-d32b-48dd-9eac-373fd487ccec",
+    "projectId": "ea19a3f5-ec7c-4940-a474-c31cd91dbad4",
+    "outputUri": "s3://pipeline-dev-cache-503977275616-ap-southeast-2/byob-icav2/development/test_data/bclconvert-interop-qc-test/",
+    "logsUri": "s3://pipeline-dev-cache-503977275616-ap-southeast-2/byob-icav2/development/test_data/logs/bclconvert-interop-qc-test/"
+  },
+  "tags": {
+    "instrument_run_id": "20231010_pi1-07_0329_A222N7LTD3"
+  },
+  "status": "SUCCEEDED",
+  "submissionTime": "2025-05-28T03:54:35.612655",
+  "stepsLaunchExecutionArn": "arn:aws:states:ap-southeast-2:843407916570:execution:icav2-wes-launchIcav2Analysis:3f176fc2-d8e0-4bd5-8d2f-f625d16f6bf6",
+  "icav2AnalysisId": "b7157552-74a1-4ff4-a6b3-b37a85a485cf",
+  "startTime": "2025-05-28T03:54:35.662401Z",
+  "endTime": "2025-05-28T04:32:26.456422Z"
+}
+```
+
+</details>
+
+
+
 
 ## Step Functions Overview
 
@@ -268,3 +513,36 @@ To automatically fix issues with ESLint and Prettier, run:
 ```sh
 make fix
 ```
+
+## Road map :construction:
+
+#### Scheduling support
+
+Support the following enums
+
+* queue: Enum - The queue to run the analysis in,
+  analyses are then not submitted to the ICAv2 API until a slot in the queue is available.
+* priority: int - The priority of the analysis,
+  this is a number between 1 and 10, with 10 being the highest priority.
+
+#### Data-to-compute support
+
+* preBundle: boolean - Whether to pre-bundle the analysis or not,
+  this is a boolean value, with true being pre-bundled and false being not pre-bundled.
+  Useful for if input data is not readily available in the project analysis context.
+  After the analysis is completed, bundles are unlinked from the project and deprecated.
+
+We also may look at storage Credentials options, in a later release of wrapica.
+
+#### JSON Schema validation support
+
+* Validate Schema - Whether to pull in the JSON Schema from the workflow first and validate the inputs
+  against the JSON schema before submitting the analysis job to ICAv2.'
+
+#### Pipeline endpoint support
+
+* Pipeline endpoint, push a pipeline in 'ZIP' format. This might be from nf-core or a CWL pipeline.
+  The pipeline can then be run via the WES API.
+  The pipeline endpoint will handle the 'icav2-drama' for you, for nextflow pipelines specifically,
+  this means adding in the icav2 config type. And for both CWL / nextflow pipelines, will generate
+  the correct input schema meaning the pipeline can be run both in the UI and API.
