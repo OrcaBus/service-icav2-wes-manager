@@ -1,14 +1,62 @@
 {
   "Comment": "A description of my state machine",
-  "StartAt": "Launch ICAv2 API",
+  "StartAt": "Get Inputs",
   "States": {
+    "Get Inputs": {
+      "Type": "Pass",
+      "Next": "Update wes API",
+      "Assign": {
+        "icav2WesOrcabusId": "{% $states.input.id %}",
+        "name": "{% $states.input.name %}",
+        "inputs": "{% $states.input.inputs %}",
+        "engineParameters": "{% $states.input.engineParameters %}",
+        "tags": "{% $states.input.tags %}"
+      }
+    },
+    "Update wes API": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Output": "{% $states.result.Payload %}",
+      "Arguments": {
+        "FunctionName": "${__update_status_on_wes_api_lambda_function_arn__}",
+        "Payload": {
+          "status": "RUNNABLE",
+          "name": "{% $name %}"
+        }
+      },
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 1,
+          "MaxAttempts": 3,
+          "BackoffRate": 2,
+          "JitterStrategy": "FULL"
+        }
+      ],
+      "Next": "Launch ICAv2 API"
+    },
     "Launch ICAv2 API": {
       "Type": "Task",
       "Resource": "arn:aws:states:::lambda:invoke",
       "Output": "{% $states.result.Payload %}",
       "Arguments": {
-        "FunctionName": "",
-        "Payload": "{% $states.input %}"
+        "FunctionName": "${__launch_icav2_analysis_via_wrapica_lambda_function_arn__}",
+        "Payload": {
+          "id": "{% $icav2WesOrcabusId %}",
+          "name": "{% $name %}",
+          "inputs": "{% $inputs %}",
+          "engineParameters": "{% $engineParameters %}",
+          "tags": "{% $tags %}",
+          "technicalTags": {
+            "icav2_wes_orcabus_id": "{% $icav2WesOrcabusId %}",
+            "launch_step_functions_execution_id": "{% $states.context.StateMachine.Id %}"
+          }
+        }
       },
       "Retry": [
         {
@@ -27,7 +75,7 @@
       "End": true,
       "Catch": [
         {
-          "ErrorEquals": [],
+          "ErrorEquals": ["States.ALL"],
           "Assign": {
             "status": "FAILED",
             "errorMessage": "{% $states.errorOutput %}"
@@ -41,8 +89,11 @@
       "Resource": "arn:aws:states:::lambda:invoke",
       "Output": "{% $states.result.Payload %}",
       "Arguments": {
-        "FunctionName": "",
-        "Payload": "{% $states.input %}"
+        "FunctionName": "${__update_status_on_wes_api_lambda_function_arn__}",
+        "Payload": {
+          "name": "{% $name %}",
+          "status": "FAILED"
+        }
       },
       "Retry": [
         {

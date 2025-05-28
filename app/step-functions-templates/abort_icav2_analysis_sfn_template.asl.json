@@ -7,8 +7,11 @@
       "Resource": "arn:aws:states:::lambda:invoke",
       "Output": "{% $states.result.Payload %}",
       "Arguments": {
-        "FunctionName": "",
-        "Payload": "{% $states.input %}"
+        "FunctionName": "${__abort_analysis_lambda_function_arn__}",
+        "Payload": {
+          "projectId": "{% $states.input.projectId %}",
+          "analysisId": "{% $states.input.analysisId %}"
+        }
       },
       "Retry": [
         {

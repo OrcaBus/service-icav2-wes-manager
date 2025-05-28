@@ -1,36 +1,23 @@
 {
   "Comment": "A description of my state machine",
-  "StartAt": "Update WES API",
+  "StartAt": "Get event inputs",
   "States": {
-    "Update WES API": {
-      "Type": "Task",
-      "Resource": "arn:aws:states:::lambda:invoke",
-      "Output": "{% $states.result.Payload %}",
-      "Arguments": {
-        "FunctionName": "",
-        "Payload": "{% $states.input %}"
-      },
-      "Retry": [
-        {
-          "ErrorEquals": [
-            "Lambda.ServiceException",
-            "Lambda.AWSLambdaException",
-            "Lambda.SdkClientException",
-            "Lambda.TooManyRequestsException"
-          ],
-          "IntervalSeconds": 1,
-          "MaxAttempts": 3,
-          "BackoffRate": 2,
-          "JitterStrategy": "FULL"
-        }
-      ],
-      "Next": "Is Relevant Status"
+    "Get event inputs": {
+      "Type": "Pass",
+      "Next": "Is Relevant Status",
+      "Assign": {
+        "icav2AnalysisId": "{% $states.input.id %}",
+        "status": "{% $states.input.status %}",
+        "name": "{% $states.input.userReference %}"
+      }
     },
     "Is Relevant Status": {
       "Type": "Choice",
       "Choices": [
         {
-          "Next": "Is Terminal Status"
+          "Next": "Is Terminal Status",
+          "Condition": "{% /* https://try.jsonata.org/l5wpTUNXI */\n$status in [\n    \"INITIALIZING\",\n    \"IN_PROGRESS\",\n    \"SUCCEEDED\",\n    \"FAILED\",\n    \"FAILED_FINAL\",\n    \"ABORTED\"\n] %}",
+          "Comment": "Is relevant status"
         }
       ],
       "Default": "Placeholder"
@@ -39,18 +26,23 @@
       "Type": "Choice",
       "Choices": [
         {
-          "Next": "Get Logs Dir"
+          "Next": "Get Log Directories",
+          "Condition": "{% $status in [\n    \"SUCCEEDED\",\n    \"FAILED\",\n    \"FAILED_FINAL\",\n    \"ABORTED\"\n] %}",
+          "Comment": "Is terminal status"
         }
       ],
-      "Default": "Put State Change Event"
+      "Default": "Update WES API"
     },
-    "Get Logs Dir": {
+    "Update WES API": {
       "Type": "Task",
       "Resource": "arn:aws:states:::lambda:invoke",
-      "Output": "{% $states.result.Payload %}",
       "Arguments": {
-        "FunctionName": "",
-        "Payload": "{% $states.input %}"
+        "FunctionName": "${__update_status_on_wes_api_lambda_function_arn__}",
+        "Payload": {
+          "name": "{% $name %}",
+          "status": "{% /* https://try.jsonata.org/WVD2IGYzV */\n(\n  $statusMap := {\n    \"INITIALIZING\": \"STARTING\",\n    \"IN_PROGRESS\": \"RUNNING\",\n    \"SUCCEEDED\": \"SUCCEEDED\",\n    \"FAILED\": \"FAILED\",\n    \"ABORTED\": \"ABORTED\"\n  };\n  $lookup($statusMap, $status)\n) %}",
+          "icav2AnalysisId": "{% $icav2AnalysisId %}"
+        }
       },
       "Retry": [
         {
@@ -66,7 +58,114 @@
           "JitterStrategy": "FULL"
         }
       ],
-      "Next": "Move logs dir"
+      "End": true,
+      "Output": {}
+    },
+    "Get Log Directories": {
+      "Type": "Parallel",
+      "Next": "Move logs dir",
+      "Branches": [
+        {
+          "StartAt": "Get Project ID from ICAv2 Wes Object",
+          "States": {
+            "Get Project ID from ICAv2 Wes Object": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Output": "{% $states.result.Payload %}",
+              "Arguments": {
+                "FunctionName": "${__get_icav2_wes_object_lambda_function_arn__}",
+                "Payload": {
+                  "name": "{% $name %}"
+                }
+              },
+              "Retry": [
+                {
+                  "ErrorEquals": [
+                    "Lambda.ServiceException",
+                    "Lambda.AWSLambdaException",
+                    "Lambda.SdkClientException",
+                    "Lambda.TooManyRequestsException"
+                  ],
+                  "IntervalSeconds": 1,
+                  "MaxAttempts": 3,
+                  "BackoffRate": 2,
+                  "JitterStrategy": "FULL"
+                }
+              ],
+              "Next": "Get Src Logs Dir",
+              "Assign": {
+                "projectId": "{% $states.result.Payload.icav2WesObject.engineParameters.projectId %}"
+              }
+            },
+            "Get Src Logs Dir": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Arguments": {
+                "FunctionName": "${__get_logs_dir_lambda_function_arn__}",
+                "Payload": {
+                  "projectId": "{% $projectId %}",
+                  "analysisId": "{% $icav2AnalysisId %}"
+                }
+              },
+              "Retry": [
+                {
+                  "ErrorEquals": [
+                    "Lambda.ServiceException",
+                    "Lambda.AWSLambdaException",
+                    "Lambda.SdkClientException",
+                    "Lambda.TooManyRequestsException"
+                  ],
+                  "IntervalSeconds": 1,
+                  "MaxAttempts": 3,
+                  "BackoffRate": 2,
+                  "JitterStrategy": "FULL"
+                }
+              ],
+              "Output": {
+                "icaLogsDirUriSrc": "{% $states.result.Payload.icaLogsDirUri %}"
+              },
+              "End": true
+            }
+          }
+        },
+        {
+          "StartAt": "Get Dest Logs Dir",
+          "States": {
+            "Get Dest Logs Dir": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Arguments": {
+                "FunctionName": "${__get_icav2_wes_object_lambda_function_arn__}",
+                "Payload": {
+                  "name": "{% $name %}"
+                }
+              },
+              "Retry": [
+                {
+                  "ErrorEquals": [
+                    "Lambda.ServiceException",
+                    "Lambda.AWSLambdaException",
+                    "Lambda.SdkClientException",
+                    "Lambda.TooManyRequestsException"
+                  ],
+                  "IntervalSeconds": 1,
+                  "MaxAttempts": 3,
+                  "BackoffRate": 2,
+                  "JitterStrategy": "FULL"
+                }
+              ],
+              "End": true,
+              "Output": {
+                "icaLogsDirUriDest": "{% $states.result.Payload.icav2WesObject.engineParameters.logsUri %}"
+              }
+            }
+          }
+        }
+      ],
+      "Output": {
+        "icaLogsDirUriSrc": "{% $states.result[0].icaLogsDirUriSrc %}",
+        "icaLogsDirUriDest": "{% $states.result[1].icaLogsDirUriDest %}"
+      }
     },
     "Move logs dir": {
       "Type": "Task",
@@ -74,40 +173,53 @@
       "Arguments": {
         "Entries": [
           {
+            "DetailType": "${__icav2_data_copy_sync_detail_type__}",
+            "EventBusName": "${__external_event_bus_name__}",
+            "Source": "${__stack_source__}",
             "Detail": {
-              "Message": "Hello from Step Functions!",
-              "TaskToken": "{% $states.context.Task.Token %}"
-            },
-            "DetailType": "MyDetailType",
-            "EventBusName": "MyEventBusName",
-            "Source": "MySource"
+              "payload": {
+                "sourceUriList": ["{% $states.input.icaLogsDirUriSrc %}"],
+                "destinationUri": "{% $states.input.icaLogsDirUriDest %}"
+              },
+              "taskToken": "{% $states.context.Task.Token %}"
+            }
           }
         ]
       },
-      "Catch": [
+      "Next": "Delete Src Logs Dir",
+      "Output": "{% $states.input %}"
+    },
+    "Delete Src Logs Dir": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Arguments": {
+        "FunctionName": "${__delete_icav2_dir_lambda_function_arn__}",
+        "Payload": {
+          "directoryUri": "{% $states.input.icaLogsDirUriSrc %}"
+        }
+      },
+      "Retry": [
         {
-          "ErrorEquals": []
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 1,
+          "MaxAttempts": 3,
+          "BackoffRate": 2,
+          "JitterStrategy": "FULL"
         }
       ],
-      "Next": "Put State Change Event"
-    },
-    "Put State Change Event": {
-      "Type": "Task",
-      "Resource": "arn:aws:states:::events:putEvents.waitForTaskToken",
-      "Arguments": {
-        "Entries": [
-          {
-            "Detail": {
-              "Message": "Hello from Step Functions!",
-              "TaskToken": "{% $states.context.Task.Token %}"
-            },
-            "DetailType": "MyDetailType",
-            "EventBusName": "MyEventBusName",
-            "Source": "MySource"
-          }
-        ]
-      },
-      "End": true
+      "Next": "Update WES API",
+      "Output": {},
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "Update WES API"
+        }
+      ]
     },
     "Placeholder": {
       "Type": "Pass",
