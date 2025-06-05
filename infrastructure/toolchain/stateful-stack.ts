@@ -19,7 +19,7 @@ export class StatefulStack extends cdk.Stack {
         gamma: getStatefulStackProps(),
         prod: getStatefulStackProps(),
       },
-      pipelineName: 'OrcaBus-StatefulMicroservice',
+      pipelineName: 'OrcaBus-Icav2WesManagerStatefulMicroservice',
       cdkSynthCmd: ['pnpm install --frozen-lockfile --ignore-scripts', 'pnpm cdk-stateful synth'],
     });
   }

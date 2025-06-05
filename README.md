@@ -471,10 +471,10 @@ For example:
 
 ```sh
 # Deploy a stateless stack
-pnpm cdk-stateless <command>
+pnpm cdk-stateless deploy OrcaBusStatelessICAv2WesStack/Icav2WesManagerStatelessDeploymentPipeline/OrcaBusBeta/Icav2WesManagerStatelessDeployStack
 
 # Deploy a stateful stack
-pnpm cdk-stateful <command>
+pnpm cdk-stateful deploy OrcabusStatefulICAv2WesStack/Icav2WesManagerStatefulDeployPipeline/OrcaBusBeta/Icav2WesManagerStatefulDeployStack
 ```
 
 ### Stacks
@@ -490,10 +490,10 @@ pnpm cdk-stateless ls
 Example output:
 
 ```sh
-OrcaBusStatelessServiceStack
-OrcaBusStatelessServiceStack/DeploymentPipeline/OrcaBusBeta/DeployStack (OrcaBusBeta-DeployStack)
-OrcaBusStatelessServiceStack/DeploymentPipeline/OrcaBusGamma/DeployStack (OrcaBusGamma-DeployStack)
-OrcaBusStatelessServiceStack/DeploymentPipeline/OrcaBusProd/DeployStack (OrcaBusProd-DeployStack)
+OrcaBusStatelessICAv2WesStack
+OrcaBusStatelessICAv2WesStack/DeploymentPipeline/OrcaBusBeta/DeployStack (OrcaBusBeta-DeployStack)
+OrcaBusStatelessICAv2WesStack/DeploymentPipeline/OrcaBusGamma/DeployStack (OrcaBusGamma-DeployStack)
+OrcaBusStatelessICAv2WesStack/DeploymentPipeline/OrcaBusProd/DeployStack (OrcaBusProd-DeployStack)
 ```
 
 ## Linting and Formatting

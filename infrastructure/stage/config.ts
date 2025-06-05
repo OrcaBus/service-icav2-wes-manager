@@ -1,4 +1,3 @@
-import { StageName } from '@orcabus/platform-cdk-constructs/utils';
 import { StatefulApplicationStackConfig, StatelessApplicationStackConfig } from './interfaces';
 import { getDefaultApiGatewayConfiguration } from '@orcabus/platform-cdk-constructs/api-gateway';
 
@@ -17,6 +16,7 @@ import {
   TABLE_INDEX_NAMES,
   TABLE_NAME,
 } from './constants';
+import { StageName } from '@orcabus/platform-cdk-constructs/shared-config/accounts';
 
 export const getStatefulStackProps = (): StatefulApplicationStackConfig => {
   return {
@@ -34,6 +34,8 @@ export const getStatefulStackProps = (): StatefulApplicationStackConfig => {
 
 export const getStatelessStackProps = (stage: StageName): StatelessApplicationStackConfig => {
   return {
+    // Stage stuff
+    stageName: stage,
     // Event stuff
     eventSource: EVENT_SOURCE,
     externalEventBusName: DEFAULT_EXTERNAL_EVENT_BUS_NAME,
