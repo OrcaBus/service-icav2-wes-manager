@@ -13,7 +13,8 @@ export const API_VERSION = 'v1';
 export const DEFAULT_EXTERNAL_EVENT_BUS_NAME = 'OrcaBusMain';
 export const EVENT_SOURCE = 'orcabus.icav2wesmanager';
 export const ICAV2_WES_EVENT_REQUEST_SUBMISSION_STATUS = 'Icav2WesRequest';
-export const ICAV2_WES_EVENT_STATE_CHANGE_EVENT_DETAIL_TYPE_EXTERNAL = 'ICAv2WesStateChange';
+export const ICAV2_WES_EVENT_STATE_CHANGE_EVENT_DETAIL_TYPE_EXTERNAL =
+  'Icav2WesAnalysisStateChange';
 
 /* ICAv2 Copy Sync constants */
 export const ICAV2_DATA_COPY_SYNC_EVENT_DETAIL_TYPE_EXTERNAL = 'ICAv2DataCopySync';

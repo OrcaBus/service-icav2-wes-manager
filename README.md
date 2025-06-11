@@ -65,7 +65,7 @@ Although we keep the 'ABORTED' status as is.
 
 ```json5
 {
-  "DetailType": "Icav2WesStateChange",
+  "DetailType": "Icav2WesAnalysisStateChange",
   "source": "orcabus.icav2wesmanager",
   "account": "843407916570",
   "time": "2025-05-28T03:54:35Z",

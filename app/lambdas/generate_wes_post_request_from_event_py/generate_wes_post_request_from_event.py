@@ -7,6 +7,8 @@ Generate a WES POST request from a WES event.
 from orcabus_api_tools.icav2_wes import (
     create_icav2_wes_analysis, WESRequest
 )
+from requests import HTTPError
+import logging
 
 
 def handler(event, context):
@@ -35,6 +37,10 @@ def handler(event, context):
         "tags": event['tags']
     }
 
-    return create_icav2_wes_analysis(
-        **wes_post_request
-    )
+    try:
+        create_icav2_wes_analysis(
+            **wes_post_request
+        )
+    except HTTPError as e:
+        logging.error(f"Request '{wes_post_request}' failed with error: {e} {e.response.text}")
+        raise e
