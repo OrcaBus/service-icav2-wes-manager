@@ -155,7 +155,7 @@ async def get_jobs(job_id: str = Depends(sanitise_icav2_wes_analysis_orcabus_id)
 )
 async def create_job(analysis_obj: Icav2WesAnalysisCreate) -> Icav2WesAnalysisResponse:
     # First convert the CreateFastqListRow to a FastqListRow
-    analysis_obj = Icav2WesAnalysisData(**dict(analysis_obj.model_dump(by_alias=True)))
+    analysis_obj = Icav2WesAnalysisData.from_dict(**dict(analysis_obj.model_dump(by_alias=True)))
 
     if (
             # Check if the analysis name already exists in the database
