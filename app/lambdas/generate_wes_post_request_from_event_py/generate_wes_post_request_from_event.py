@@ -42,5 +42,5 @@ def handler(event, context):
             **wes_post_request
         )
     except HTTPError as e:
-        logging.error(f"Request '{wes_post_request}' failed with error: {e} {e.response.text}")
+        logging.error(f"Request '{wes_post_request}' failed with error: {e}")
         raise e

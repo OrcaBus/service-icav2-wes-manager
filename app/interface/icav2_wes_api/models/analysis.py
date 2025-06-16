@@ -9,6 +9,7 @@ import typing
 from typing import List, Dict, Any
 from os import environ
 from typing import Optional, Self, ClassVar
+import json
 
 from dyntastic import Dyntastic
 from fastapi.encoders import jsonable_encoder
@@ -128,15 +129,52 @@ class Icav2WesAnalysisData(Icav2WesAnalysisWithId, Dyntastic):
     __table_host__ = environ['DYNAMODB_HOST']
     __hash_key__ = "id"
 
+    inputs: str
+    tags: str
+    engine_parameters: str
+
+    @classmethod
+    def from_dict(cls, **kwargs: Dict[str, Any]) -> 'Icav2WesAnalysisData':
+        """
+        Convert a dictionary to an Icav2WesAnalysisData object
+        :param data: The dictionary to convert
+        :return: An Icav2WesAnalysisData object
+        """
+        return cls(
+            inputs=json.dumps(jsonable_encoder(kwargs.pop('inputs'))),
+            engine_parameters=json.dumps(jsonable_encoder(kwargs.pop('engine_parameters'))),
+            tags=json.dumps(jsonable_encoder(kwargs.pop('tags'))),
+            **kwargs
+        )
+
     # To Dictionary
     def to_dict(self) -> 'Icav2WesAnalysisResponse':
         """
         Alternative serialization path to return objects by camel case
         :return:
         """
+        # Load the inputs, tags and engine parameters from JSON strings
+        inputs = json.loads(self.inputs) if self.inputs else {}
+        tags = json.loads(self.tags) if self.tags else {}
+        engine_parameters = json.loads(self.engine_parameters) if self.engine_parameters else {}
+
+        # Initialise the model dump
+        model_dump = self.model_dump(
+            by_alias=True,
+            exclude_none=True,
+            exclude_unset=True
+        )
+
+        # Update the model dump with the inputs, tags and engine parameters
+        model_dump.update({
+            'inputs': inputs,
+            'tags': tags,
+            'engineParameters': engine_parameters
+        })
+
         return jsonable_encoder(
             Icav2WesAnalysisResponse(
-                **self.model_dump()
+                **model_dump
             ).model_dump(by_alias=True)
         )
 
