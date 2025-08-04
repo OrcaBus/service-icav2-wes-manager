@@ -1,6 +1,6 @@
 import { PythonUvFunction } from '@orcabus/platform-cdk-constructs/lambda';
 import path from 'path';
-import { API_VERSION, INTERFACE_DIR } from '../constants';
+import { API_VERSION, ICAV2_WES_SUBDOMAIN_NAME, INTERFACE_DIR } from '../constants';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import { Duration } from 'aws-cdk-lib';
 import * as cdk from 'aws-cdk-lib';
@@ -88,7 +88,10 @@ export function buildApiInterfaceLambda(scope: Construct, props: LambdaApiProps)
     props.icav2WesAnalysisStateChangeEventDetail
   );
 
-  lambdaFunction.addEnvironment('ICAV2_WES_BASE_URL', 'https://icav2-wes.dev.umccr.org');
+  lambdaFunction.addEnvironment(
+    'ICAV2_WES_BASE_URL',
+    `https://${ICAV2_WES_SUBDOMAIN_NAME}.${props.hostedZoneSsmParameter.stringValue}`
+  );
 
   // Add in stack suppressions
   NagSuppressions.addResourceSuppressions(lambdaFunction, [

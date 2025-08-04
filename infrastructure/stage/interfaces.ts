@@ -35,6 +35,10 @@ export interface StatelessApplicationStackConfig extends cdk.StackProps {
   icav2AnalysisStateChangeEventCode: string;
   icav2WesManagerTagKey: string;
 
+  /* SSM - Secrets */
+  hostedZoneSsmParameterName: string;
+  icav2AccessTokenSecretId: string;
+
   /* API Stuff */
   apiGatewayCognitoProps: OrcaBusApiGatewayProps;
 }

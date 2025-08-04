@@ -4,6 +4,7 @@ import { PythonFunction } from '@aws-cdk/aws-lambda-python-alpha';
 import { OrcaBusApiGateway } from '@orcabus/platform-cdk-constructs/api-gateway';
 import { HttpLambdaIntegration } from 'aws-cdk-lib/aws-apigatewayv2-integrations';
 import { SfnObjectProps } from '../step-functions/interfaces';
+import { IStringParameter } from 'aws-cdk-lib/aws-ssm';
 
 export interface LambdaApiProps {
   /* The lambda name */
@@ -20,6 +21,9 @@ export interface LambdaApiProps {
   eventBus: IEventBus;
   eventSource: string;
   icav2WesAnalysisStateChangeEventDetail: string;
+
+  /* SSM Parameters */
+  hostedZoneSsmParameter: IStringParameter;
 }
 
 /** API Interfaces */

@@ -16,6 +16,8 @@ import {
   TABLE_INDEX_NAMES,
   TABLE_NAME,
 } from './constants';
+import { ICAV2_ACCESS_TOKEN_SECRET_ID } from '@orcabus/platform-cdk-constructs/shared-config/icav2';
+import { HOSTED_ZONE_DOMAIN_PARAMETER_NAME } from '@orcabus/platform-cdk-constructs/api-gateway';
 import { StageName } from '@orcabus/platform-cdk-constructs/shared-config/accounts';
 
 export const getStatefulStackProps = (): StatefulApplicationStackConfig => {
@@ -54,6 +56,12 @@ export const getStatelessStackProps = (stage: StageName): StatelessApplicationSt
     // Table stuff
     tableName: TABLE_NAME,
     indexNames: TABLE_INDEX_NAMES,
+
+    // Hostname ssm parameter
+    hostedZoneSsmParameterName: HOSTED_ZONE_DOMAIN_PARAMETER_NAME,
+
+    // ICAV2 access token secret
+    icav2AccessTokenSecretId: ICAV2_ACCESS_TOKEN_SECRET_ID[stage],
 
     // API Gateway stuff
     apiGatewayCognitoProps: {

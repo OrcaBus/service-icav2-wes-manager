@@ -4,10 +4,13 @@
 Given an icav2 analysis id, abort the analysis
 """
 
+# Wrapica imports
 from wrapica.project_analysis import (
     get_analysis_obj_from_analysis_id,
     abort_analysis
 )
+
+# Layer imports
 from icav2_tools import set_icav2_env_vars
 
 
@@ -35,7 +38,7 @@ def handler(event, context):
     # Abort the analysis
     abort_analysis(
         project_id=project_id,
-        analysis_id=analysis_id
+        analysis_id=analysis_obj.id
     )
 
     return {}
