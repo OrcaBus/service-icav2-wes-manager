@@ -13,7 +13,7 @@ from orcabus_api_tools.icav2_wes import (
     update_icav2_wes_analysis_status
 )
 
-
+# Globals
 ICAV2_WES_ORCABUS_ID_TAG_NAME = 'icav2_wes_orcabus_id'
 
 
@@ -41,9 +41,11 @@ def handler(event, context) -> Dict:
 
     # Update the status on the ICAv2 WES API
     update_response = update_icav2_wes_analysis_status(
+        # Positional args in snake_case
         icav2_wes_orcabus_id=analysis_object['id'],
+        # Keyword (packed) args in camelCase
         status=status,
-        icav2_analysis_id=icav2_analysis_id,
+        icav2AnalysisId=icav2_analysis_id,
     )
 
     # Return the response payload (We don't actually need this, since updating the API generates the event)

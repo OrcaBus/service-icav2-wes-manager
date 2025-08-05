@@ -4,16 +4,17 @@
 Delete a directory on ICAv2
 """
 
-from pathlib import Path
+# Standard library imports
+import logging
 
-from wrapica.enums import DataType
+# Wrapica imports
 from wrapica.project_data import (
-    get_project_data_obj_from_project_id_and_path,
-    convert_project_data_obj_to_uri,
     coerce_data_id_or_uri_to_project_data_obj,
     delete_project_data
 )
-import logging
+from wrapica.utils.globals import FOLDER_DATA_TYPE
+
+# Layer imports
 from icav2_tools import set_icav2_env_vars
 
 
@@ -39,7 +40,7 @@ def handler(event, context):
         raise e
 
     # Get the project data object, will fail if this doesn't exist
-    if not DataType(directory_obj.data.details.data_type) == DataType.FOLDER:
+    if not directory_obj.data.details.data_type == FOLDER_DATA_TYPE:
         logging.error("Not a folder")
         raise ValueError("Provided URI does not point to a folder")
 

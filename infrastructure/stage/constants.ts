@@ -7,7 +7,9 @@ export const LAMBDA_DIR = path.join(APP_ROOT, 'lambdas');
 export const STEP_FUNCTIONS_DIR = path.join(APP_ROOT, 'step-functions-templates');
 export const INTERFACE_DIR = path.join(APP_ROOT, 'interface');
 
+/* API constants */
 export const API_VERSION = 'v1';
+export const ICAV2_WES_SUBDOMAIN_NAME = 'icav2-wes';
 
 /* Event Constants */
 export const DEFAULT_EXTERNAL_EVENT_BUS_NAME = 'OrcaBusMain';
@@ -48,4 +50,3 @@ export const TABLE_REMOVAL_POLICY = RemovalPolicy.RETAIN_ON_UPDATE_OR_DELETE; //
 /* Event constants */
 export const EVENT_BUS_NAME_INTERNAL = 'OrcaBusICAv2WesManagerInternal'; // Events for internal use only, i.e handling ICAV2 Events
 export const INTERNAL_EVENT_BUS_DESCRIPTION = 'Event Bus to handle ICAv2 Analysis Events'; // Events for internal use only, i.e handling ICAV2 Events
-export const ICAV2_SQS_EVENT_PIPE_NAME = 'Icav2WesManagerEventPipe'; // Event pipe for ICAV2 events to forward to the internal event bus

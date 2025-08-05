@@ -4,11 +4,15 @@
 Generate a WES POST request from a WES event.
 """
 
-from orcabus_api_tools.icav2_wes import (
-    create_icav2_wes_analysis, WESRequest
-)
+# Standard library imports
 from requests import HTTPError
 import logging
+
+
+# Layer imports
+from orcabus_api_tools.icav2_wes import (
+    create_icav2_wes_analysis, WESPostRequest
+)
 
 
 def handler(event, context):
@@ -30,7 +34,7 @@ def handler(event, context):
             raise ValueError(f"Missing required key: {key}")
 
     # Create the WES POST request
-    wes_post_request: WESRequest = {
+    wes_post_request: WESPostRequest = {
         "name": event['name'],
         "inputs": event['inputs'],
         "engineParameters": event['engineParameters'],

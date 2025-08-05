@@ -5,6 +5,7 @@ import * as events from 'aws-cdk-lib/aws-events';
 
 // Application imports
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
+import * as ssm from 'aws-cdk-lib/aws-ssm';
 
 // Local imports
 import { StatelessApplicationStackConfig } from './interfaces';
@@ -43,6 +44,12 @@ export class StatelessApplicationStack extends cdk.Stack {
       this,
       props.internalEventBusName,
       props.internalEventBusName
+    );
+
+    const hostedZoneSsmParameterObj = ssm.StringParameter.fromStringParameterName(
+      this,
+      props.hostedZoneSsmParameterName,
+      props.hostedZoneSsmParameterName
     );
 
     // Build the lambdas
@@ -93,6 +100,9 @@ export class StatelessApplicationStack extends cdk.Stack {
       eventBus: externalEventBusObject,
       eventSource: props.eventSource,
       icav2WesAnalysisStateChangeEventDetail: props.icav2WesAnalysisStateChangeDetailType,
+
+      /* SSM and Secrets */
+      hostedZoneSsmParameter: hostedZoneSsmParameterObj,
     });
 
     // Build the API Gateway

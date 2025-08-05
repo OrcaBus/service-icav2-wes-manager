@@ -7,12 +7,15 @@ Given the analysis object, find where ICAv2 has actually put the logs
 We will use this to then copy the logs to the correct location (and delete the old ones).
 
 Logs are placed in the top directory of the project under the following structure:
-
 /<analysis-user-reference>-<analysis-id>/ica_logs/
+
+In the August 2025 release, this should be resolved upstream, finally!
 """
+
+# Path imports
 from pathlib import Path
 
-from wrapica.enums import DataType
+# Wrapica imports
 from wrapica.project_analysis import (
     get_analysis_obj_from_analysis_id,
 )
@@ -20,6 +23,10 @@ from wrapica.project_data import (
     get_project_data_obj_from_project_id_and_path,
     convert_project_data_obj_to_uri
 )
+from wrapica.utils.globals import FOLDER_DATA_TYPE
+
+
+# Layer imports
 from icav2_tools import set_icav2_env_vars
 
 
@@ -48,7 +55,7 @@ def handler(event, context):
     ica_logs_folder_object = get_project_data_obj_from_project_id_and_path(
         project_id=project_id,
         data_path=Path("/") / f"{analysis_obj.user_reference}-{analysis_obj.id}" / 'ica_logs',
-        data_type=DataType.FOLDER
+        data_type=FOLDER_DATA_TYPE
     )
 
     return {

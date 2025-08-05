@@ -47,6 +47,7 @@ export const lambdaToRequirementsMap: LambdaToRequirementsMapType = {
   },
   launchIcav2AnalysisViaWrapica: {
     needsIcav2ToolkitLayer: true,
+    needsOrcabusTookitLayer: true,
   },
   updateStatusOnWesApi: {
     needsOrcabusTookitLayer: true,
