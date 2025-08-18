@@ -41,7 +41,7 @@
     "@aws-cdk/aws-lambda-python-alpha": "2.210.0-alpha.0",
     "@aws-cdk/aws-pipes-alpha": "2.210.0-alpha.0",
     "@aws-cdk/aws-pipes-sources-alpha": "2.210.0-alpha.0",
-    "@orcabus/platform-cdk-constructs": "0.0.61",
+    "@orcabus/platform-cdk-constructs": "0.0.63",
     "aws-cdk-lib": "^2.210.0",
     "constructs": "^10.4.2",
     "sqs-dlq-monitoring": "^1.2.21"
