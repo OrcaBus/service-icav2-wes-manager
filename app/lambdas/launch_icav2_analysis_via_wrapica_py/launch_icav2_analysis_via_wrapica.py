@@ -146,7 +146,7 @@ def handler(event, context):
         idempotency_key=id_
     )
 
-    # Save the analysis
+    # Save the analysis object to a temporary file
     with NamedTemporaryFile(suffix='.json') as temp_file:
         analysis_obj.save_analysis(Path(temp_file.name))
 
@@ -565,7 +565,7 @@ def handler(event, context):
 #     print(json.dumps(
 #         handler(
 #             {
-#                 "id": "iwa.01K221DJR3G21NA9QD9JKAQDMA",
+#                 # "id": "iwa.01K221DJR3G21NA9QD9JKAQDMA",
 #                 "name": "umccr--automated--sash--0-6-0--20250807be72452e",
 #                 "inputs": {
 #                     "monochrome_logs": True,
