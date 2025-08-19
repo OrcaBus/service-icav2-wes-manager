@@ -61,6 +61,13 @@ class EngineParameters(BaseModel):
         alias='logsUri',
         pattern=URI_MATCH_STR
     )
+    # cache uri
+    cache_uri: Optional[str] = Field(
+        default=None,
+        description="The cache uri to use for the analysis, must start with s3:// or icav2://, required for nextflow pipelines",
+        alias='cacheUri',
+        pattern=URI_MATCH_STR
+    )
 
 
 class Icav2WesAnalysisBase(BaseModel):
