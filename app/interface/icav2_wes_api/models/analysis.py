@@ -13,7 +13,7 @@ import json
 
 from dyntastic import Dyntastic
 from fastapi.encoders import jsonable_encoder
-from pydantic import Field, BaseModel, model_validator, ConfigDict
+from pydantic import Field, BaseModel, ConfigDict
 from datetime import datetime
 
 from . import AnalysisStatus

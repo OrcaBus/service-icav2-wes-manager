@@ -21,7 +21,7 @@ import {
   DEFAULT_ICA_SQS_NAME,
 } from './constants';
 import { createEventBridgePipe, getTopicArnFromTopicName } from './sqs';
-import { buildICAv2WesDb } from './dynamodb';
+import { buildICAv2WesDb, buildPayloadsTable } from './dynamodb';
 import { buildICAv2WesEventBus } from './event-bus';
 
 export type StatefulApplicationStackProps = StatefulApplicationStackConfig & cdk.StackProps;
@@ -52,6 +52,11 @@ export class StatefulApplicationStack extends cdk.Stack {
     buildICAv2WesDb(this, {
       tableName: props.tableName,
       indexNames: props.indexNames,
+    });
+
+    // Extra tables
+    buildPayloadsTable(this, {
+      tableName: props.payloadsTableName,
     });
   }
 }

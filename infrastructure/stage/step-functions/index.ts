@@ -42,6 +42,10 @@ function createStateMachineDefinitionSubstitutions(props: SfnProps): {
     definitionSubstitutions['__stack_source__'] = props.eventSource;
   }
 
+  if (sfnRequirements.needsPayloadDbPermissions) {
+    definitionSubstitutions['__payloads_table_name__'] = props.payloadsTable.tableName;
+  }
+
   return definitionSubstitutions;
 }
 
@@ -56,6 +60,10 @@ function wireUpStateMachinePermissions(props: SfnObjectProps): void {
 
   if (sfnRequirements.needsExternalEventBusPutPermissions) {
     props.eventBus.grantPutEventsTo(props.stateMachineObj);
+  }
+
+  if (sfnRequirements.needsPayloadDbPermissions) {
+    props.payloadsTable.grantReadWriteData(props.stateMachineObj);
   }
 
   /* Allow the state machine to invoke the lambda function */

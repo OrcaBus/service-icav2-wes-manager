@@ -12,6 +12,7 @@ import {
   ICAV2_WES_EVENT_STATE_CHANGE_EVENT_DETAIL_TYPE_EXTERNAL,
   ICAV2_WES_MANAGER_TAG_KEY,
   INTERNAL_EVENT_BUS_DESCRIPTION,
+  PAYLOADS_TABLE_NAME,
   SLACK_TOPIC_NAME,
   TABLE_INDEX_NAMES,
   TABLE_NAME,
@@ -26,6 +27,9 @@ export const getStatefulStackProps = (): StatefulApplicationStackConfig => {
     tableName: TABLE_NAME,
     indexNames: TABLE_INDEX_NAMES,
 
+    // Extra table stuff
+    payloadsTableName: PAYLOADS_TABLE_NAME,
+
     // Internal Event stuff
     internalEventBusName: EVENT_BUS_NAME_INTERNAL,
     internalEventBusDescription: INTERNAL_EVENT_BUS_DESCRIPTION,
@@ -38,6 +42,7 @@ export const getStatelessStackProps = (stage: StageName): StatelessApplicationSt
   return {
     // Stage stuff
     stageName: stage,
+
     // Event stuff
     eventSource: EVENT_SOURCE,
     externalEventBusName: DEFAULT_EXTERNAL_EVENT_BUS_NAME,
@@ -56,6 +61,9 @@ export const getStatelessStackProps = (stage: StageName): StatelessApplicationSt
     // Table stuff
     tableName: TABLE_NAME,
     indexNames: TABLE_INDEX_NAMES,
+
+    // Extra table stuff
+    payloadsTableName: PAYLOADS_TABLE_NAME,
 
     // Hostname ssm parameter
     hostedZoneSsmParameterName: HOSTED_ZONE_DOMAIN_PARAMETER_NAME,
