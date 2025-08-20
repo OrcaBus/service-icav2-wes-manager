@@ -2,7 +2,7 @@ import { GlobalSecondaryIndexPropsV2 } from 'aws-cdk-lib/aws-dynamodb/lib/table-
 import { AttributeType } from 'aws-cdk-lib/aws-dynamodb';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import { TABLE_REMOVAL_POLICY } from '../constants';
-import { BuildICAv2WesDbProps } from './interfaces';
+import { BuildICAv2WesDbProps, PayloadsTableProps } from './interfaces';
 import { Construct } from 'constructs';
 
 export function buildICAv2WesDb(scope: Construct, props: BuildICAv2WesDbProps) {
@@ -37,5 +37,20 @@ export function buildICAv2WesDb(scope: Construct, props: BuildICAv2WesDbProps) {
     },
     timeToLiveAttribute: 'ttl',
     globalSecondaryIndexes: globalSecondaryIndexes,
+  });
+}
+
+export function buildPayloadsTable(scope: Construct, props: PayloadsTableProps) {
+  new dynamodb.TableV2(scope, props.tableName, {
+    partitionKey: {
+      name: 'id',
+      type: AttributeType.STRING,
+    },
+    tableName: props.tableName,
+    removalPolicy: TABLE_REMOVAL_POLICY,
+    pointInTimeRecoverySpecification: {
+      pointInTimeRecoveryEnabled: true,
+    },
+    timeToLiveAttribute: 'ttl',
   });
 }

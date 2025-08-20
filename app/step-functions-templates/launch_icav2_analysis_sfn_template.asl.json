@@ -72,7 +72,6 @@
           "JitterStrategy": "FULL"
         }
       ],
-      "End": true,
       "Catch": [
         {
           "ErrorEquals": ["States.ALL"],
@@ -82,7 +81,33 @@
           },
           "Next": "Update WES API with Failed Status"
         }
-      ]
+      ],
+      "Next": "Add to payloads database"
+    },
+    "Add to payloads database": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:putItem",
+      "Arguments": {
+        "TableName": "${__payloads_table_name__}",
+        "Item": {
+          "id": {
+            "S": "{% $icav2WesOrcabusId %}"
+          },
+          "analysis_id": {
+            "S": "{% $analysisId %}"
+          },
+          "analysis_response": {
+            "S": "{% $string($states.input.analysisResponsePayload) %}"
+          },
+          "analysis_launch": {
+            "S": "{% $string($states.input.analysisLaunchPayload) %}"
+          },
+          "ttl": {
+            "N": "{% /* 180 days */ $string($round(($millis() + (180 * 24 * 60 * 60 * 1000)) / 1000)) %}"
+          }
+        }
+      },
+      "End": true
     },
     "Update WES API with Failed Status": {
       "Type": "Task",

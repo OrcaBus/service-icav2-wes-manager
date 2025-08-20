@@ -1,6 +1,7 @@
 import { IEventBus } from 'aws-cdk-lib/aws-events';
 import { StateMachine } from 'aws-cdk-lib/aws-stepfunctions';
 import { LambdaNameList, LambdaObject } from '../lambda/interfaces';
+import { ITableV2 } from 'aws-cdk-lib/aws-dynamodb';
 
 export type SfnNameList =
   | 'abortIcav2Analysis'
@@ -21,6 +22,7 @@ export interface BuildSfnsProps {
   eventBus: IEventBus;
   eventSource: string;
   icav2DataCopySyncDetail: string;
+  payloadsTable: ITableV2;
 }
 
 export interface SfnProps extends BuildSfnsProps {
@@ -46,11 +48,12 @@ export const stepFunctionToLambdaMap: { [key in SfnNameList]: Array<LambdaNameLi
 
 export interface SfnRequirementsProps {
   /*
-      Event Bus Stuff - required only for the handleIcav2AnalysisStateChange state machine
-      This state machine needs to put permissions on the external event bus
-      in order to copy the log files into the proper location
-      */
+  Event Bus Stuff - required only for the handleIcav2AnalysisStateChange state machine
+  This state machine needs to put permissions on the external event bus
+  in order to copy the log files into the proper location
+  */
   needsExternalEventBusPutPermissions?: boolean;
+  needsPayloadDbPermissions?: boolean;
 }
 
 export type SfnToRequirementsMapType = { [key in SfnNameList]: SfnRequirementsProps };
@@ -64,5 +67,6 @@ export const sfnToRequirementsMap: SfnToRequirementsMapType = {
   },
   launchIcav2Analysis: {
     needsExternalEventBusPutPermissions: false,
+    needsPayloadDbPermissions: true,
   },
 };

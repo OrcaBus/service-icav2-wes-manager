@@ -8,6 +8,9 @@ export interface StatefulApplicationStackConfig extends cdk.StackProps {
   tableName: string;
   indexNames: string[];
 
+  /* Extra tables */
+  payloadsTableName: string;
+
   /* Internal event stuff */
   internalEventBusName: string;
   internalEventBusDescription: string;
@@ -18,9 +21,13 @@ export interface StatefulApplicationStackConfig extends cdk.StackProps {
 export interface StatelessApplicationStackConfig extends cdk.StackProps {
   /* Stage name */
   stageName: StageName;
+
   /* Dynamodb table name */
   tableName: string;
   indexNames: string[];
+
+  /* Extra tables */
+  payloadsTableName: string;
 
   /* External event stuff */
   externalEventBusName: string;

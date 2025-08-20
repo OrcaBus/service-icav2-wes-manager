@@ -34,6 +34,13 @@ export class StatelessApplicationStack extends cdk.Stack {
     // Get dynamodb table (built in the stateful stack)
     const dynamodbTable = dynamodb.TableV2.fromTableName(this, props.tableName, props.tableName);
 
+    // Extra tables
+    const payloadsTable = dynamodb.TableV2.fromTableName(
+      this,
+      props.payloadsTableName,
+      props.payloadsTableName
+    );
+
     // Get the event bus objects
     const externalEventBusObject = events.EventBus.fromEventBusName(
       this,
@@ -61,6 +68,7 @@ export class StatelessApplicationStack extends cdk.Stack {
       eventBus: externalEventBusObject,
       eventSource: props.eventSource,
       icav2DataCopySyncDetail: props.icav2DataCopySyncDetailType,
+      payloadsTable: payloadsTable,
     });
 
     // Build event bridge rules

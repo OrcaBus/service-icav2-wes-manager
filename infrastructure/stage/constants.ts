@@ -47,6 +47,9 @@ export const TABLE_NAME = 'icav2WesManagerApiDynamoDBTable';
 export const TABLE_INDEX_NAMES = ['name', 'status'];
 export const TABLE_REMOVAL_POLICY = RemovalPolicy.RETAIN_ON_UPDATE_OR_DELETE; // We need to retain the table on update or delete to avoid data loss
 
+/* Extra tables */
+export const PAYLOADS_TABLE_NAME = 'icav2WesManagerPayloadsTable';
+
 /* Event constants */
 export const EVENT_BUS_NAME_INTERNAL = 'OrcaBusICAv2WesManagerInternal'; // Events for internal use only, i.e handling ICAV2 Events
 export const INTERNAL_EVENT_BUS_DESCRIPTION = 'Event Bus to handle ICAv2 Analysis Events'; // Events for internal use only, i.e handling ICAV2 Events
