@@ -94,7 +94,7 @@
             "S": "{% $icav2WesOrcabusId %}"
           },
           "analysis_id": {
-            "S": "{% $analysisId %}"
+            "S": "{% $states.input.analysisId %}"
           },
           "analysis_response": {
             "S": "{% $string($states.input.analysisResponsePayload) %}"
