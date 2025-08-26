@@ -6,25 +6,33 @@ Job model, used to for job management
 
 # Standard imports
 import typing
-from typing import List, Dict, Any
+from typing import (
+    List,
+    Dict,
+    Any,
+    Optional,
+    Self,
+    ClassVar
+)
 from os import environ
-from typing import Optional, Self, ClassVar
 import json
+from datetime import datetime
 
+# API imports
 from dyntastic import Dyntastic
 from fastapi.encoders import jsonable_encoder
 from pydantic import Field, BaseModel, ConfigDict
-from datetime import datetime
 
-from . import AnalysisStatus
+# Layer imports
 from fastapi_tools import QueryPaginatedResponse
 
-# Util imports
+# Local imports
+from ..globals import UUID4_REGEX_MATCH_STR, URI_MATCH_STR, ICAV2_WES_ANALYSIS_PREFIX
 from ..utils import (
     to_camel, get_ulid,
     get_icav2_wes_analysis_endpoint_url
 )
-from ..globals import UUID4_REGEX_MATCH_STR, URI_MATCH_STR, ICAV2_WES_ANALYSIS_PREFIX
+from . import AnalysisStatusType, AnalysisStorageSizeType
 
 
 class EngineParameters(BaseModel):
@@ -68,6 +76,12 @@ class EngineParameters(BaseModel):
         alias='cacheUri',
         pattern=URI_MATCH_STR
     )
+    # Analysis storage size
+    analysis_storage_size: Optional[AnalysisStorageSizeType] = Field(
+        default=None,
+        description="The analysis storage size for the analysis",
+        alias='analysisStorageSize',
+    )
 
 
 class Icav2WesAnalysisBase(BaseModel):
@@ -88,7 +102,7 @@ class Icav2WesAnalysisWithId(Icav2WesAnalysisBase, Icav2WesAnalysisOrcabusId):
     Order class inheritance this way to ensure that the id field is set first
     """
     # We also have the steps execution id as an attribute to add
-    status: AnalysisStatus = Field(default='PENDING')
+    status: AnalysisStatusType = Field(default='PENDING')
     submission_time: datetime = Field(default_factory=datetime.now)
     steps_launch_execution_arn: Optional[str] = None
     icav2_analysis_id: Optional[str] = None
@@ -125,7 +139,7 @@ class Icav2WesAnalysisCreate(Icav2WesAnalysisBase):
 
 class Icav2WesAnalysisPatch(BaseModel):
     icav2AnalysisId: Optional[str] = None
-    status: AnalysisStatus
+    status: AnalysisStatusType
 
 
 class Icav2WesAnalysisData(Icav2WesAnalysisWithId, Dyntastic):

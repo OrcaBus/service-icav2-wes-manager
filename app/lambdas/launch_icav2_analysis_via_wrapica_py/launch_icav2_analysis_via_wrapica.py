@@ -10,7 +10,7 @@ import json
 from copy import copy
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import Dict, Optional, cast
+from typing import Dict, Optional, cast, Literal
 from fastapi.encoders import jsonable_encoder
 
 # Wrapica imports
@@ -22,6 +22,12 @@ from wrapica.project_pipelines import (
 
 # Layer imports
 from icav2_tools import set_icav2_env_vars
+
+# WES Storage sizes constants
+WesAnalysisStorageSizeType = Literal[
+    'SMALL', 'MEDIUM', 'LARGE',
+    'XLARGE', '2XLARGE', '3XLARGE',
+]
 
 
 def camel_case_to_snake_case(camel_case_str: str) -> str:
@@ -44,6 +50,23 @@ def flatten_user_tags(user_tags: Dict) -> Dict:
             del user_tags[key]
 
     return user_tags
+
+
+def map_wes_analysis_storage_size_to_icav2(storage_size: WesAnalysisStorageSizeType) -> AnalysisStorageSizeType:
+    """
+    Map the WES analysis storage size to the ICAv2 analysis storage size.
+    :param storage_size: The WES analysis storage size.
+    :return: The ICAv2 analysis storage size.
+    """
+    mapping: Dict[WesAnalysisStorageSizeType, AnalysisStorageSizeType] = {
+        'SMALL': 'Small',
+        'MEDIUM': 'Medium',
+        'LARGE': 'Large',
+        'XLARGE': 'XLarge',
+        '2XLARGE': '2XLarge',
+        '3XLARGE': '3XLarge',
+    }
+    return mapping[storage_size]
 
 
 def handler(event, context):
@@ -87,8 +110,10 @@ def handler(event, context):
     pipeline_obj = get_pipeline_obj_from_pipeline_id(pipeline_id)
 
     # Get the analysis storage size from the event
-    analysis_storage_size: Optional[AnalysisStorageSizeType] = event.get("analysis_storage_size", None)
-    if analysis_storage_size is None:
+    wes_analysis_storage_size: Optional[WesAnalysisStorageSizeType] = engine_parameters.get("analysisStorageSize", None)
+    if wes_analysis_storage_size is not None:
+        analysis_storage_size: AnalysisStorageSizeType = map_wes_analysis_storage_size_to_icav2(wes_analysis_storage_size)
+    else:
         # Get the default analysis storage size from the pipeline object
         pipeline_obj = get_pipeline_obj_from_pipeline_id(pipeline_id)
         analysis_storage_size = cast(AnalysisStorageSizeType, pipeline_obj.analysis_storage.name)
