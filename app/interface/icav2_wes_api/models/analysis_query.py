@@ -8,7 +8,7 @@ Model analysis module.
 from typing import Optional, List, Dict
 from fastapi import Query, HTTPException
 
-from . import AnalysisStatus
+from . import AnalysisStatusType
 
 
 class BaseQueryParameters:
@@ -36,11 +36,11 @@ class AnalysisQueryParameters(BaseQueryParameters):
                 strict=False
             ),
             # Status query
-            status: Optional[AnalysisStatus] = Query(
+            status: Optional[AnalysisStatusType] = Query(
                 None,
                 description="The status to filter by, use <code>status[]</code> for multiple values"
             ),
-            status_list: Optional[List[AnalysisStatus]] = Query(
+            status_list: Optional[List[AnalysisStatusType]] = Query(
                 None,
                 alias="status[]",
                 description=None,

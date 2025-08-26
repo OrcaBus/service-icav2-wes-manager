@@ -17,7 +17,7 @@ from .globals import (
     ORCABUS_ULID_REGEX_MATCH,
     ICAV2_WES_ANALYSIS_PREFIX
 )
-from .models import AnalysisStatus
+from .models import AnalysisStatusType
 
 
 if typing.TYPE_CHECKING:
@@ -47,7 +47,7 @@ async def sanitise_icav2_wes_analysis_orcabus_id(analysis_id: str) -> str:
     raise ValueError(f"Invalid icav2 wes analysis id '{analysis_id}'")
 
 
-async def sanitise_status(status: AnalysisStatus) -> str:
+async def sanitise_status(status: AnalysisStatusType) -> str:
     return status
 
 def get_aws_lambda_client() -> 'LambdaClient':
