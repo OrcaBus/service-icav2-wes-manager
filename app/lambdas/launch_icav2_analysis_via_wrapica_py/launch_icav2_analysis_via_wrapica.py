@@ -115,7 +115,6 @@ def handler(event, context):
         analysis_storage_size: AnalysisStorageSizeType = map_wes_analysis_storage_size_to_icav2(wes_analysis_storage_size)
     else:
         # Get the default analysis storage size from the pipeline object
-        pipeline_obj = get_pipeline_obj_from_pipeline_id(pipeline_id)
         analysis_storage_size = cast(AnalysisStorageSizeType, pipeline_obj.analysis_storage.name)
 
     # Get the workflow type, one of CWL or NEXTFLOW
