@@ -6,6 +6,7 @@ import * as events from 'aws-cdk-lib/aws-events';
 // Application imports
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as ssm from 'aws-cdk-lib/aws-ssm';
+import * as s3 from 'aws-cdk-lib/aws-s3';
 
 // Local imports
 import { StatelessApplicationStackConfig } from './interfaces';
@@ -41,6 +42,13 @@ export class StatelessApplicationStack extends cdk.Stack {
       props.payloadsTableName
     );
 
+    // Extra buckets
+    const payloadsBucket = s3.Bucket.fromBucketName(
+      this,
+      props.payloadsBucketName,
+      props.payloadsBucketName
+    );
+
     // Get the event bus objects
     const externalEventBusObject = events.EventBus.fromEventBusName(
       this,
@@ -53,14 +61,34 @@ export class StatelessApplicationStack extends cdk.Stack {
       props.internalEventBusName
     );
 
+    // SSM parameters
     const hostedZoneSsmParameterObj = ssm.StringParameter.fromStringParameterName(
       this,
       props.hostedZoneSsmParameterName,
       props.hostedZoneSsmParameterName
     );
 
+    // Buckets - refdata and testData buckets
+    const referenceDataBucket = s3.Bucket.fromBucketName(
+      this,
+      props.referenceDataBucketName,
+      props.referenceDataBucketName
+    );
+
+    // Test data bucket
+    const testDataBucket = s3.Bucket.fromBucketName(
+      this,
+      props.testDataBucketName,
+      props.testDataBucketName
+    );
+
     // Build the lambdas
-    const lambdaObjects = buildAllLambdas(this);
+    const lambdaObjects = buildAllLambdas(this, {
+      payloadsBucket: payloadsBucket,
+      payloadsKeyPrefix: props.payloadsKeyPrefix,
+      referenceDataBucket: referenceDataBucket,
+      testDataBucket: testDataBucket,
+    });
 
     // Build the step functions
     const stepFunctionObjects = buildAllStepFunctions(this, {

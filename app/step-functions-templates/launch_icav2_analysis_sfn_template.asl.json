@@ -99,8 +99,8 @@
           "analysis_response": {
             "S": "{% $string($states.input.analysisResponsePayload) %}"
           },
-          "analysis_launch": {
-            "S": "{% $string($states.input.analysisLaunchPayload) %}"
+          "analysis_launch_uri": {
+            "S": "{% $string($states.input.analysisLaunchPayloadUri) %}"
           },
           "ttl": {
             "N": "{% /* 180 days */ $string($round(($millis() + (180 * 24 * 60 * 60 * 1000)) / 1000)) %}"
