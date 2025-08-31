@@ -8,7 +8,7 @@ function addPayloadsLifeCycleRuleToBucket(bucket: Bucket): void {
   bucket.addLifecycleRule({
     id: 'DeletePayloadJsonsAfterSixMonths',
     enabled: true,
-    expiration: Duration.days(30), // Delete objects older than 1 day
+    expiration: Duration.days(30), // Delete objects older than 1 month
     prefix: PAYLOADS_KEY_PREFIX, // Apply to objects with the 'analysis-payloads/' prefix
   });
 }

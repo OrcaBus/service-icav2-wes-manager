@@ -199,7 +199,11 @@ def handler(event, context):
 
         # Gzip compress the analysis json
         with gzip.GzipFile(fileobj=temp_file_gz, mode="wb") as gz_file:
+            # Now go back to the start of the json file and write to gz
+            temp_file_json.seek(0)
             gz_file.write(temp_file_json.read())
+
+        # Write out the gzip file to the temp file
         temp_file_gz.flush()
 
         # Upload the analysis json to S3
