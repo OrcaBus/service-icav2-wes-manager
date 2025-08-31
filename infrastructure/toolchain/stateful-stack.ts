@@ -15,9 +15,9 @@ export class StatefulStack extends cdk.Stack {
       stack: StatefulApplicationStack,
       stackName: 'Icav2WesManagerStatefulDeployStack',
       stackConfig: {
-        beta: getStatefulStackProps(),
-        gamma: getStatefulStackProps(),
-        prod: getStatefulStackProps(),
+        beta: getStatefulStackProps('BETA'),
+        gamma: getStatefulStackProps('GAMMA'),
+        prod: getStatefulStackProps('PROD'),
       },
       pipelineName: 'OrcaBus-Icav2WesManagerStatefulMicroservice',
       cdkSynthCmd: ['pnpm install --frozen-lockfile --ignore-scripts', 'pnpm cdk-stateful synth'],

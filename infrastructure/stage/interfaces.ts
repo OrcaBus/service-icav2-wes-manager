@@ -11,6 +11,9 @@ export interface StatefulApplicationStackConfig extends cdk.StackProps {
   /* Extra tables */
   payloadsTableName: string;
 
+  /* Extra buckets */
+  payloadsBucketName: string;
+
   /* Internal event stuff */
   internalEventBusName: string;
   internalEventBusDescription: string;
@@ -29,12 +32,20 @@ export interface StatelessApplicationStackConfig extends cdk.StackProps {
   /* Extra tables */
   payloadsTableName: string;
 
+  /* Extra buckets */
+  payloadsBucketName: string;
+  payloadsKeyPrefix: string;
+
   /* External event stuff */
   externalEventBusName: string;
   icav2WesRequestDetailType: string;
   icav2WesAnalysisStateChangeDetailType: string;
   icav2DataCopySyncDetailType: string;
   eventSource: string;
+
+  /* External bucket stuff */
+  testDataBucketName: string;
+  referenceDataBucketName: string;
 
   /* Internal event stuff */
   internalEventBusName: string;

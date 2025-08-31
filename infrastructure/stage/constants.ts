@@ -1,6 +1,11 @@
 /* Directory constants */
 import { Duration, RemovalPolicy } from 'aws-cdk-lib';
 import path from 'path';
+import {
+  ACCOUNT_ID_ALIAS,
+  REGION,
+  StageName,
+} from '@orcabus/platform-cdk-constructs/shared-config/accounts';
 
 export const APP_ROOT = path.join(__dirname, '../../app');
 export const LAMBDA_DIR = path.join(APP_ROOT, 'lambdas');
@@ -17,6 +22,14 @@ export const EVENT_SOURCE = 'orcabus.icav2wesmanager';
 export const ICAV2_WES_EVENT_REQUEST_SUBMISSION_STATUS = 'Icav2WesRequest';
 export const ICAV2_WES_EVENT_STATE_CHANGE_EVENT_DETAIL_TYPE_EXTERNAL =
   'Icav2WesAnalysisStateChange';
+
+/* Bucket constants */
+export const S3_ARTEFACTS_BUCKET_NAME: Record<StageName, string> = {
+  BETA: `icav2-wes-artifacts-${ACCOUNT_ID_ALIAS.BETA}-${REGION}`,
+  GAMMA: `icav2-wes-artifacts-${ACCOUNT_ID_ALIAS.GAMMA}-${REGION}`,
+  PROD: `icav2-wes-artifacts-${ACCOUNT_ID_ALIAS.PROD}-${REGION}`,
+};
+export const PAYLOADS_KEY_PREFIX = 'analysis-payloads/';
 
 /* ICAv2 Copy Sync constants */
 export const ICAV2_DATA_COPY_SYNC_EVENT_DETAIL_TYPE_EXTERNAL = 'ICAv2DataCopySync';

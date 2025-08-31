@@ -6,12 +6,17 @@ Launch the ICAv2 analysis.
 Given the name, inputs, engine parameters, launch the analysis on ICAv2!
 """
 # Standard imports
-import json
+import typing
 from copy import copy
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Dict, Optional, cast, Literal
 from fastapi.encoders import jsonable_encoder
+import boto3
+from datetime import datetime, timezone
+from os import environ
+from urllib.parse import urlunparse
+import gzip
 
 # Wrapica imports
 from wrapica.literals import AnalysisStorageSizeType
@@ -22,6 +27,9 @@ from wrapica.project_pipelines import (
 
 # Layer imports
 from icav2_tools import set_icav2_env_vars
+
+if typing.TYPE_CHECKING:
+    from mypy_boto3_s3 import S3Client
 
 # WES Storage sizes constants
 WesAnalysisStorageSizeType = Literal[
@@ -170,18 +178,50 @@ def handler(event, context):
         idempotency_key=id_
     )
 
-    # Save the analysis object to a temporary file
-    with NamedTemporaryFile(suffix='.json') as temp_file:
-        analysis_obj.save_analysis(Path(temp_file.name))
+    # Get the current date and upload path
+    now = datetime.now(timezone.utc)
+    upload_path = str(
+            Path(environ['S3_ANALYSIS_PAYLOAD_KEY_PREFIX']) /
+            f"year={now.year}" /
+            f"month={now.month:02d}" /
+            f"day={now.day:02d}" /
+            f"{analysis_launch_obj.id}.json.gz"
+    )
 
-        with open(Path(temp_file.name), 'r') as tmp_file_h:
-            analysis_launch_payload = json.load(tmp_file_h)
+    # Save the analysis object to a temporary file
+    with (
+        NamedTemporaryFile(suffix='.json') as temp_file_json,
+        NamedTemporaryFile(suffix='.json.gz') as temp_file_gz
+    ):
+        # Save and flush to first json
+        analysis_obj.save_analysis(Path(temp_file_json.name))
+        temp_file_json.flush()
+
+        # Gzip compress the analysis json
+        with gzip.GzipFile(fileobj=temp_file_gz, mode="wb") as gz_file:
+            gz_file.write(temp_file_json.read())
+        temp_file_gz.flush()
+
+        # Upload the analysis json to S3
+        s3_client: 'S3Client' = boto3.client('s3')
+        s3_client.upload_file(
+            Filename=temp_file_gz.name,
+            Bucket=environ['S3_ANALYSIS_PAYLOAD_BUCKET_NAME'],
+            Key=upload_path
+        )
+
+    s3_payload_uri = str(urlunparse((
+        's3',
+        environ['S3_ANALYSIS_PAYLOAD_BUCKET_NAME'],
+        str(upload_path),
+        None, None, None
+    )))
 
     return jsonable_encoder({
         "analysisId": analysis_launch_obj.id,
         "analysisStatus": analysis_launch_obj.status,
         "analysisResponsePayload": analysis_launch_obj.to_dict(),
-        "analysisLaunchPayload": analysis_launch_payload
+        "analysisLaunchPayloadUri": s3_payload_uri
     })
 
 
@@ -662,7 +702,7 @@ def handler(event, context):
 #         handler(
 #             {
 #                 "id": "iwa.01K291BVRZ4QVWR0K2ZG87FTSB",
-#                 "name": "umccr--automated--sash--0-6-0--202508101810cf3e",
+#                 "name": "umccr--automated--sash--0-6-0--20250828b21a4c5c",
 #                 "inputs": {
 #                     "monochrome_logs": True,
 #                     "samplesheet": [
@@ -688,14 +728,14 @@ def handler(event, context):
 #                           "filepath": "s3://pipeline-dev-cache-503977275616-ap-southeast-2/byob-icav2/development/analysis/oncoanalyser-wgts-dna/202508052e398fe8/SBJ05828/"
 #                         }
 #                     ],
-#                     "ref_data_path": "s3://pipeline-prod-cache-503977275616-ap-southeast-2/byob-icav2/reference-data/sash/0.6.0/"
+#                     "ref_data_path": "s3://reference-data-503977275616-ap-southeast-2/refdata/sash/0.6.0/"
 #                 },
 #                 "engineParameters": {
 #                     "pipelineId": "57edb806-79f2-4b53-a154-27c4db342485",
 #                     "projectId": "ea19a3f5-ec7c-4940-a474-c31cd91dbad4",
-#                     "outputUri": "s3://pipeline-dev-cache-503977275616-ap-southeast-2/byob-icav2/development/analysis/sash/202508101810cf3e/",
-#                     "logsUri": "s3://pipeline-dev-cache-503977275616-ap-southeast-2/byob-icav2/development/logs/sash/202508101810cf3e/",
-#                     "cacheUri": "s3://pipeline-dev-cache-503977275616-ap-southeast-2/byob-icav2/development/cache/sash/202508101810cf3e/"
+#                     "outputUri": "s3://pipeline-dev-cache-503977275616-ap-southeast-2/byob-icav2/development/analysis/sash/20250828b21a4c5c/",
+#                     "logsUri": "s3://pipeline-dev-cache-503977275616-ap-southeast-2/byob-icav2/development/logs/sash/20250828b21a4c5c/",
+#                     "cacheUri": "s3://pipeline-dev-cache-503977275616-ap-southeast-2/byob-icav2/development/cache/sash/20250828b21a4c5c/"
 #                 },
 #                 "tags": {
 #                     "libraryId": "L2401540",
@@ -734,58 +774,64 @@ def handler(event, context):
 #     print(json.dumps(
 #         handler(
 #             {
-#                 "id": "iwa.01K28HTD7XRS9S0XK8N4GG4KFA",
-#                 "name": "umccr--automated--oncoanalyser-wgts-rna--2-1-0--202508093e7596dc",
-#                 "tags": {
-#                     "libraryId": "L2401533",
-#                     "subjectId": "Sera-ctDNA-Comp1pc",
-#                     "individualId": "SBJ00595",
-#                     "fastqRgidList": [
-#                         "CTGAAGCT+TCAGAGCC.1.241024_A00130_0336_BHW7MVDSXC"
-#                     ]
-#                 },
-#                 "technicalTags": {
-#                     "icav2_wes_orcabus_id": "iwa.01K28HTD7XRS9S0XK8N4GG4KFA",
-#                     "launch_step_functions_execution_id": "arn:aws:states:ap-southeast-2:843407916570:stateMachine:icav2-wes-launchIcav2Analysis"
-#                 },
+#                 "id": "iwa.01K3QJ0RG3WME99X2DANM1VJVG",
+#                 "name": "umccr--automated--oncoanalyser-wgts-rna--2-1-0--202508285cd658ee",
 #                 "inputs": {
 #                     "mode": "wgts",
-#                     "monochrome_logs": True,
-#                     "samplesheet": [
-#                       {
-#                         "group_id": "SBJ00595",
-#                         "subject_id": "Sera-ctDNA-Comp1pc",
-#                         "sample_id": "L2401533",
-#                         "sample_type": "tumor",
-#                         "sequence_type": "rna",
-#                         "filetype": "fastq",
-#                         "info": "library_id:L2401533;lane:4",
-#                         "filepath": "s3://pipeline-dev-cache-503977275616-ap-southeast-2/byob-icav2/development/cache/oncoanalyser-wgts-rna/20250806baf25bf4/241024_A00130_0336_BHW7MVDSXC/Samples/Lane_4/L2401533/L2401533_S18_L004_R1_001.fastq.gz;s3://pipeline-dev-cache-503977275616-ap-southeast-2/byob-icav2/development/cache/oncoanalyser-wgts-rna/20250806baf25bf4/241024_A00130_0336_BHW7MVDSXC/Samples/Lane_4/L2401533/L2401533_S18_L004_R2_001.fastq.gz"
-#                       }
+#                     "groupId": "L2500568",
+#                     "subjectId": "L2500568",
+#                     "sampleId": "L2500568",
+#                     "fastqListRows": [
+#                         {
+#                             "rgid": "CGCCATATCT+ATCTCCGGTC.1.250530_A01052_0264_BHFGKTDSXF",
+#                             "rglb": "L2500568",
+#                             "rgsm": "L2500568",
+#                             "lane": 1,
+#                             "rgcn": "UMCCR",
+#                             "rgds": "Library ID: L2500568 / Sequenced on 30 May 2025 at UMCCR / Phenotype: tumor / Assay: ISTRL / Type: WTS",
+#                             "rgdt": "2025-05-30",
+#                             "rgpl": "Illumina",
+#                             "read1FileUri": "s3://test-data-503977275616-ap-southeast-2/testdata/input/fastq/L2500568/L2500568_S1_L001_R1_001.fastq.ora",
+#                             "read2FileUri": "s3://test-data-503977275616-ap-southeast-2/testdata/input/fastq/L2500568/L2500568_S1_L001_R2_001.fastq.ora"
+#                         }
 #                     ],
 #                     "genome": "GRCh38_umccr",
-#                     "genome_version": "38",
-#                     "genome_type": "alt",
-#                     "force_genome": True,
-#                     "ref_data_hmf_data_path": "s3://pipeline-prod-cache-503977275616-ap-southeast-2/byob-icav2/reference-data/hartwig/hmf-reference-data/hmftools/hmf_pipeline_resources.38_v2.1.0--1/",
+#                     "genomeVersion": "38",
+#                     "genomeType": "alt",
+#                     "forceGenome": True,
+#                     "refDataHmfDataPath": "s3://reference-data-503977275616-ap-southeast-2/refdata/hartwig/hmf-reference-data/hmftools/hmf_pipeline_resources.38_v2.1.0--1/",
 #                     "genomes": {
-#                       "GRCh38_umccr": {
-#                         "fasta": "s3://pipeline-prod-cache-503977275616-ap-southeast-2/byob-icav2/reference-data/genomes/GRCh38_umccr/GRCh38_full_analysis_set_plus_decoy_hla.fa",
-#                         "fai": "s3://pipeline-prod-cache-503977275616-ap-southeast-2/byob-icav2/reference-data/genomes/GRCh38_umccr/samtools_index/1.16/GRCh38_full_analysis_set_plus_decoy_hla.fa.fai",
-#                         "dict": "s3://pipeline-prod-cache-503977275616-ap-southeast-2/byob-icav2/reference-data/genomes/GRCh38_umccr/samtools_index/1.16/GRCh38_full_analysis_set_plus_decoy_hla.fa.dict",
-#                         "img": "s3://pipeline-prod-cache-503977275616-ap-southeast-2/byob-icav2/reference-data/genomes/GRCh38_umccr/bwa_index_image/0.7.17-r1188/GRCh38_full_analysis_set_plus_decoy_hla.fa.img",
-#                         "bwamem2_index": "s3://pipeline-prod-cache-503977275616-ap-southeast-2/byob-icav2/reference-data/genomes/GRCh38_umccr/bwa-mem2_index/2.2.1/",
-#                         "gridss_index": "s3://pipeline-prod-cache-503977275616-ap-southeast-2/byob-icav2/reference-data/genomes/GRCh38_umccr/gridss_index/2.13.2/",
-#                         "star_index": "s3://pipeline-prod-cache-503977275616-ap-southeast-2/byob-icav2/reference-data/genomes/GRCh38_umccr/star_index/gencode_38/2.7.3a/"
-#                       }
+#                         "GRCh38_umccr": {
+#                             "fasta": "s3://reference-data-503977275616-ap-southeast-2/refdata/genomes/GRCh38_umccr/GRCh38_full_analysis_set_plus_decoy_hla.fa",
+#                             "fai": "s3://reference-data-503977275616-ap-southeast-2/refdata/genomes/GRCh38_umccr/samtools_index/1.16/GRCh38_full_analysis_set_plus_decoy_hla.fa.fai",
+#                             "dict": "s3://reference-data-503977275616-ap-southeast-2/refdata/genomes/GRCh38_umccr/samtools_index/1.16/GRCh38_full_analysis_set_plus_decoy_hla.fa.dict",
+#                             "img": "s3://reference-data-503977275616-ap-southeast-2/refdata/genomes/GRCh38_umccr/bwa_index_image/0.7.17-r1188/GRCh38_full_analysis_set_plus_decoy_hla.fa.img",
+#                             "bwamem2Index": "s3://reference-data-503977275616-ap-southeast-2/refdata/genomes/GRCh38_umccr/bwa-mem2_index/2.2.1/",
+#                             "gridssIndex": "s3://reference-data-503977275616-ap-southeast-2/refdata/genomes/GRCh38_umccr/gridss_index/2.13.2/",
+#                             "starIndex": "s3://reference-data-503977275616-ap-southeast-2/refdata/genomes/GRCh38_umccr/star_index/gencode_38/2.7.3a/"
+#                         }
 #                     }
-#                   },
+#                 },
 #                 "engineParameters": {
-#                     "logsUri": "s3://pipeline-dev-cache-503977275616-ap-southeast-2/byob-icav2/development/logs/oncoanalyser-wgts-rna/202508093e7596dc/",
-#                     "cacheUri": "s3://pipeline-dev-cache-503977275616-ap-southeast-2/byob-icav2/development/cache/oncoanalyser-wgts-rna/202508093e7596dc/",
-#                     "outputUri": "s3://pipeline-dev-cache-503977275616-ap-southeast-2/byob-icav2/development/analysis/oncoanalyser-wgts-rna/202508093e7596dc/",
+#                     "pipelineId": "ab6e1d62-1b5a-4b24-86b8-81ccf4bdc7a2",
 #                     "projectId": "ea19a3f5-ec7c-4940-a474-c31cd91dbad4",
-#                     "pipelineId": "ab6e1d62-1b5a-4b24-86b8-81ccf4bdc7a2"
+#                     "outputUri": "s3://pipeline-dev-cache-503977275616-ap-southeast-2/byob-icav2/development/analysis/oncoanalyser-wgts-rna/202508285cd658ee/",
+#                     "logsUri": "s3://pipeline-dev-cache-503977275616-ap-southeast-2/byob-icav2/development/logs/oncoanalyser-wgts-rna/202508285cd658ee/",
+#                     "cacheUri": "s3://pipeline-dev-cache-503977275616-ap-southeast-2/byob-icav2/development/cache/oncoanalyser-wgts-rna/202508285cd658ee/",
+#                     "analysisStorageSize": None
+#                 },
+#                 "tags": {
+#                     "libraryId": "L2500568",
+#                     "subjectId": "HCC1395",
+#                     "individualId": "SBJ00480",
+#                     "fastqRgidList": [
+#                         "GGACTTGG+CGTCTGCG.2.241024_A00130_0336_BHW7MVDSXC"
+#                     ],
+#                     "portalRunId": "202508285cd658ee"
+#                 },
+#                 "technicalTags": {
+#                     "icav2_wes_orcabus_id": "iwa.01K3QJ0RG3WME99X2DANM1VJVG",
+#                     "launch_step_functions_execution_id": "arn:aws:states:ap-southeast-2:843407916570:stateMachine:icav2-wes-launchIcav2Analysis"
 #                 }
 #             },
 #             None

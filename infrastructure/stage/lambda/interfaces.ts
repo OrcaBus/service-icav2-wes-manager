@@ -1,6 +1,7 @@
 import { PythonFunction } from '@aws-cdk/aws-lambda-python-alpha';
+import { IBucket } from 'aws-cdk-lib/aws-s3';
 
-export type LambdaNameList =
+export type LambdaName =
   | 'abortAnalysis'
   | 'deleteIcav2Dir'
   | 'generateWesPostRequestFromEvent'
@@ -11,7 +12,7 @@ export type LambdaNameList =
 
 /* Lambda names array */
 /* Bit of double handling, BUT types are not parsed to JS */
-export const lambdaNameList: Array<LambdaNameList> = [
+export const lambdaNameList: Array<LambdaName> = [
   'abortAnalysis',
   'deleteIcav2Dir',
   'generateWesPostRequestFromEvent',
@@ -25,9 +26,12 @@ export const lambdaNameList: Array<LambdaNameList> = [
 export interface LambdaRequirementProps {
   needsIcav2ToolkitLayer?: boolean;
   needsOrcabusTookitLayer?: boolean;
+  needsTestDataBucketPermissions?: boolean;
+  needsReferenceDataBucketPermissions?: boolean;
+  needsPayloadsBucketPermissions?: boolean;
 }
 
-export type LambdaToRequirementsMapType = { [key in LambdaNameList]: LambdaRequirementProps };
+export type LambdaToRequirementsMapType = { [key in LambdaName]: LambdaRequirementProps };
 
 export const lambdaToRequirementsMap: LambdaToRequirementsMapType = {
   abortAnalysis: {
@@ -48,6 +52,9 @@ export const lambdaToRequirementsMap: LambdaToRequirementsMapType = {
   launchIcav2AnalysisViaWrapica: {
     needsIcav2ToolkitLayer: true,
     needsOrcabusTookitLayer: true,
+    needsTestDataBucketPermissions: true,
+    needsReferenceDataBucketPermissions: true,
+    needsPayloadsBucketPermissions: true,
   },
   updateStatusOnWesApi: {
     needsOrcabusTookitLayer: true,
@@ -55,9 +62,16 @@ export const lambdaToRequirementsMap: LambdaToRequirementsMapType = {
 };
 
 export interface BuildLambdaProps {
-  lambdaName: LambdaNameList;
+  lambdaName: LambdaName;
+  testDataBucket: IBucket;
+  referenceDataBucket: IBucket;
+  payloadsBucket: IBucket;
+  payloadsKeyPrefix: string;
 }
 
-export interface LambdaObject extends BuildLambdaProps {
+export type BuildAllLambdasProps = Omit<BuildLambdaProps, 'lambdaName'>;
+
+export interface LambdaObject {
+  lambdaName: LambdaName;
   lambdaFunction: PythonFunction;
 }

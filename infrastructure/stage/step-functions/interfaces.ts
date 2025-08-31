@@ -1,6 +1,6 @@
 import { IEventBus } from 'aws-cdk-lib/aws-events';
 import { StateMachine } from 'aws-cdk-lib/aws-stepfunctions';
-import { LambdaNameList, LambdaObject } from '../lambda/interfaces';
+import { LambdaName, LambdaObject } from '../lambda/interfaces';
 import { ITableV2 } from 'aws-cdk-lib/aws-dynamodb';
 
 export type SfnNameList =
@@ -35,7 +35,7 @@ export interface SfnObjectProps extends SfnProps {
   stateMachineObj: StateMachine;
 }
 
-export const stepFunctionToLambdaMap: { [key in SfnNameList]: Array<LambdaNameList> } = {
+export const stepFunctionToLambdaMap: { [key in SfnNameList]: Array<LambdaName> } = {
   abortIcav2Analysis: ['abortAnalysis'],
   handleIcav2AnalysisStateChange: [
     'deleteIcav2Dir',

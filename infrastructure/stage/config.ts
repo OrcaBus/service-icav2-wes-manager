@@ -12,7 +12,9 @@ import {
   ICAV2_WES_EVENT_STATE_CHANGE_EVENT_DETAIL_TYPE_EXTERNAL,
   ICAV2_WES_MANAGER_TAG_KEY,
   INTERNAL_EVENT_BUS_DESCRIPTION,
+  PAYLOADS_KEY_PREFIX,
   PAYLOADS_TABLE_NAME,
+  S3_ARTEFACTS_BUCKET_NAME,
   SLACK_TOPIC_NAME,
   TABLE_INDEX_NAMES,
   TABLE_NAME,
@@ -20,8 +22,12 @@ import {
 import { ICAV2_ACCESS_TOKEN_SECRET_ID } from '@orcabus/platform-cdk-constructs/shared-config/icav2';
 import { HOSTED_ZONE_DOMAIN_PARAMETER_NAME } from '@orcabus/platform-cdk-constructs/api-gateway';
 import { StageName } from '@orcabus/platform-cdk-constructs/shared-config/accounts';
+import {
+  REFERENCE_DATA_BUCKET,
+  TEST_DATA_BUCKET,
+} from '@orcabus/platform-cdk-constructs/shared-config/s3';
 
-export const getStatefulStackProps = (): StatefulApplicationStackConfig => {
+export const getStatefulStackProps = (stage: StageName): StatefulApplicationStackConfig => {
   return {
     // Table stuff
     tableName: TABLE_NAME,
@@ -29,6 +35,9 @@ export const getStatefulStackProps = (): StatefulApplicationStackConfig => {
 
     // Extra table stuff
     payloadsTableName: PAYLOADS_TABLE_NAME,
+
+    // Extra buckets stuff
+    payloadsBucketName: S3_ARTEFACTS_BUCKET_NAME[stage],
 
     // Internal Event stuff
     internalEventBusName: EVENT_BUS_NAME_INTERNAL,
@@ -65,11 +74,19 @@ export const getStatelessStackProps = (stage: StageName): StatelessApplicationSt
     // Extra table stuff
     payloadsTableName: PAYLOADS_TABLE_NAME,
 
+    // Extra bucket stuff
+    payloadsBucketName: S3_ARTEFACTS_BUCKET_NAME[stage],
+    payloadsKeyPrefix: PAYLOADS_KEY_PREFIX,
+
     // Hostname ssm parameter
     hostedZoneSsmParameterName: HOSTED_ZONE_DOMAIN_PARAMETER_NAME,
 
     // ICAV2 access token secret
     icav2AccessTokenSecretId: ICAV2_ACCESS_TOKEN_SECRET_ID[stage],
+
+    // External bucket stuff
+    referenceDataBucketName: REFERENCE_DATA_BUCKET,
+    testDataBucketName: TEST_DATA_BUCKET,
 
     // API Gateway stuff
     apiGatewayCognitoProps: {
