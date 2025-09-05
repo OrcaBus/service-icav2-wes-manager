@@ -17,6 +17,7 @@ from datetime import datetime, timezone
 from os import environ
 from urllib.parse import urlunparse
 import gzip
+from time import sleep
 import logging
 
 # Wrapica imports
@@ -183,6 +184,9 @@ def handler(event, context):
             reference_tags=[]
         )
     )
+
+    # Wait a few seconds for the samplesheet to be available in ICAv2
+    sleep(5)
 
     # Generate the inputs and analysis object
     # Call the object to launch it
