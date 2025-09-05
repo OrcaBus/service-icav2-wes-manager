@@ -18,6 +18,7 @@ from os import environ
 from urllib.parse import urlunparse
 import gzip
 from time import sleep
+import logging
 
 # Wrapica imports
 from wrapica.literals import AnalysisStorageSizeType
@@ -29,9 +30,15 @@ from wrapica.project_pipelines import (
 # Layer imports
 from icav2_tools import set_icav2_env_vars
 
+# Type hints
 if typing.TYPE_CHECKING:
     from mypy_boto3_s3 import S3Client
 
+# Set up logging
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
+# Globals
 # WES Storage sizes constants
 WesAnalysisStorageSizeType = Literal[
     'SMALL', 'MEDIUM', 'LARGE',
@@ -116,12 +123,15 @@ def handler(event, context):
     ica_logs_uri = engine_parameters['logsUri']
 
     # Get the pipeline object (to get the workflow language type)
+    logger.info("Getting the pipeline object")
     pipeline_obj = get_pipeline_obj_from_pipeline_id(pipeline_id)
 
     # Get the analysis storage size from the event
+    logger.info("Getting the analysis storage size")
     wes_analysis_storage_size: Optional[WesAnalysisStorageSizeType] = engine_parameters.get("analysisStorageSize", None)
     if wes_analysis_storage_size is not None:
-        analysis_storage_size: AnalysisStorageSizeType = map_wes_analysis_storage_size_to_icav2(wes_analysis_storage_size)
+        analysis_storage_size: AnalysisStorageSizeType = map_wes_analysis_storage_size_to_icav2(
+            wes_analysis_storage_size)
     else:
         # Get the default analysis storage size from the pipeline object
         analysis_storage_size = cast(AnalysisStorageSizeType, pipeline_obj.analysis_storage.name)
@@ -130,6 +140,7 @@ def handler(event, context):
     workflow_type = pipeline_obj.language
 
     # Imports based on workflow type
+    logger.info("Generating the ICAv2 Analysis Input Object")
     if workflow_type.lower() == 'cwl':
         from wrapica.project_pipelines import (
             ICAv2CwlAnalysisJsonInput as ICAv2AnalysisInput,
@@ -158,6 +169,7 @@ def handler(event, context):
         raise ValueError(f"workflow_type should be one of 'nextflow' or 'cwl' got {workflow_type} instead")
 
     # Initialise an ICAv2CWLPipeline Analysis object
+    logger.info("Generating the analysis object")
     analysis_obj = ICAv2PipelineAnalysis(
         user_reference=name,
         project_id=project_id,
@@ -178,18 +190,20 @@ def handler(event, context):
 
     # Generate the inputs and analysis object
     # Call the object to launch it
+    logger.info("Launching the analysis object")
     analysis_launch_obj: Analysis = analysis_obj(
         idempotency_key=id_
     )
 
     # Get the current date and upload path
+    logger.info("Uploading the analysis launch object to S3")
     now = datetime.now(timezone.utc)
     upload_path = str(
-            Path(environ['S3_ANALYSIS_PAYLOAD_KEY_PREFIX']) /
-            f"year={now.year}" /
-            f"month={now.month:02d}" /
-            f"day={now.day:02d}" /
-            f"{analysis_launch_obj.id}.json.gz"
+        Path(environ['S3_ANALYSIS_PAYLOAD_KEY_PREFIX']) /
+        f"year={now.year}" /
+        f"month={now.month:02d}" /
+        f"day={now.day:02d}" /
+        f"{analysis_launch_obj.id}.json.gz"
     )
 
     # Save the analysis object to a temporary file
@@ -224,6 +238,8 @@ def handler(event, context):
         str(upload_path),
         None, None, None
     )))
+
+    logger.info("Finished launching the analysis")
 
     return jsonable_encoder({
         "analysisId": analysis_launch_obj.id,
