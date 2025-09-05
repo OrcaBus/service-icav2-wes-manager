@@ -235,7 +235,7 @@ def handler(event, context):
         None, None, None
     )))
 
-    logger.info("Finsihed launching the analysis")
+    logger.info("Finished launching the analysis")
 
     return jsonable_encoder({
         "analysisId": analysis_launch_obj.id,
