@@ -194,7 +194,7 @@
           "ErrorEquals": ["Sfn.TaskTimedOutException"],
           "BackoffRate": 2,
           "IntervalSeconds": 1,
-          "MaxAttempts": 10
+          "MaxAttempts": 2
         }
       ]
     },
