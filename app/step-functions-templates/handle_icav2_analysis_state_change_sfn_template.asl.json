@@ -187,7 +187,16 @@
         ]
       },
       "Next": "Delete Src Logs Dir",
-      "Output": "{% $states.input %}"
+      "Output": "{% $states.input %}",
+      "HeartbeatSeconds": 3600,
+      "Retry": [
+        {
+          "ErrorEquals": ["Sfn.TaskTimedOutException"],
+          "BackoffRate": 2,
+          "IntervalSeconds": 1,
+          "MaxAttempts": 10
+        }
+      ]
     },
     "Delete Src Logs Dir": {
       "Type": "Task",
