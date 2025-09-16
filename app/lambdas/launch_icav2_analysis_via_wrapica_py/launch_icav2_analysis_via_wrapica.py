@@ -22,9 +22,9 @@ import logging
 
 # Wrapica imports
 from wrapica.literals import AnalysisStorageSizeType
-from wrapica.pipelines import get_pipeline_obj_from_pipeline_id
 from wrapica.project_pipelines import (
-    ICAv2PipelineAnalysisTags, Analysis
+    ICAv2PipelineAnalysisTags, Analysis,
+    get_project_pipeline_obj
 )
 
 # Layer imports
@@ -124,7 +124,10 @@ def handler(event, context):
 
     # Get the pipeline object (to get the workflow language type)
     logger.info("Getting the pipeline object")
-    pipeline_obj = get_pipeline_obj_from_pipeline_id(pipeline_id)
+    pipeline_obj = get_project_pipeline_obj(
+        project_id=project_id,
+        pipeline_id=pipeline_id
+    ).pipeline
 
     # Get the analysis storage size from the event
     logger.info("Getting the analysis storage size")
