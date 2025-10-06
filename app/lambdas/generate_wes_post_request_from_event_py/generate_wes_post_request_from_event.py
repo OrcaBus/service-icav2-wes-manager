@@ -11,7 +11,8 @@ import logging
 
 # Layer imports
 from orcabus_api_tools.icav2_wes import (
-    create_icav2_wes_analysis, WESPostRequest
+    create_icav2_wes_analysis,
+    WESPostRequest
 )
 
 

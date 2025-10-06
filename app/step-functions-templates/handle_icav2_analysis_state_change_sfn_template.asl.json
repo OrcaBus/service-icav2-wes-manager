@@ -20,18 +20,431 @@
           "Comment": "Is relevant status"
         }
       ],
-      "Default": "Placeholder"
+      "Default": "Placeholder (non-status)"
     },
     "Is Terminal Status": {
       "Type": "Choice",
       "Choices": [
         {
-          "Next": "Get Log Directories",
+          "Next": "Handle logs",
           "Condition": "{% $status in [\n    \"SUCCEEDED\",\n    \"FAILED\",\n    \"FAILED_FINAL\",\n    \"ABORTED\"\n] %}",
           "Comment": "Is terminal status"
         }
       ],
       "Default": "Update WES API"
+    },
+    "Handle logs": {
+      "Type": "Parallel",
+      "Next": "Handle nextflow output files",
+      "Branches": [
+        {
+          "StartAt": "Get Log Directories",
+          "States": {
+            "Get Log Directories": {
+              "Type": "Parallel",
+              "Branches": [
+                {
+                  "StartAt": "Get Project ID from ICAv2 Wes Object",
+                  "States": {
+                    "Get Project ID from ICAv2 Wes Object": {
+                      "Type": "Task",
+                      "Resource": "arn:aws:states:::lambda:invoke",
+                      "Output": "{% $states.result.Payload %}",
+                      "Arguments": {
+                        "FunctionName": "${__get_icav2_wes_object_lambda_function_arn__}",
+                        "Payload": {
+                          "name": "{% $name %}"
+                        }
+                      },
+                      "Retry": [
+                        {
+                          "ErrorEquals": [
+                            "Lambda.ServiceException",
+                            "Lambda.AWSLambdaException",
+                            "Lambda.SdkClientException",
+                            "Lambda.TooManyRequestsException"
+                          ],
+                          "IntervalSeconds": 1,
+                          "MaxAttempts": 3,
+                          "BackoffRate": 2,
+                          "JitterStrategy": "FULL"
+                        }
+                      ],
+                      "Next": "Get Src Logs Dir",
+                      "Assign": {
+                        "projectId": "{% $states.result.Payload.icav2WesObject.engineParameters.projectId %}"
+                      }
+                    },
+                    "Get Src Logs Dir": {
+                      "Type": "Task",
+                      "Resource": "arn:aws:states:::lambda:invoke",
+                      "Arguments": {
+                        "FunctionName": "${__get_logs_dir_lambda_function_arn__}",
+                        "Payload": {
+                          "projectId": "{% $projectId %}",
+                          "analysisId": "{% $icav2AnalysisId %}"
+                        }
+                      },
+                      "Retry": [
+                        {
+                          "ErrorEquals": [
+                            "Lambda.ServiceException",
+                            "Lambda.AWSLambdaException",
+                            "Lambda.SdkClientException",
+                            "Lambda.TooManyRequestsException"
+                          ],
+                          "IntervalSeconds": 1,
+                          "MaxAttempts": 3,
+                          "BackoffRate": 2,
+                          "JitterStrategy": "FULL"
+                        }
+                      ],
+                      "Output": {
+                        "icaLogsDirUriSrc": "{% $states.result.Payload.icaLogsDirUri %}"
+                      },
+                      "End": true
+                    }
+                  }
+                },
+                {
+                  "StartAt": "Get Dest Logs Dir",
+                  "States": {
+                    "Get Dest Logs Dir": {
+                      "Type": "Task",
+                      "Resource": "arn:aws:states:::lambda:invoke",
+                      "Arguments": {
+                        "FunctionName": "${__get_icav2_wes_object_lambda_function_arn__}",
+                        "Payload": {
+                          "name": "{% $name %}"
+                        }
+                      },
+                      "Retry": [
+                        {
+                          "ErrorEquals": [
+                            "Lambda.ServiceException",
+                            "Lambda.AWSLambdaException",
+                            "Lambda.SdkClientException",
+                            "Lambda.TooManyRequestsException"
+                          ],
+                          "IntervalSeconds": 1,
+                          "MaxAttempts": 3,
+                          "BackoffRate": 2,
+                          "JitterStrategy": "FULL"
+                        }
+                      ],
+                      "End": true,
+                      "Output": {
+                        "icaLogsDirUriDest": "{% $states.result.Payload.icav2WesObject.engineParameters.logsUri %}"
+                      }
+                    }
+                  }
+                }
+              ],
+              "Output": {
+                "icaLogsDirUriSrc": "{% $states.result[0].icaLogsDirUriSrc %}",
+                "icaLogsDirUriDest": "{% $states.result[1].icaLogsDirUriDest %}"
+              },
+              "Next": "Move logs dir",
+              "Catch": [
+                {
+                  "ErrorEquals": ["States.TaskFailed"],
+                  "Next": "Logs Not Found, continue"
+                }
+              ]
+            },
+            "Logs Not Found, continue": {
+              "Type": "Pass",
+              "End": true
+            },
+            "Move logs dir": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::events:putEvents.waitForTaskToken",
+              "Arguments": {
+                "Entries": [
+                  {
+                    "DetailType": "${__icav2_data_copy_sync_detail_type__}",
+                    "EventBusName": "${__external_event_bus_name__}",
+                    "Source": "${__stack_source__}",
+                    "Detail": {
+                      "payload": {
+                        "sourceUriList": ["{% $states.input.icaLogsDirUriSrc %}"],
+                        "destinationUri": "{% $states.input.icaLogsDirUriDest %}"
+                      },
+                      "taskToken": "{% $states.context.Task.Token %}"
+                    }
+                  }
+                ]
+              },
+              "Output": "{% $states.input %}",
+              "HeartbeatSeconds": 3600,
+              "Retry": [
+                {
+                  "ErrorEquals": ["Sfn.TaskTimedOutException", "States.HeartbeatTimeout"],
+                  "BackoffRate": 2,
+                  "IntervalSeconds": 1,
+                  "MaxAttempts": 2
+                }
+              ],
+              "Next": "Delete Src Logs Dir",
+              "TimeoutSeconds": 3600
+            },
+            "Delete Src Logs Dir": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Arguments": {
+                "FunctionName": "${__delete_icav2_dir_lambda_function_arn__}",
+                "Payload": {
+                  "directoryUri": "{% $states.input.icaLogsDirUriSrc %}"
+                }
+              },
+              "Retry": [
+                {
+                  "ErrorEquals": [
+                    "Lambda.ServiceException",
+                    "Lambda.AWSLambdaException",
+                    "Lambda.SdkClientException",
+                    "Lambda.TooManyRequestsException"
+                  ],
+                  "IntervalSeconds": 1,
+                  "MaxAttempts": 3,
+                  "BackoffRate": 2,
+                  "JitterStrategy": "FULL"
+                }
+              ],
+              "Output": {},
+              "End": true
+            }
+          }
+        },
+        {
+          "StartAt": "Logs placeholder",
+          "States": {
+            "Logs placeholder": {
+              "Type": "Pass",
+              "End": true
+            }
+          }
+        }
+      ],
+      "Output": {},
+      "Catch": [
+        {
+          "ErrorEquals": ["States.BranchFailed"],
+          "Next": "Handle nextflow output files"
+        }
+      ]
+    },
+    "Handle nextflow output files": {
+      "Type": "Parallel",
+      "Next": "Handle filemanager",
+      "Branches": [
+        {
+          "StartAt": "Get ICAv2 analysis object from name",
+          "States": {
+            "Get ICAv2 analysis object from name": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Output": {
+                "icav2AnalysisObject": "{% $states.result.Payload.icav2AnalysisObject %}"
+              },
+              "Arguments": {
+                "FunctionName": "${__get_icav2_analysis_object_lambda_function_arn__}",
+                "Payload": {
+                  "name": "{% $name %}"
+                }
+              },
+              "Retry": [
+                {
+                  "ErrorEquals": [
+                    "Lambda.ServiceException",
+                    "Lambda.AWSLambdaException",
+                    "Lambda.SdkClientException",
+                    "Lambda.TooManyRequestsException"
+                  ],
+                  "IntervalSeconds": 1,
+                  "MaxAttempts": 3,
+                  "BackoffRate": 2,
+                  "JitterStrategy": "FULL"
+                }
+              ],
+              "Next": "Is Nextflow workflow"
+            },
+            "Is Nextflow workflow": {
+              "Type": "Choice",
+              "Choices": [
+                {
+                  "Next": "Get Directories (nf)",
+                  "Condition": "{% $states.input.icav2AnalysisObject.pipeline.language = 'NEXTFLOW' %}"
+                }
+              ],
+              "Default": "Nextflow (placeholder 2)"
+            },
+            "Nextflow (placeholder 2)": {
+              "Type": "Pass",
+              "End": true
+            },
+            "Get Directories (nf)": {
+              "Type": "Parallel",
+              "Branches": [
+                {
+                  "StartAt": "Get logs dir",
+                  "States": {
+                    "Get logs dir": {
+                      "Type": "Task",
+                      "Resource": "arn:aws:states:::lambda:invoke",
+                      "Output": {
+                        "logsUri": "{% $states.result.Payload.icav2WesObject.engineParameters.logsUri %}"
+                      },
+                      "Arguments": {
+                        "FunctionName": "${__get_icav2_wes_object_lambda_function_arn__}",
+                        "Payload": {
+                          "name": "{% $name %}"
+                        }
+                      },
+                      "Retry": [
+                        {
+                          "ErrorEquals": [
+                            "Lambda.ServiceException",
+                            "Lambda.AWSLambdaException",
+                            "Lambda.SdkClientException",
+                            "Lambda.TooManyRequestsException"
+                          ],
+                          "IntervalSeconds": 1,
+                          "MaxAttempts": 3,
+                          "BackoffRate": 2,
+                          "JitterStrategy": "FULL"
+                        }
+                      ],
+                      "Next": "Generate files to copy list"
+                    },
+                    "Generate files to copy list": {
+                      "Type": "Task",
+                      "Resource": "arn:aws:states:::lambda:invoke",
+                      "Output": {
+                        "filesUriList": "{% $states.result.Payload.filesUriList %}"
+                      },
+                      "Arguments": {
+                        "FunctionName": "${__get_nextflow_files_from_logs_uri_lambda_function_arn__}",
+                        "Payload": {
+                          "logsUri": "{% $states.input.logsUri %}"
+                        }
+                      },
+                      "Retry": [
+                        {
+                          "ErrorEquals": [
+                            "Lambda.ServiceException",
+                            "Lambda.AWSLambdaException",
+                            "Lambda.SdkClientException",
+                            "Lambda.TooManyRequestsException"
+                          ],
+                          "IntervalSeconds": 1,
+                          "MaxAttempts": 3,
+                          "BackoffRate": 2,
+                          "JitterStrategy": "FULL"
+                        }
+                      ],
+                      "End": true
+                    }
+                  }
+                },
+                {
+                  "StartAt": "Get output dir (dest)",
+                  "States": {
+                    "Get output dir (dest)": {
+                      "Type": "Task",
+                      "Resource": "arn:aws:states:::lambda:invoke",
+                      "Output": {
+                        "outputPipelineInfoUri": "{% $states.result.Payload.icav2WesObject.engineParameters.outputUri & 'pipeline_info/'  %}"
+                      },
+                      "Arguments": {
+                        "FunctionName": "${__get_icav2_wes_object_lambda_function_arn__}",
+                        "Payload": {
+                          "name": "{% $name %}"
+                        }
+                      },
+                      "Retry": [
+                        {
+                          "ErrorEquals": [
+                            "Lambda.ServiceException",
+                            "Lambda.AWSLambdaException",
+                            "Lambda.SdkClientException",
+                            "Lambda.TooManyRequestsException"
+                          ],
+                          "IntervalSeconds": 1,
+                          "MaxAttempts": 3,
+                          "BackoffRate": 2,
+                          "JitterStrategy": "FULL"
+                        }
+                      ],
+                      "End": true
+                    }
+                  }
+                }
+              ],
+              "Next": "Copy pipeline info files",
+              "Output": "{% $states.result ~> $merge %}",
+              "Catch": [
+                {
+                  "ErrorEquals": ["States.BranchFailed"],
+                  "Next": "Pipeline Info files not found (nf)"
+                }
+              ]
+            },
+            "Pipeline Info files not found (nf)": {
+              "Type": "Pass",
+              "End": true
+            },
+            "Copy pipeline info files": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::events:putEvents.waitForTaskToken",
+              "Arguments": {
+                "Entries": [
+                  {
+                    "DetailType": "${__icav2_data_copy_sync_detail_type__}",
+                    "EventBusName": "${__external_event_bus_name__}",
+                    "Source": "${__stack_source__}",
+                    "Detail": {
+                      "payload": {
+                        "sourceUriList": "{% [ $states.input.filesUriList ] %}",
+                        "destinationUri": "{% $states.input.outputPipelineInfoUri %}"
+                      },
+                      "taskToken": "{% $states.context.Task.Token %}"
+                    }
+                  }
+                ]
+              },
+              "Output": "{% $states.input %}",
+              "HeartbeatSeconds": 3600,
+              "Retry": [
+                {
+                  "ErrorEquals": ["Sfn.TaskTimedOutException", "States.HeartbeatTimeout"],
+                  "BackoffRate": 2,
+                  "IntervalSeconds": 1,
+                  "MaxAttempts": 2
+                }
+              ],
+              "End": true,
+              "TimeoutSeconds": 3600
+            }
+          }
+        },
+        {
+          "StartAt": "Nextflow (placeholder)",
+          "States": {
+            "Nextflow (placeholder)": {
+              "Type": "Pass",
+              "End": true
+            }
+          }
+        }
+      ],
+      "Output": {},
+      "Catch": [
+        {
+          "ErrorEquals": ["States.BranchFailed"],
+          "Next": "Handle filemanager"
+        }
+      ]
     },
     "Update WES API": {
       "Type": "Task",
@@ -61,21 +474,58 @@
       "End": true,
       "Output": {}
     },
-    "Get Log Directories": {
+    "Handle filemanager": {
       "Type": "Parallel",
-      "Next": "Move logs dir",
+      "Next": "Update WES API",
       "Branches": [
         {
-          "StartAt": "Get Project ID from ICAv2 Wes Object",
+          "StartAt": "Set vars",
           "States": {
-            "Get Project ID from ICAv2 Wes Object": {
+            "Set vars": {
+              "Type": "Pass",
+              "Next": "Get output dir and portal run id",
+              "Assign": {
+                "fmWaitCount": 0
+              }
+            },
+            "Get output dir and portal run id": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Arguments": {
+                "FunctionName": "${__get_icav2_wes_object_lambda_function_arn__}",
+                "Payload": {
+                  "name": "{% $name %}"
+                }
+              },
+              "Retry": [
+                {
+                  "ErrorEquals": [
+                    "Lambda.ServiceException",
+                    "Lambda.AWSLambdaException",
+                    "Lambda.SdkClientException",
+                    "Lambda.TooManyRequestsException"
+                  ],
+                  "IntervalSeconds": 1,
+                  "MaxAttempts": 3,
+                  "BackoffRate": 2,
+                  "JitterStrategy": "FULL"
+                }
+              ],
+              "Next": "Update filemanager attributes",
+              "Assign": {
+                "outputUri": "{% $states.result.Payload.icav2WesObject.engineParameters.outputUri %}",
+                "portalRunId": "{% $states.result.Payload.icav2WesObject.tags.portalRunId %}"
+              }
+            },
+            "Update filemanager attributes": {
               "Type": "Task",
               "Resource": "arn:aws:states:::lambda:invoke",
               "Output": "{% $states.result.Payload %}",
               "Arguments": {
-                "FunctionName": "${__get_icav2_wes_object_lambda_function_arn__}",
+                "FunctionName": "${__add_portal_run_id_attributes_lambda_function_arn__}",
                 "Payload": {
-                  "name": "{% $name %}"
+                  "outputUri": "{% $outputUri %}",
+                  "portalRunId": "{% $portalRunId %}"
                 }
               },
               "Retry": [
@@ -92,19 +542,16 @@
                   "JitterStrategy": "FULL"
                 }
               ],
-              "Next": "Get Src Logs Dir",
-              "Assign": {
-                "projectId": "{% $states.result.Payload.icav2WesObject.engineParameters.projectId %}"
-              }
+              "Next": "Filemanager sync"
             },
-            "Get Src Logs Dir": {
+            "Filemanager sync": {
               "Type": "Task",
               "Resource": "arn:aws:states:::lambda:invoke",
               "Arguments": {
-                "FunctionName": "${__get_logs_dir_lambda_function_arn__}",
+                "FunctionName": "${__filemanager_sync_lambda_function_arn__}",
                 "Payload": {
-                  "projectId": "{% $projectId %}",
-                  "analysisId": "{% $icav2AnalysisId %}"
+                  "outputUri": "{% $outputUri %}",
+                  "portalRunId": "{% $portalRunId %}"
                 }
               },
               "Retry": [
@@ -122,115 +569,65 @@
                 }
               ],
               "Output": {
-                "icaLogsDirUriSrc": "{% $states.result.Payload.icaLogsDirUri %}"
+                "isSynced": "{% $states.result.Payload.isSynced %}"
               },
+              "Next": "Filemanager is synced"
+            },
+            "Filemanager is synced": {
+              "Type": "Choice",
+              "Choices": [
+                {
+                  "Next": "Filemanager synced",
+                  "Condition": "{% $states.input.isSynced %}"
+                }
+              ],
+              "Default": "Waited more than one hour"
+            },
+            "Filemanager synced": {
+              "Type": "Pass",
               "End": true
+            },
+            "Waited more than one hour": {
+              "Type": "Choice",
+              "Choices": [
+                {
+                  "Next": "Could not sync file manager",
+                  "Condition": "{% $fmWaitCount > 12 %}"
+                }
+              ],
+              "Default": "Wait for filemanager to sync"
+            },
+            "Wait for filemanager to sync": {
+              "Type": "Wait",
+              "Seconds": 300,
+              "Assign": {
+                "fmWaitCount": "{% $fmWaitCount + 1 %}"
+              },
+              "Next": "Filemanager sync"
+            },
+            "Could not sync file manager": {
+              "Type": "Fail"
             }
           }
         },
         {
-          "StartAt": "Get Dest Logs Dir",
+          "StartAt": "Placeholder (fm)",
           "States": {
-            "Get Dest Logs Dir": {
-              "Type": "Task",
-              "Resource": "arn:aws:states:::lambda:invoke",
-              "Arguments": {
-                "FunctionName": "${__get_icav2_wes_object_lambda_function_arn__}",
-                "Payload": {
-                  "name": "{% $name %}"
-                }
-              },
-              "Retry": [
-                {
-                  "ErrorEquals": [
-                    "Lambda.ServiceException",
-                    "Lambda.AWSLambdaException",
-                    "Lambda.SdkClientException",
-                    "Lambda.TooManyRequestsException"
-                  ],
-                  "IntervalSeconds": 1,
-                  "MaxAttempts": 3,
-                  "BackoffRate": 2,
-                  "JitterStrategy": "FULL"
-                }
-              ],
-              "End": true,
-              "Output": {
-                "icaLogsDirUriDest": "{% $states.result.Payload.icav2WesObject.engineParameters.logsUri %}"
-              }
+            "Placeholder (fm)": {
+              "Type": "Pass",
+              "End": true
             }
           }
         }
       ],
-      "Output": {
-        "icaLogsDirUriSrc": "{% $states.result[0].icaLogsDirUriSrc %}",
-        "icaLogsDirUriDest": "{% $states.result[1].icaLogsDirUriDest %}"
-      }
-    },
-    "Move logs dir": {
-      "Type": "Task",
-      "Resource": "arn:aws:states:::events:putEvents.waitForTaskToken",
-      "Arguments": {
-        "Entries": [
-          {
-            "DetailType": "${__icav2_data_copy_sync_detail_type__}",
-            "EventBusName": "${__external_event_bus_name__}",
-            "Source": "${__stack_source__}",
-            "Detail": {
-              "payload": {
-                "sourceUriList": ["{% $states.input.icaLogsDirUriSrc %}"],
-                "destinationUri": "{% $states.input.icaLogsDirUriDest %}"
-              },
-              "taskToken": "{% $states.context.Task.Token %}"
-            }
-          }
-        ]
-      },
-      "Next": "Delete Src Logs Dir",
-      "Output": "{% $states.input %}",
-      "HeartbeatSeconds": 3600,
-      "Retry": [
-        {
-          "ErrorEquals": ["Sfn.TaskTimedOutException"],
-          "BackoffRate": 2,
-          "IntervalSeconds": 1,
-          "MaxAttempts": 2
-        }
-      ]
-    },
-    "Delete Src Logs Dir": {
-      "Type": "Task",
-      "Resource": "arn:aws:states:::lambda:invoke",
-      "Arguments": {
-        "FunctionName": "${__delete_icav2_dir_lambda_function_arn__}",
-        "Payload": {
-          "directoryUri": "{% $states.input.icaLogsDirUriSrc %}"
-        }
-      },
-      "Retry": [
-        {
-          "ErrorEquals": [
-            "Lambda.ServiceException",
-            "Lambda.AWSLambdaException",
-            "Lambda.SdkClientException",
-            "Lambda.TooManyRequestsException"
-          ],
-          "IntervalSeconds": 1,
-          "MaxAttempts": 3,
-          "BackoffRate": 2,
-          "JitterStrategy": "FULL"
-        }
-      ],
-      "Next": "Update WES API",
-      "Output": {},
       "Catch": [
         {
-          "ErrorEquals": ["States.ALL"],
+          "ErrorEquals": ["States.BranchFailed"],
           "Next": "Update WES API"
         }
       ]
     },
-    "Placeholder": {
+    "Placeholder (non-status)": {
       "Type": "Pass",
       "End": true
     }
