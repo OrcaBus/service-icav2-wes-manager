@@ -102,7 +102,7 @@ def handler(event, context):
 
     # Check if the event has the required attributes
     if not all(key in event for key in ['name', 'inputs', 'engineParameters', 'tags']):
-        raise ValueError("Event must contain 'name', 'inputs', 'engineParameters', and 'tags' attributes")
+        raise ValueError("Event must contain 'name', 'inputs', 'engineParameters' and 'tags' attributes")
 
     # Extract the WES attributes from the event
     id_ = event['id']

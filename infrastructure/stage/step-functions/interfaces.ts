@@ -38,10 +38,14 @@ export interface SfnObjectProps extends SfnProps {
 export const stepFunctionToLambdaMap: { [key in SfnNameList]: Array<LambdaName> } = {
   abortIcav2Analysis: ['abortAnalysis'],
   handleIcav2AnalysisStateChange: [
+    'addPortalRunIdAttributes',
     'deleteIcav2Dir',
     'updateStatusOnWesApi',
     'getLogsDir',
     'getIcav2WesObject',
+    'getIcav2AnalysisObject',
+    'getNextflowFilesFromLogsUri',
+    'filemanagerSync',
   ],
   launchIcav2Analysis: ['launchIcav2AnalysisViaWrapica', 'updateStatusOnWesApi'],
 };
