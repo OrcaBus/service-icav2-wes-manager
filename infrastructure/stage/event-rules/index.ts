@@ -36,7 +36,9 @@ function buildIcav2AnalysisStateChangeEventPattern(
   };
 }
 
-function buildIcav2WesPostRequestTarget(props: Icav2WesPostRequestTargetRuleEventPatternProps) {
+function buildIcav2WesPostRequestEventPattern(
+  props: Icav2WesPostRequestTargetRuleEventPatternProps
+) {
   return {
     detailType: [props.icav2WesRequestDetailType],
   };
@@ -67,7 +69,7 @@ function buildIcav2WesPostRequestRule(
 ): Rule {
   return buildEventRule(scope, {
     ruleName: props.ruleName,
-    eventPattern: buildIcav2WesPostRequestTarget(props),
+    eventPattern: buildIcav2WesPostRequestEventPattern(props),
     eventBus: props.eventBus,
   });
 }
