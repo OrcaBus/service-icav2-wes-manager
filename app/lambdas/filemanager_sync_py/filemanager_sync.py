@@ -15,7 +15,7 @@ from wrapica.project_data import find_project_data_bulk, convert_uri_to_project_
 
 # Layer imports
 from icav2_tools import set_icav2_env_vars
-from orcabus_api_tools.filemanager import get_file_manager_request_response_results
+from orcabus_api_tools.filemanager import list_files_from_portal_run_id
 
 # Setup logging
 logger = logging.getLogger(__name__)
@@ -52,13 +52,7 @@ def handler(event, context):
             file_obj_iter_['key'].startswith(s3_key_prefix)
         ),
         # Get the files from the filemanager
-        get_file_manager_request_response_results(
-            endpoint="api/v1/s3/attributes",
-            params={
-                # Portal run id attributes
-                "portalRunId": portal_run_id,
-            }
-        )
+        list_files_from_portal_run_id(portal_run_id)
     ))
 
     # List files via icav2
