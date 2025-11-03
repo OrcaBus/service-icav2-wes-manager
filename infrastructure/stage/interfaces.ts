@@ -40,7 +40,6 @@ export interface StatelessApplicationStackConfig extends cdk.StackProps {
   externalEventBusName: string;
   icav2WesRequestDetailType: string;
   icav2WesAnalysisStateChangeDetailType: string;
-  icav2DataCopySyncDetailType: string;
   eventSource: string;
 
   /* External bucket stuff */

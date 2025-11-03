@@ -3,12 +3,12 @@ import { StateMachine } from 'aws-cdk-lib/aws-stepfunctions';
 import { LambdaName, LambdaObject } from '../lambda/interfaces';
 import { ITableV2 } from 'aws-cdk-lib/aws-dynamodb';
 
-export type SfnNameList =
+export type SfnName =
   | 'abortIcav2Analysis'
   | 'handleIcav2AnalysisStateChange'
   | 'launchIcav2Analysis';
 
-export const sfnNameList: Array<SfnNameList> = [
+export const sfnNameList: Array<SfnName> = [
   'abortIcav2Analysis',
   'handleIcav2AnalysisStateChange',
   'launchIcav2Analysis',
@@ -21,13 +21,12 @@ export interface BuildSfnsProps {
   /* The event bus to use */
   eventBus: IEventBus;
   eventSource: string;
-  icav2DataCopySyncDetail: string;
   payloadsTable: ITableV2;
 }
 
 export interface SfnProps extends BuildSfnsProps {
   /* Naming formation */
-  stateMachineName: SfnNameList;
+  stateMachineName: SfnName;
 }
 
 export interface SfnObjectProps extends SfnProps {
@@ -35,16 +34,14 @@ export interface SfnObjectProps extends SfnProps {
   stateMachineObj: StateMachine;
 }
 
-export const stepFunctionToLambdaMap: { [key in SfnNameList]: Array<LambdaName> } = {
+export const stepFunctionToLambdaMap: { [key in SfnName]: Array<LambdaName> } = {
   abortIcav2Analysis: ['abortAnalysis'],
   handleIcav2AnalysisStateChange: [
     'addPortalRunIdAttributes',
-    'deleteIcav2Dir',
     'updateStatusOnWesApi',
-    'getLogsDir',
     'getIcav2WesObject',
-    'getIcav2AnalysisObject',
-    'getNextflowFilesFromLogsUri',
+    'getPipelineType',
+    'copyNextflowFilesFromLogsUri',
     'filemanagerSync',
   ],
   launchIcav2Analysis: ['launchIcav2AnalysisViaWrapica', 'updateStatusOnWesApi'],
@@ -58,9 +55,10 @@ export interface SfnRequirementsProps {
   */
   needsExternalEventBusPutPermissions?: boolean;
   needsPayloadDbPermissions?: boolean;
+  isExpressSfn?: boolean;
 }
 
-export type SfnToRequirementsMapType = { [key in SfnNameList]: SfnRequirementsProps };
+export type SfnToRequirementsMapType = { [key in SfnName]: SfnRequirementsProps };
 
 export const sfnToRequirementsMap: SfnToRequirementsMapType = {
   abortIcav2Analysis: {
@@ -68,6 +66,7 @@ export const sfnToRequirementsMap: SfnToRequirementsMapType = {
   },
   handleIcav2AnalysisStateChange: {
     needsExternalEventBusPutPermissions: true,
+    isExpressSfn: true,
   },
   launchIcav2Analysis: {
     needsExternalEventBusPutPermissions: false,

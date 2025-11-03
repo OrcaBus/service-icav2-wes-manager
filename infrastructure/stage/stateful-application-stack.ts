@@ -22,7 +22,6 @@ import {
 } from './constants';
 import { createEventBridgePipe, getTopicArnFromTopicName } from './sqs';
 import { buildICAv2WesDb, buildPayloadsTable } from './dynamodb';
-import { buildICAv2WesEventBus } from './event-bus';
 import { createArtefactsBucket } from './s3';
 
 export type StatefulApplicationStackProps = StatefulApplicationStackConfig & cdk.StackProps;
@@ -32,16 +31,10 @@ export class StatefulApplicationStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: StatefulApplicationStackProps) {
     super(scope, id, props);
 
-    // Build the ICAv2 WES Event Bus
-    const internalEventBusObject = buildICAv2WesEventBus(this, {
-      eventBusName: props.internalEventBusName,
-      eventBusDescription: props.internalEventBusDescription,
-    });
-
     // Create the event pipe to join the ICA SQS queue to the event bus
     createEventBridgePipe(this, {
       icaEventPipeName: props.icav2EventPipeName,
-      eventBusObj: internalEventBusObject,
+      stepFunctionName: 'handleIcav2AnalysisStateChange',
       icaQueueName: DEFAULT_ICA_SQS_NAME,
       icaQueueVizTimeout: DEFAULT_ICA_QUEUE_VIZ_TIMEOUT,
       slackTopicArn: getTopicArnFromTopicName(props.slackTopicName),

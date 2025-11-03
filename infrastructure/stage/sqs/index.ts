@@ -11,7 +11,11 @@ import { MonitoredQueue } from 'sqs-dlq-monitoring';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as pipes from '@aws-cdk/aws-pipes-alpha';
 import { SqsSource } from '@aws-cdk/aws-pipes-sources-alpha';
-import { IEventBus } from 'aws-cdk-lib/aws-events';
+import * as sfn from 'aws-cdk-lib/aws-stepfunctions';
+import { Duration } from 'aws-cdk-lib';
+import { IStateMachine } from 'aws-cdk-lib/aws-stepfunctions';
+import { STACK_PREFIX } from '../constants';
+import { LogGroup } from 'aws-cdk-lib/aws-logs';
 
 export function getTopicArnFromTopicName(topicName: string): string {
   return `arn:aws:sns:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:${topicName}`;
@@ -45,14 +49,28 @@ function createMonitoredQueue(scope: Construct, props: IcaSqsQueueConstructProps
 
 function createEventPipe(scope: Construct, props: IcaEventPipeConstructProps) {
   const targetInputTransformation = pipes.InputTransformation.fromObject({
-    'ica-event': pipes.DynamicInput.fromEventPath('$.body'),
+    input: pipes.DynamicInput.fromEventPath('$.body'),
   });
 
+  /* Get the step function object */
+  const stepFunctionObject = sfn.StateMachine.fromStateMachineName(
+    scope,
+    'handleIcaEventSfn',
+    `${STACK_PREFIX}--${props.stepFunctionName}`
+  );
+
+  // Inside your function:
+  const logGroup = new LogGroup(scope, 'IcaEventPipeLogGroup');
+
   return new pipes.Pipe(scope, props.icaEventPipeName, {
-    source: new SqsSource(props.icaSqsQueue),
-    target: new EventBusTarget(props.eventBusObj, {
+    source: new SqsSource(props.icaSqsQueue, {
+      batchSize: 5,
+      maximumBatchingWindow: Duration.seconds(10),
+    }),
+    target: new SfnTarget(stepFunctionObject, {
       inputTransformation: targetInputTransformation,
     }),
+    logDestinations: [new pipes.CloudwatchLogsLogDestination(logGroup)],
   });
 }
 
@@ -70,23 +88,21 @@ export function createEventBridgePipe(scope: Construct, props: IcaSqsEventPipePr
   createEventPipe(scope, {
     icaEventPipeName: props.icaEventPipeName,
     icaSqsQueue: monitoredQueue,
-    eventBusObj: props.eventBusObj,
+    stepFunctionName: props.stepFunctionName,
   });
 }
 
-// Creates a pipe TARGET wrapping an EventBus
-class EventBusTarget implements pipes.ITarget {
-  // No official EventBusTarget implementations exist (yet). This is following recommendations from:
-  // https://constructs.dev/packages/@aws-cdk/aws-pipes-alpha/v/2.133.0-alpha.0?lang=typescript#example-target-implementation
+// Creates a pipe TARGET wrapping into a Step Functions
+class SfnTarget implements pipes.ITarget {
   targetArn: string;
   private inputTransformation: pipes.IInputTransformation | undefined;
 
   constructor(
-    private readonly eventBus: IEventBus,
+    private readonly stepFunctionObject: IStateMachine,
     props: { inputTransformation?: pipes.IInputTransformation } = {}
   ) {
-    this.eventBus = eventBus;
-    this.targetArn = eventBus.eventBusArn;
+    this.stepFunctionObject = stepFunctionObject;
+    this.targetArn = stepFunctionObject.stateMachineArn;
     this.inputTransformation = props?.inputTransformation;
   }
 
@@ -99,6 +115,6 @@ class EventBusTarget implements pipes.ITarget {
   }
 
   grantPush(pipeRole: iam.IRole): void {
-    this.eventBus.grantPutEventsTo(pipeRole);
+    this.stepFunctionObject.grantStartSyncExecution(pipeRole);
   }
 }

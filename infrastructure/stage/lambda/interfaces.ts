@@ -12,11 +12,9 @@ export type LambdaName =
   | 'abortAnalysis'
   // Post analysis
   | 'addPortalRunIdAttributes'
-  | 'getIcav2AnalysisObject'
-  | 'getNextflowFilesFromLogsUri'
-  | 'deleteIcav2Dir'
-  | 'filemanagerSync'
-  | 'getLogsDir';
+  | 'getPipelineType'
+  | 'copyNextflowFilesFromLogsUri'
+  | 'filemanagerSync';
 
 /* Lambda names array */
 /* Bit of double handling, BUT types are not parsed to JS */
@@ -31,11 +29,9 @@ export const lambdaNameList: Array<LambdaName> = [
   'abortAnalysis',
   // Post analysis
   'addPortalRunIdAttributes',
-  'getIcav2AnalysisObject',
-  'getNextflowFilesFromLogsUri',
-  'deleteIcav2Dir',
+  'getPipelineType',
+  'copyNextflowFilesFromLogsUri',
   'filemanagerSync',
-  'getLogsDir',
 ];
 
 /* We also throw in our custom application interfaces here too */
@@ -77,21 +73,15 @@ export const lambdaToRequirementsMap: LambdaToRequirementsMapType = {
   addPortalRunIdAttributes: {
     needsOrcabusTookitLayer: true,
   },
-  getIcav2AnalysisObject: {
+  getPipelineType: {
     needsOrcabusTookitLayer: true,
     needsIcav2ToolkitLayer: true,
   },
-  getNextflowFilesFromLogsUri: {
-    needsIcav2ToolkitLayer: true,
-  },
-  deleteIcav2Dir: {
+  copyNextflowFilesFromLogsUri: {
     needsIcav2ToolkitLayer: true,
   },
   filemanagerSync: {
     needsOrcabusTookitLayer: true,
-    needsIcav2ToolkitLayer: true,
-  },
-  getLogsDir: {
     needsIcav2ToolkitLayer: true,
   },
 };

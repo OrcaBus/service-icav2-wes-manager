@@ -5,11 +5,11 @@ import { SfnObjectProps } from '../step-functions/interfaces';
 import { LambdaObject } from '../lambda/interfaces';
 
 export type EventBridgeTargetsNameList =
-  | 'icav2AnalysisStateChangeTargetToHandleStateChangeSfn'
-  | 'icav2WesPostRequestTargetToGenerateWesPostRequestLambda';
+  // Post Request to WES Lambda
+  'icav2WesPostRequestTargetToGenerateWesPostRequestLambda';
 
 export const eventBridgeTargetsNameList: Array<EventBridgeTargetsNameList> = [
-  'icav2AnalysisStateChangeTargetToHandleStateChangeSfn',
+  // Post Request to WES Lambda
   'icav2WesPostRequestTargetToGenerateWesPostRequestLambda',
 ];
 

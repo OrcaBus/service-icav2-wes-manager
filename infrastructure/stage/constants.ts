@@ -15,6 +15,7 @@ export const INTERFACE_DIR = path.join(APP_ROOT, 'interface');
 /* API constants */
 export const API_VERSION = 'v1';
 export const ICAV2_WES_SUBDOMAIN_NAME = 'icav2-wes';
+export const STACK_PREFIX = 'icav2-wes';
 
 /* Event Constants */
 export const DEFAULT_EXTERNAL_EVENT_BUS_NAME = 'OrcaBusMain';
@@ -31,24 +32,19 @@ export const S3_ARTEFACTS_BUCKET_NAME: Record<StageName, string> = {
 };
 export const PAYLOADS_KEY_PREFIX = 'analysis-payloads/';
 
-/* ICAv2 Copy Sync constants */
-export const ICAV2_DATA_COPY_SYNC_EVENT_DETAIL_TYPE_EXTERNAL = 'ICAv2DataCopySync';
-
 /* ICA Constants */
 export const ICAV2_ANALYSIS_STATE_CHANGE_JOB_EVENT_CODE = 'ICA_EXEC_028';
 export const ICAV2_WES_MANAGER_TAG_KEY = 'icav2_wes_orcabus_id';
 
-/* Evvnt pipe constants - stateful stack */
-// Event pipe is used to send events from the SQS queue to the event bus
-// This is generated in the stateful infrastructure stack and used in the
-// stateless infrastructure stack
-export const DEFAULT_EVENT_PIPE_NAME = 'Icav2WesAnalysisEventPipe';
+/* SQS */
+// The SQS queue pushes directly to the handleAnalysisStateChange step function
 // The SQS name should be noted since the ARN is required when
 // setting up the notifications of the project
 export const DEFAULT_ICA_SQS_NAME = 'Icav2WesAnalysisSqsQueue';
-export const DEFAULT_ICA_QUEUE_VIZ_TIMEOUT = Duration.seconds(30);
+export const DEFAULT_ICA_QUEUE_VIZ_TIMEOUT = Duration.seconds(300);
 export const DEFAULT_DLQ_ALARM_THRESHOLD = 1;
 export const DEFAULT_ICA_AWS_ACCOUNT_NUMBER = '079623148045';
+export const DEFAULT_EVENT_PIPE_NAME = 'Icav2WesSqsEventPipe';
 
 /* UMCCR / CCGCM constants */
 
