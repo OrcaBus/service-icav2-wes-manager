@@ -72,6 +72,20 @@ function wireUpStateMachinePermissions(props: SfnObjectProps): void {
   for (const lambdaObject of lambdaFunctions) {
     lambdaObject.lambdaFunction.currentVersion.grantInvoke(props.stateMachineObj);
   }
+
+  /* Nag Suppressions for express sfns */
+  if (sfnRequirements.isExpressSfn) {
+    NagSuppressions.addResourceSuppressions(
+      props.stateMachineObj,
+      [
+        {
+          id: 'AwsSolutions-IAM5',
+          reason: 'Needs permissions to write to logs',
+        },
+      ],
+      true
+    );
+  }
 }
 
 function buildStepFunction(scope: Construct, props: SfnProps): SfnObjectProps {
