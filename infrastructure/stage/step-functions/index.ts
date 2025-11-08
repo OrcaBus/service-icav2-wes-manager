@@ -1,7 +1,10 @@
 // Imports
 import * as sfn from 'aws-cdk-lib/aws-stepfunctions';
+import { StateMachineType } from 'aws-cdk-lib/aws-stepfunctions';
 import { Construct } from 'constructs';
 import * as path from 'path';
+import * as awsLogs from 'aws-cdk-lib/aws-logs';
+import { RetentionDays } from 'aws-cdk-lib/aws-logs';
 
 // Local interfaces
 import {
@@ -13,7 +16,7 @@ import {
   stepFunctionToLambdaMap,
 } from './interfaces';
 import { camelCaseToSnakeCase } from '../utils';
-import { STEP_FUNCTIONS_DIR } from '../constants';
+import { STACK_PREFIX, STEP_FUNCTIONS_DIR } from '../constants';
 import { NagSuppressions } from 'cdk-nag';
 
 /** Step Function stuff */
@@ -38,7 +41,6 @@ function createStateMachineDefinitionSubstitutions(props: SfnProps): {
   /* Sfn Requirements */
   if (sfnRequirements.needsExternalEventBusPutPermissions) {
     definitionSubstitutions['__external_event_bus_name__'] = props.eventBus.eventBusName;
-    definitionSubstitutions['__icav2_data_copy_sync_detail_type__'] = props.icav2DataCopySyncDetail;
     definitionSubstitutions['__stack_source__'] = props.eventSource;
   }
 
@@ -70,18 +72,47 @@ function wireUpStateMachinePermissions(props: SfnObjectProps): void {
   for (const lambdaObject of lambdaFunctions) {
     lambdaObject.lambdaFunction.currentVersion.grantInvoke(props.stateMachineObj);
   }
+
+  /* Nag Suppressions for express sfns */
+  if (sfnRequirements.isExpressSfn) {
+    NagSuppressions.addResourceSuppressions(
+      props.stateMachineObj,
+      [
+        {
+          id: 'AwsSolutions-IAM5',
+          reason: 'Needs permissions to write to logs',
+        },
+      ],
+      true
+    );
+  }
 }
 
 function buildStepFunction(scope: Construct, props: SfnProps): SfnObjectProps {
   const sfnNameToSnakeCase = camelCaseToSnakeCase(props.stateMachineName);
+  const sfnRequirements = sfnToRequirementsMap[props.stateMachineName];
 
   /* Create the state machine definition substitutions */
   const stateMachine = new sfn.StateMachine(scope, props.stateMachineName, {
-    stateMachineName: `icav2-wes-${props.stateMachineName}`,
+    stateMachineName: `${STACK_PREFIX}--${props.stateMachineName}`,
     definitionBody: sfn.DefinitionBody.fromFile(
       path.join(STEP_FUNCTIONS_DIR, sfnNameToSnakeCase + `_sfn_template.asl.json`)
     ),
     definitionSubstitutions: createStateMachineDefinitionSubstitutions(props),
+    stateMachineType: sfnRequirements.isExpressSfn
+      ? StateMachineType.EXPRESS
+      : StateMachineType.STANDARD,
+    logs: sfnRequirements.isExpressSfn
+      ? // Enable logging on the state machine for express step functions only
+        {
+          level: sfn.LogLevel.ALL,
+          // Create a new log group for the state machine
+          destination: new awsLogs.LogGroup(scope, `${props.stateMachineName}-logs`, {
+            retention: RetentionDays.ONE_WEEK,
+          }),
+          includeExecutionData: true,
+        }
+      : undefined,
   });
 
   /* Grant the state machine permissions */

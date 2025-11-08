@@ -1,6 +1,6 @@
 import { Duration } from 'aws-cdk-lib';
 import { Queue } from 'aws-cdk-lib/aws-sqs';
-import { IEventBus } from 'aws-cdk-lib/aws-events';
+import { SfnName } from '../step-functions/interfaces';
 
 export interface IcaSqsQueueConstructProps {
   /* The name for the incoming SQS queue (the DLQ with use this name with a "-dlq" postfix) */
@@ -20,8 +20,8 @@ export interface IcaEventPipeConstructProps {
   icaSqsQueue: Queue;
   /* The name for the Event Pipe */
   icaEventPipeName: string;
-  /* The Event Bus to forward events to (used to lookup the Event Bus) */
-  eventBusObj: IEventBus;
+  /* Step Function Name */
+  stepFunctionName: SfnName;
 }
 
 export type IcaSqsEventPipeProps = Omit<IcaEventPipeConstructProps, 'icaSqsQueue'> &

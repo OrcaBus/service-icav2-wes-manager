@@ -1,20 +1,10 @@
 import { EventPattern, IEventBus, Rule } from 'aws-cdk-lib/aws-events';
 
 export type EventBridgeRuleNameList =
-  // Internal rule - for running analyses
-  | 'icav2AnalysisStateChangeRule'
   // External rule - for requests to run analyses
-  | 'icav2WesPostRequestRule';
+  'icav2WesPostRequestRule';
 
-export const eventBridgeRuleNameList: Array<EventBridgeRuleNameList> = [
-  'icav2AnalysisStateChangeRule',
-  'icav2WesPostRequestRule',
-];
-
-export interface Icav2AnalysisStateChangeRuleEventPatternProps {
-  icav2AnalysisStateChangeEventCode: string;
-  icav2WesManagerTagKey: string;
-}
+export const eventBridgeRuleNameList: Array<EventBridgeRuleNameList> = ['icav2WesPostRequestRule'];
 
 export interface Icav2WesPostRequestTargetRuleEventPatternProps {
   icav2WesRequestDetailType: string;
@@ -31,10 +21,6 @@ export interface EventBridgeRuleObject {
   ruleObject: Rule;
 }
 
-export type BuildIcav2AnalysisStateChangeRuleProps = Omit<
-  Icav2AnalysisStateChangeRuleEventPatternProps & EventBridgeRuleProps,
-  'eventPattern'
->;
 export type buildIcav2WesPostRequestRuleProps = Omit<
   Icav2WesPostRequestTargetRuleEventPatternProps & EventBridgeRuleProps,
   'eventPattern'

@@ -6,7 +6,6 @@ Get the icav2 analysis object from the workflow name
 
 # Standard Library Imports
 from typing import Dict, Any
-from fastapi.encoders import jsonable_encoder
 
 # Wrapica imports
 from wrapica.project_analysis import get_analysis_obj_from_analysis_id
@@ -37,11 +36,12 @@ def handler(event, context) -> Dict[str, Any]:
     project_id = icav2_wes_object.get("engineParameters", {}).get("projectId")
     analysis_id = icav2_wes_object.get("icav2AnalysisId")
 
+    # Get analysis object
+    analysis_obj = get_analysis_obj_from_analysis_id(
+        project_id=project_id,
+        analysis_id=analysis_id
+    )
+
     return {
-        "icav2AnalysisObject": jsonable_encoder(
-            get_analysis_obj_from_analysis_id(
-                project_id=project_id,
-                analysis_id=analysis_id
-            )
-        ),
+        "language": analysis_obj.pipeline.language
     }

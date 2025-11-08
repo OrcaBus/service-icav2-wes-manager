@@ -205,18 +205,29 @@ async def create_job(analysis_obj: Icav2WesAnalysisCreate) -> Icav2WesAnalysisRe
     Update the status of a job, internal-use only
     """)
 )
-async def update_job(analysis_id: str = Depends(sanitise_icav2_wes_analysis_orcabus_id), analysis_change_object: Annotated[Icav2WesAnalysisPatch, Body()] = get_default_job_patch_entry()) -> Icav2WesAnalysisResponse:
+async def update_job(
+        analysis_id: str = Depends(sanitise_icav2_wes_analysis_orcabus_id),
+        analysis_change_object: Annotated[Icav2WesAnalysisPatch, Body()] = get_default_job_patch_entry()
+) -> Icav2WesAnalysisResponse:
+    # Validate the status
     if analysis_change_object.status not in ['RUNNABLE', 'STARTING', 'RUNNING', 'SUCCEEDED', 'FAILED', 'ABORTED']:
         raise HTTPException(
             status_code=400,
             detail="Invalid status provided, "
-                   "must be one of RUNNING, STARTING, RUNNING, SUCCEEDED, FAILED or ABORTED")
+                   "must be one of RUNNING, STARTING, RUNNING, SUCCEEDED, FAILED or ABORTED"
+        )
     try:
+        # Get the analysis object from the database
         analysis_obj = Icav2WesAnalysisData.get(analysis_id)
+
+        # Assign the new status
         analysis_obj.status = analysis_change_object.status
+
         # Add in end time if the job is in a terminal state
         if analysis_obj.status in ['SUCCEEDED', 'FAILED', 'ABORTED']:
             analysis_obj.end_time = datetime.now(timezone.utc)
+
+        # Update the ICAv2 analysis id if provided and not already set
         if (
                 analysis_obj.icav2_analysis_id is None and
                 analysis_change_object.icav2AnalysisId is not None

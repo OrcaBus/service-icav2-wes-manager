@@ -95,7 +95,6 @@ export class StatelessApplicationStack extends cdk.Stack {
       lambdaFunctions: lambdaObjects,
       eventBus: externalEventBusObject,
       eventSource: props.eventSource,
-      icav2DataCopySyncDetail: props.icav2DataCopySyncDetailType,
       payloadsTable: payloadsTable,
     });
 
