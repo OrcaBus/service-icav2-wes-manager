@@ -63,13 +63,38 @@ function createEventPipe(scope: Construct, props: IcaEventPipeConstructProps) {
   const logGroup = new LogGroup(scope, 'IcaEventPipeLogGroup');
 
   return new pipes.Pipe(scope, props.icaEventPipeName, {
+    /* Source */
     source: new SqsSource(props.icaSqsQueue, {
       batchSize: 5,
       maximumBatchingWindow: Duration.seconds(10),
     }),
+    /* Target */
     target: new SfnTarget(stepFunctionObject, {
       inputTransformation: targetInputTransformation,
     }),
+    /*
+      We only want to process messages where the array payload.tags.technicalTags contains an element
+      that startswith "icav2_wes_orcabus_id="
+   */
+    filter: {
+      filters: [
+        {
+          pattern: JSON.stringify({
+            body: {
+              payload: {
+                tags: {
+                  technicalTags: [
+                    {
+                      prefix: 'icav2_wes_orcabus_id=',
+                    },
+                  ],
+                },
+              },
+            },
+          }),
+        },
+      ],
+    },
     logDestinations: [new pipes.CloudwatchLogsLogDestination(logGroup)],
   });
 }
