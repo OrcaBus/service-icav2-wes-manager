@@ -6,11 +6,14 @@ import {
   REGION,
   StageName,
 } from '@orcabus/platform-cdk-constructs/shared-config/accounts';
+import { EVENT_SCHEMA_REGISTRY_NAME } from '@orcabus/platform-cdk-constructs/shared-config/event-bridge';
 
+/* Application dirs */
 export const APP_ROOT = path.join(__dirname, '../../app');
 export const LAMBDA_DIR = path.join(APP_ROOT, 'lambdas');
 export const STEP_FUNCTIONS_DIR = path.join(APP_ROOT, 'step-functions-templates');
 export const INTERFACE_DIR = path.join(APP_ROOT, 'interface');
+export const EVENT_SCHEMAS_DIR = path.join(APP_ROOT, 'event-schemas');
 
 /* API constants */
 export const API_VERSION = 'v1';
@@ -46,6 +49,9 @@ export const DEFAULT_DLQ_ALARM_THRESHOLD = 1;
 export const DEFAULT_ICA_AWS_ACCOUNT_NUMBER = '079623148045';
 export const DEFAULT_EVENT_PIPE_NAME = 'Icav2WesSqsEventPipe';
 
+/* SSM Constants */
+export const SSM_PARAMETER_PATH_PREFIX = path.join(`/orcabus/icav2-wes/`);
+
 /* UMCCR / CCGCM constants */
 
 /* Slack constants */
@@ -62,3 +68,7 @@ export const PAYLOADS_TABLE_NAME = 'icav2WesManagerPayloadsTable';
 /* Event constants */
 export const EVENT_BUS_NAME_INTERNAL = 'OrcaBusICAv2WesManagerInternal'; // Events for internal use only, i.e handling ICAV2 Events
 export const INTERNAL_EVENT_BUS_DESCRIPTION = 'Event Bus to handle ICAv2 Analysis Events'; // Events for internal use only, i.e handling ICAV2 Events
+
+/* Schema constants */
+export const SCHEMA_REGISTRY_NAME = EVENT_SCHEMA_REGISTRY_NAME;
+export const SSM_SCHEMA_ROOT = path.join(SSM_PARAMETER_PATH_PREFIX, 'schemas');

@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "s3UriDirectory": {
+      "type": "string",
+      "pattern": "^s3://[a-zA-Z0-9_-]+/[a-zA-Z0-9_./-]+/$"
+    },
+    "tags": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "inputs": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "engineParameters": {
+      "type": "object",
+      "properties": {
+        "projectId": {
+          "type": "string"
+        },
+        "pipelineId": {
+          "type": "string"
+        },
+        "outputUri": {
+          "$ref": "#/$defs/s3UriDirectory"
+        },
+        "logsUri": {
+          "$ref": "#/$defs/s3UriDirectory"
+        },
+        "cacheUri": {
+          "$ref": "#/$defs/s3UriDirectory"
+        },
+        "analysisStorageSize": {
+          "type": "string",
+          "enum": ["SMALL", "MEDIUM", "LARGE", "XLARGE", "2XLARGE", "3XLARGE"]
+        }
+      },
+      "required": ["projectId", "pipelineId", "outputUri", "logsUri", "cacheUri"]
+    },
+    "eventDetail": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "inputs": {
+          "$ref": "#/$defs/inputs"
+        },
+        "engineParameters": {
+          "$ref": "#/$defs/engineParameters"
+        },
+        "tags": {
+          "$ref": "#/$defs/tags"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "SUBMITTED",
+            "PENDING",
+            "RUNNABLE",
+            "STARTING",
+            "RUNNING",
+            "SUCCEEDED",
+            "FAILED",
+            "ABORTED"
+          ]
+        },
+        "submissionTime": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "stepsLaunchExecutionArn": {
+          "type": "string"
+        },
+        "icav2AnalysisId": {
+          "type": "string"
+        },
+        "startTime": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "endTime": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "name", "inputs", "engineParameters", "tags", "status", "submissionTime"]
+    }
+  },
+  "type": "object",
+  "properties": {
+    "Source": {
+      "type": "string",
+      "enum": ["orcabus.icav2wesmanager"]
+    },
+    "DetailType": {
+      "type": "string",
+      "enum": ["Icav2WesAnalysisStateChange"]
+    },
+    "Detail": {
+      "$ref": "#/$defs/eventDetail"
+    },
+    "EventBusName": {
+      "type": "string",
+      "enum": ["OrcaBusMain"]
+    }
+  },
+  "required": ["Source", "DetailType", "Detail", "EventBusName"]
+}

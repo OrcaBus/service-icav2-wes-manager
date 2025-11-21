@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "s3UriDirectory": {
+      "type": "string",
+      "pattern": "^s3://[a-zA-Z0-9_-]+/[a-zA-Z0-9_./-]+/$"
+    },
+    "tags": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "inputs": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "engineParameters": {
+      "type": "object",
+      "properties": {
+        "projectId": {
+          "type": "string"
+        },
+        "pipelineId": {
+          "type": "string"
+        },
+        "outputUri": {
+          "$ref": "#/$defs/s3UriDirectory"
+        },
+        "logsUri": {
+          "$ref": "#/$defs/s3UriDirectory"
+        },
+        "cacheUri": {
+          "$ref": "#/$defs/s3UriDirectory"
+        },
+        "analysisStorageSize": {
+          "type": "string",
+          "enum": ["SMALL", "MEDIUM", "LARGE", "XLARGE", "2XLARGE", "3XLARGE"]
+        }
+      },
+      "required": ["projectId", "pipelineId", "outputUri", "logsUri", "cacheUri"]
+    },
+    "eventDetail": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "inputs": {
+          "$ref": "#/$defs/inputs"
+        },
+        "engineParameters": {
+          "$ref": "#/$defs/engineParameters"
+        },
+        "tags": {
+          "$ref": "#/$defs/tags"
+        }
+      },
+      "required": ["name", "inputs", "engineParameters", "tags"]
+    }
+  },
+  "type": "object",
+  "properties": {
+    "Source": {
+      "type": "string",
+      "not": {
+        "enum": ["orcabus.icav2wesmanager"]
+      }
+    },
+    "DetailType": {
+      "type": "string",
+      "enum": ["Icav2WesRequest"]
+    },
+    "Detail": {
+      "$ref": "#/$defs/eventDetail"
+    },
+    "EventBusName": {
+      "type": "string",
+      "enum": ["OrcaBusMain"]
+    }
+  },
+  "required": ["Source", "DetailType", "Detail", "EventBusName"]
+}
