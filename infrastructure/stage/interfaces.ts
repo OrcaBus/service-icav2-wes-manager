@@ -17,8 +17,15 @@ export interface StatefulApplicationStackConfig extends cdk.StackProps {
   /* Internal event stuff */
   internalEventBusName: string;
   internalEventBusDescription: string;
-  icav2EventPipeName: string;
+
+  /* SQS Stuff */
   slackTopicName: string;
+  /* Launch name / event pipe stuff */
+  launchIcaAnalysisSqsQueueName: string;
+  launchIcaAnalysisEventPipeName: string;
+  /* External sqs name / event pipe stuff */
+  icaExternalSqsQueueName: string;
+  icaExternalEventPipeName: string;
 }
 
 export interface StatelessApplicationStackConfig extends cdk.StackProps {
@@ -35,6 +42,7 @@ export interface StatelessApplicationStackConfig extends cdk.StackProps {
   /* Extra buckets */
   payloadsBucketName: string;
   payloadsKeyPrefix: string;
+  errorLogsKeyPrefix: string;
 
   /* External event stuff */
   externalEventBusName: string;
@@ -48,9 +56,10 @@ export interface StatelessApplicationStackConfig extends cdk.StackProps {
 
   /* Internal event stuff */
   internalEventBusName: string;
-  icav2EventPipeName: string;
+  icaExternalEventPipeName: string;
   icav2AnalysisStateChangeEventCode: string;
   icav2WesManagerTagKey: string;
+  launchIcaAnalysisSqsQueueName: string;
 
   /* SSM - Secrets */
   hostedZoneSsmParameterName: string;

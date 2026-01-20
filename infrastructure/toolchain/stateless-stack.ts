@@ -10,6 +10,9 @@ export class StatelessStack extends cdk.Stack {
     super(scope, id, props);
 
     new DeploymentStackPipeline(this, 'Icav2WesManagerStatelessDeploymentPipeline', {
+      unitAppTestConfig: {
+        command: [],
+      },
       githubBranch: 'main',
       githubRepo: REPO_NAME,
       stack: StatelessApplicationStack,

@@ -93,9 +93,9 @@ function buildLambda(scope: Construct, props: BuildLambdaProps): LambdaObject {
   }
 
   // If the lambda needs the permissions to write to the payloads bucket, we need to add these in
-  if (lambdaRequirements.needsPayloadsBucketPermissions) {
+  if (lambdaRequirements.needsArtefactBucketPermissions) {
     // Grant write permissions to the payloads bucket
-    props.payloadsBucket.grantReadWrite(lambdaFunction.currentVersion);
+    props.artefactsBucket.grantReadWrite(lambdaFunction.currentVersion);
 
     // Add resource suppressions
     NagSuppressions.addResourceSuppressions(lambdaFunction, [
@@ -105,12 +105,17 @@ function buildLambda(scope: Construct, props: BuildLambdaProps): LambdaObject {
       },
     ]);
 
-    // Update the environment variables for the payloads bucket
+    // Update the environment variables for the artefacts bucket with the payloads and error logs prefixes
     lambdaFunction.addEnvironment(
-      'S3_ANALYSIS_PAYLOAD_BUCKET_NAME',
-      props.payloadsBucket.bucketName
+      'S3_ANALYSIS_ARTEFACTS_BUCKET_NAME',
+      props.artefactsBucket.bucketName
     );
     lambdaFunction.addEnvironment('S3_ANALYSIS_PAYLOAD_KEY_PREFIX', props.payloadsKeyPrefix);
+    lambdaFunction.addEnvironment(
+      'S3_ANALYSIS_ARTEFACTS_BUCKET_NAME',
+      props.artefactsBucket.bucketName
+    );
+    lambdaFunction.addEnvironment('S3_ANALYSIS_ERROR_LOGS_PREFIX', props.errorLogsKeyPrefix);
   }
 
   /* Return the function */

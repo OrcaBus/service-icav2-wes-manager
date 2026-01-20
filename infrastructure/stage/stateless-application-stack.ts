@@ -7,6 +7,8 @@ import * as events from 'aws-cdk-lib/aws-events';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as ssm from 'aws-cdk-lib/aws-ssm';
 import * as s3 from 'aws-cdk-lib/aws-s3';
+import * as sqs from 'aws-cdk-lib/aws-sqs';
+import { IQueue } from 'aws-cdk-lib/aws-sqs';
 
 // Local imports
 import { StatelessApplicationStackConfig } from './interfaces';
@@ -82,10 +84,18 @@ export class StatelessApplicationStack extends cdk.Stack {
       props.testDataBucketName
     );
 
+    // Get the launchIcav2AnalysisSqsQueueName from props
+    const launchIcav2AnalysisSqsQueue: IQueue = sqs.Queue.fromQueueArn(
+      this,
+      props.launchIcaAnalysisSqsQueueName,
+      `arn:aws:sqs:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:${props.launchIcaAnalysisSqsQueueName}`
+    );
+
     // Build the lambdas
     const lambdaObjects = buildAllLambdas(this, {
-      payloadsBucket: payloadsBucket,
+      artefactsBucket: payloadsBucket,
       payloadsKeyPrefix: props.payloadsKeyPrefix,
+      errorLogsKeyPrefix: props.errorLogsKeyPrefix,
       referenceDataBucket: referenceDataBucket,
       testDataBucket: testDataBucket,
     });
@@ -130,6 +140,9 @@ export class StatelessApplicationStack extends cdk.Stack {
       stepFunctions: stepFunctionObjects.filter((stepFunctionObject) =>
         ['launchIcav2Analysis', 'abortIcav2Analysis'].includes(stepFunctionObject.stateMachineName)
       ),
+
+      /* SQS Queues */
+      sqsQueues: [launchIcav2AnalysisSqsQueue],
 
       /* Event bus */
       eventBus: externalEventBusObject,

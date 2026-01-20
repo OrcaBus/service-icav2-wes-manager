@@ -1,8 +1,11 @@
 import { StatefulApplicationStackConfig, StatelessApplicationStackConfig } from './interfaces';
-import { getDefaultApiGatewayConfiguration } from '@orcabus/platform-cdk-constructs/api-gateway';
+import {
+  getDefaultApiGatewayConfiguration,
+  HOSTED_ZONE_DOMAIN_PARAMETER_NAME,
+} from '@orcabus/platform-cdk-constructs/api-gateway';
 
 import {
-  DEFAULT_EVENT_PIPE_NAME,
+  DEFAULT_EXTERNAL_ICA_EVENT_PIPE_NAME,
   DEFAULT_EXTERNAL_EVENT_BUS_NAME,
   EVENT_BUS_NAME_INTERNAL,
   EVENT_SOURCE,
@@ -17,9 +20,12 @@ import {
   SLACK_TOPIC_NAME,
   TABLE_INDEX_NAMES,
   TABLE_NAME,
+  DEFAULT_LAUNCH_ICA_ANALYSIS_EVENT_PIPE_NAME,
+  DEFAULT_LAUNCH_ICA_ANALYSIS_SQS_QUEUE_NAME,
+  DEFAULT_EXTERNAL_ICA_EVENT_SQS_NAME,
+  ERROR_LOGS_KEY_PREFIX,
 } from './constants';
 import { ICAV2_ACCESS_TOKEN_SECRET_ID } from '@orcabus/platform-cdk-constructs/shared-config/icav2';
-import { HOSTED_ZONE_DOMAIN_PARAMETER_NAME } from '@orcabus/platform-cdk-constructs/api-gateway';
 import { StageName } from '@orcabus/platform-cdk-constructs/shared-config/accounts';
 import {
   REFERENCE_DATA_BUCKET,
@@ -41,7 +47,12 @@ export const getStatefulStackProps = (stage: StageName): StatefulApplicationStac
     // Internal Event stuff
     internalEventBusName: EVENT_BUS_NAME_INTERNAL,
     internalEventBusDescription: INTERNAL_EVENT_BUS_DESCRIPTION,
-    icav2EventPipeName: DEFAULT_EVENT_PIPE_NAME,
+
+    // SQS Stuff
+    launchIcaAnalysisEventPipeName: DEFAULT_LAUNCH_ICA_ANALYSIS_EVENT_PIPE_NAME,
+    launchIcaAnalysisSqsQueueName: DEFAULT_LAUNCH_ICA_ANALYSIS_SQS_QUEUE_NAME,
+    icaExternalSqsQueueName: DEFAULT_EXTERNAL_ICA_EVENT_SQS_NAME,
+    icaExternalEventPipeName: DEFAULT_EXTERNAL_ICA_EVENT_PIPE_NAME,
     slackTopicName: SLACK_TOPIC_NAME,
   };
 };
@@ -62,7 +73,8 @@ export const getStatelessStackProps = (stage: StageName): StatelessApplicationSt
 
     // Internal event handling stuff
     internalEventBusName: EVENT_BUS_NAME_INTERNAL,
-    icav2EventPipeName: DEFAULT_EVENT_PIPE_NAME,
+    launchIcaAnalysisSqsQueueName: DEFAULT_LAUNCH_ICA_ANALYSIS_SQS_QUEUE_NAME,
+    icaExternalEventPipeName: DEFAULT_EXTERNAL_ICA_EVENT_PIPE_NAME,
     icav2AnalysisStateChangeEventCode: ICAV2_ANALYSIS_STATE_CHANGE_JOB_EVENT_CODE,
 
     // Table stuff
@@ -75,6 +87,7 @@ export const getStatelessStackProps = (stage: StageName): StatelessApplicationSt
     // Extra bucket stuff
     payloadsBucketName: S3_ARTEFACTS_BUCKET_NAME[stage],
     payloadsKeyPrefix: PAYLOADS_KEY_PREFIX,
+    errorLogsKeyPrefix: ERROR_LOGS_KEY_PREFIX,
 
     // Hostname ssm parameter
     hostedZoneSsmParameterName: HOSTED_ZONE_DOMAIN_PARAMETER_NAME,

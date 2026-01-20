@@ -2,14 +2,23 @@ import * as s3 from 'aws-cdk-lib/aws-s3';
 import { Construct } from 'constructs';
 import { Bucket } from 'aws-cdk-lib/aws-s3';
 import { Duration } from 'aws-cdk-lib';
-import { PAYLOADS_KEY_PREFIX } from '../constants';
+import { ERROR_LOGS_KEY_PREFIX, PAYLOADS_KEY_PREFIX } from '../constants';
 
 function addPayloadsLifeCycleRuleToBucket(bucket: Bucket): void {
   bucket.addLifecycleRule({
     id: 'DeletePayloadJsonsAfterSixMonths',
     enabled: true,
-    expiration: Duration.days(30), // Delete objects older than 1 month
+    expiration: Duration.days(180), // Delete objects older than 6 months
     prefix: PAYLOADS_KEY_PREFIX, // Apply to objects with the 'analysis-payloads/' prefix
+  });
+}
+
+function addErrorLogsLifeCycleRuleToBucket(bucket: Bucket): void {
+  bucket.addLifecycleRule({
+    id: 'DeleteErrorLogsAfterOneMonth',
+    enabled: true,
+    expiration: Duration.days(30), // Delete objects older than 1 month
+    prefix: ERROR_LOGS_KEY_PREFIX, // Apply to objects with the 'error-logs/' prefix
   });
 }
 
@@ -27,5 +36,6 @@ export function createArtefactsBucket(scope: Construct, bucketName: string): Buc
 
   // Add lifecycle rules to the bucket
   addPayloadsLifeCycleRuleToBucket(s3Bucket);
+  addErrorLogsLifeCycleRuleToBucket(s3Bucket);
   return s3Bucket;
 }

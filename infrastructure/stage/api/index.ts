@@ -1,6 +1,11 @@
 import { PythonUvFunction } from '@orcabus/platform-cdk-constructs/lambda';
 import path from 'path';
-import { API_VERSION, ICAV2_WES_SUBDOMAIN_NAME, INTERFACE_DIR } from '../constants';
+import {
+  API_VERSION,
+  DEFAULT_LAUNCH_ICA_ANALYSIS_SQS_QUEUE_NAME,
+  ICAV2_WES_SUBDOMAIN_NAME,
+  INTERFACE_DIR,
+} from '../constants';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import { Duration } from 'aws-cdk-lib';
 import * as cdk from 'aws-cdk-lib';
@@ -38,18 +43,22 @@ export function buildApiInterfaceLambda(scope: Construct, props: LambdaApiProps)
   for (const sfnObject of props.stepFunctions) {
     sfnObject.stateMachineObj.grantStartExecution(lambdaFunction.currentVersion);
     switch (sfnObject.stateMachineName) {
-      case 'launchIcav2Analysis': {
-        lambdaFunction.addEnvironment(
-          'ICAV2_WES_LAUNCH_STATE_MACHINE_ARN',
-          sfnObject.stateMachineObj.stateMachineArn
-        );
-        break;
-      }
       case 'abortIcav2Analysis': {
         lambdaFunction.addEnvironment(
           'ICAV2_WES_ABORT_STATE_MACHINE_ARN',
           sfnObject.stateMachineObj.stateMachineArn
         );
+        break;
+      }
+    }
+  }
+
+  // Add SQS queue urls as environment variables
+  for (const sqsObject of props.sqsQueues) {
+    sqsObject.grantSendMessages(lambdaFunction.currentVersion);
+    switch (sqsObject.queueName) {
+      case DEFAULT_LAUNCH_ICA_ANALYSIS_SQS_QUEUE_NAME: {
+        lambdaFunction.addEnvironment('ICAV2_WES_LAUNCH_SQS_QUEUE_NAME', sqsObject.queueName);
         break;
       }
     }

@@ -17,13 +17,17 @@ import { StatefulApplicationStackConfig } from './interfaces';
 import {
   DEFAULT_DLQ_ALARM_THRESHOLD,
   DEFAULT_ICA_AWS_ACCOUNT_NUMBER,
-  DEFAULT_ICA_QUEUE_VIZ_TIMEOUT,
-  DEFAULT_ICA_SQS_NAME,
+  DEFAULT_QUEUE_TIMEOUT,
 } from './constants';
-import { createEventBridgePipe, getTopicArnFromTopicName } from './sqs';
+import {
+  createExternalIcaEventBridgePipe,
+  createLaunchIcaAnalysisEventBridgePipe,
+  getTopicArnFromTopicName,
+} from './sqs';
 import { buildICAv2WesDb, buildPayloadsTable } from './dynamodb';
 import { createArtefactsBucket } from './s3';
 import { buildSchemas } from './event-schemas';
+import { Topic } from 'aws-cdk-lib/aws-sns';
 
 export type StatefulApplicationStackProps = StatefulApplicationStackConfig & cdk.StackProps;
 
@@ -31,14 +35,31 @@ export type StatefulApplicationStackProps = StatefulApplicationStackConfig & cdk
 export class StatefulApplicationStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: StatefulApplicationStackProps) {
     super(scope, id, props);
+    // Slack topic ARN
+    // However, our use case, as we don't add any additional subscriptions, does not require topic modification, so we can pass on an "ITopic" as "Topic".
+    const slackTopic: Topic = Topic.fromTopicArn(
+      this,
+      'SlackTopic',
+      getTopicArnFromTopicName(props.slackTopicName)
+    ) as Topic;
+
+    // Create the launch sqs queue to stagger launch requests to ICA
+    createLaunchIcaAnalysisEventBridgePipe(this, {
+      eventPipeName: props.launchIcaAnalysisEventPipeName,
+      stepFunctionName: 'launchIcav2Analysis',
+      queueName: props.launchIcaAnalysisSqsQueueName,
+      queueVizTimeout: DEFAULT_QUEUE_TIMEOUT,
+      slackTopic: slackTopic,
+      dlqMessageThreshold: 1,
+    });
 
     // Create the event pipe to join the ICA SQS queue to the event bus
-    createEventBridgePipe(this, {
-      icaEventPipeName: props.icav2EventPipeName,
+    createExternalIcaEventBridgePipe(this, {
+      eventPipeName: props.icaExternalEventPipeName,
       stepFunctionName: 'handleIcav2AnalysisStateChange',
-      icaQueueName: DEFAULT_ICA_SQS_NAME,
-      icaQueueVizTimeout: DEFAULT_ICA_QUEUE_VIZ_TIMEOUT,
-      slackTopicArn: getTopicArnFromTopicName(props.slackTopicName),
+      queueName: props.icaExternalSqsQueueName,
+      queueVizTimeout: DEFAULT_QUEUE_TIMEOUT,
+      slackTopic: slackTopic,
       dlqMessageThreshold: DEFAULT_DLQ_ALARM_THRESHOLD,
       icaAwsAccountNumber: DEFAULT_ICA_AWS_ACCOUNT_NUMBER,
     });

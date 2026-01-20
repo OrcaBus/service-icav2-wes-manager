@@ -40,7 +40,7 @@ export interface LambdaRequirementProps {
   needsOrcabusTookitLayer?: boolean;
   needsTestDataBucketPermissions?: boolean;
   needsReferenceDataBucketPermissions?: boolean;
-  needsPayloadsBucketPermissions?: boolean;
+  needsArtefactBucketPermissions?: boolean;
 }
 
 export type LambdaToRequirementsMapType = { [key in LambdaName]: LambdaRequirementProps };
@@ -56,7 +56,7 @@ export const lambdaToRequirementsMap: LambdaToRequirementsMapType = {
     needsOrcabusTookitLayer: true,
     needsTestDataBucketPermissions: true,
     needsReferenceDataBucketPermissions: true,
-    needsPayloadsBucketPermissions: true,
+    needsArtefactBucketPermissions: true,
   },
   // Mid analysis
   getIcav2WesObject: {
@@ -90,8 +90,9 @@ export interface BuildLambdaProps {
   lambdaName: LambdaName;
   testDataBucket: IBucket;
   referenceDataBucket: IBucket;
-  payloadsBucket: IBucket;
+  artefactsBucket: IBucket;
   payloadsKeyPrefix: string;
+  errorLogsKeyPrefix: string;
 }
 
 export type BuildAllLambdasProps = Omit<BuildLambdaProps, 'lambdaName'>;

@@ -25,6 +25,7 @@ if typing.TYPE_CHECKING:
     from mypy_boto3_lambda.type_defs import InvocationResponseTypeDef
     from mypy_boto3_stepfunctions import SFNClient
     from mypy_boto3_ssm import SSMClient
+    from mypy_boto3_sqs import SQSClient
 
 
 def get_ulid() -> str:
@@ -110,8 +111,36 @@ def get_ssm_client() -> 'SSMClient':
     return boto3.client('ssm')
 
 
+def get_sqs_client() -> 'SQSClient':
+    return boto3.client('sqs')
+
+
 def get_icav2_wes_analysis_endpoint_url() -> str:
     return environ.get("ICAV2_WES_BASE_URL") + "/api/v1/analysis/"
+
+
+# Launch sqs
+def put_sqs_message(queue_name: str, message_body: dict) -> str:
+    """
+    Put a message onto the SQS queue
+    :param queue_name:
+    :param message_body:
+    :return:
+    """
+    sqs_client = get_sqs_client()
+    # Get the queue url
+    queue_url_response = sqs_client.get_queue_url(
+        QueueName=queue_name
+    )
+    queue_url = queue_url_response['QueueUrl']
+    # Send the message
+    response = sqs_client.send_message(
+        QueueUrl=queue_url,
+        MessageBody=json.dumps(message_body),
+        # Wait for SUBMITTED event to be processed
+        DelaySeconds=1
+    )
+    return response['MessageId']
 
 
 # Launch sfn

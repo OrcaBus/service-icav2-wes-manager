@@ -71,5 +71,6 @@ export const sfnToRequirementsMap: SfnToRequirementsMapType = {
   launchIcav2Analysis: {
     needsExternalEventBusPutPermissions: false,
     needsPayloadDbPermissions: true,
+    isExpressSfn: true,
   },
 };
