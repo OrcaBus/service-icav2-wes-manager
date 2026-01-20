@@ -23,6 +23,7 @@ import {
 import { createEventBridgePipe, getTopicArnFromTopicName } from './sqs';
 import { buildICAv2WesDb, buildPayloadsTable } from './dynamodb';
 import { createArtefactsBucket } from './s3';
+import { buildSchemas } from './event-schemas';
 
 export type StatefulApplicationStackProps = StatefulApplicationStackConfig & cdk.StackProps;
 
@@ -55,5 +56,8 @@ export class StatefulApplicationStack extends cdk.Stack {
 
     // Extra buckets
     createArtefactsBucket(this, props.payloadsBucketName);
+
+    // Create schemas
+    buildSchemas(this);
   }
 }
