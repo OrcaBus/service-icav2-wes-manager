@@ -20,7 +20,7 @@ export interface IcaSqsQueueConstructProps extends SqsQueueConstructProps {
   icaAwsAccountNumber: string;
 }
 
-export interface sfnEventPipeConstructProps {
+export interface SfnEventPipeConstructProps {
   /* Step Function Name */
   stepFunctionName: SfnName;
   filters?: pipes.IFilterPattern[];
@@ -28,10 +28,13 @@ export interface sfnEventPipeConstructProps {
   sqsQueue: Queue;
   /* The name for the Event Pipe */
   eventPipeName: string;
+  /* Batching window for the SQS source */
+  batchSize?: number;
+  batchingWindow?: Duration;
 }
 
-export type sqsEventPipeProps = Omit<sfnEventPipeConstructProps, 'sqsQueue'> &
+export type sqsEventPipeProps = Omit<SfnEventPipeConstructProps, 'sqsQueue'> &
   SqsQueueConstructProps;
 
-export type IcaSqsEventPipeProps = Omit<sfnEventPipeConstructProps, 'sqsQueue'> &
+export type IcaSqsEventPipeProps = Omit<SfnEventPipeConstructProps, 'sqsQueue'> &
   IcaSqsQueueConstructProps;

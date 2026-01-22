@@ -17,7 +17,7 @@
               "icav2AnalysisId": "{% $states.input.payload.id %}",
               "status": "{% $states.input.payload.status %}",
               "name": "{% $states.input.payload.userReference %}",
-              "errorMessage": "{% $states.input.payload.summary %}"
+              "errorMessage": "{% $states.input.payload.summary ? $states.input.payload.summary : null %}"
             }
           },
           "Is Relevant Status": {

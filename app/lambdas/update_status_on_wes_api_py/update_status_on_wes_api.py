@@ -30,6 +30,10 @@ ICAV2_WES_ORCABUS_ID_TAG_NAME = 'icav2_wes_orcabus_id'
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
+# Globals
+S3_ANALYSIS_ERROR_LOGS_PREFIX_ENV_VAR = 'S3_ANALYSIS_ERROR_LOGS_PREFIX'
+S3_ANALYSIS_ARTEFACTS_BUCKET_NAME_ENV_VAR = 'S3_ANALYSIS_ARTEFACTS_BUCKET_NAME'
+
 
 def handler(event, context) -> Dict:
     """
@@ -48,6 +52,9 @@ def handler(event, context) -> Dict:
     # Get the analysis id from the event
     icav2_analysis_id = event.get("icav2AnalysisId")
 
+    # Get the steps execution arn if present
+    steps_execution_arn = event.get("stepsExecutionArn")
+
     # Get the errorMessage and errorType if they are present
     error_type = event.get("errorType")
     error_message = event.get("errorMessage")
@@ -60,7 +67,7 @@ def handler(event, context) -> Dict:
         logger.info("Uploading the error logs to S3")
         now = datetime.now(timezone.utc)
         upload_path = str(
-            Path(environ['S3_ANALYSIS_ERROR_LOGS_PREFIX']) /
+            Path(environ[S3_ANALYSIS_ERROR_LOGS_PREFIX_ENV_VAR]) /
             f"year={now.year}" /
             f"month={now.month:02d}" /
             f"day={now.day:02d}" /
@@ -78,13 +85,13 @@ def handler(event, context) -> Dict:
             s3_client: 'S3Client' = boto3.client('s3')
             s3_client.upload_file(
                 Filename=temp_error_message.name,
-                Bucket=environ['S3_ANALYSIS_ARTEFACTS_BUCKET_NAME'],
+                Bucket=environ[S3_ANALYSIS_ARTEFACTS_BUCKET_NAME_ENV_VAR],
                 Key=upload_path
             )
 
         s3_payload_uri = str(urlunparse((
             's3',
-            environ['S3_ANALYSIS_ARTEFACTS_BUCKET_NAME'],
+            environ[S3_ANALYSIS_ARTEFACTS_BUCKET_NAME_ENV_VAR],
             str(upload_path),
             None, None, None
         )))
@@ -101,6 +108,8 @@ def handler(event, context) -> Dict:
         # Keyword (packed) args in camelCase
         status=status,
         icav2AnalysisId=icav2_analysis_id,
+        # Steps execution arn (not yet implemented)
+        stepsLaunchExecutionArn=steps_execution_arn,
         # Error messages
         errorType=error_type,
         errorMessageUri=s3_payload_uri

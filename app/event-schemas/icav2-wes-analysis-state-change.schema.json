@@ -86,6 +86,19 @@
         "endTime": {
           "type": "string",
           "format": "date-time"
+        },
+        "errorType": {
+          "type": "string",
+          "enum": [
+            "CreateAnalysisInputFailure",
+            "AnalysisLaunchFailure",
+            "PipelineNotFoundFailure",
+            "AnalysisFailure"
+          ]
+        },
+        "errorMessageUri": {
+          "type": "string",
+          "format": "uri"
         }
       },
       "required": ["id", "name", "inputs", "engineParameters", "tags", "status", "submissionTime"]

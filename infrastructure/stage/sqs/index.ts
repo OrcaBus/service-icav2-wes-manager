@@ -3,7 +3,7 @@ import { Construct } from 'constructs';
 import {
   IcaSqsEventPipeProps,
   IcaSqsQueueConstructProps,
-  sfnEventPipeConstructProps,
+  SfnEventPipeConstructProps,
   sqsEventPipeProps,
   SqsQueueConstructProps,
 } from './interfaces';
@@ -60,7 +60,7 @@ function createExternalIcaMonitoredQueue(
   return mq;
 }
 
-function createEventPipe(scope: Construct, props: sfnEventPipeConstructProps) {
+function createEventPipe(scope: Construct, props: SfnEventPipeConstructProps) {
   const targetInputTransformation = pipes.InputTransformation.fromObject({
     input: pipes.DynamicInput.fromEventPath('$.body'),
   });
@@ -73,13 +73,13 @@ function createEventPipe(scope: Construct, props: sfnEventPipeConstructProps) {
   );
 
   // Inside your function:
-  const logGroup = new LogGroup(scope, `${props.sqsQueue.queueName}--eventPipeLogGroup`);
+  const logGroup = new LogGroup(scope, `${props.eventPipeName}--eventPipeLogGroup`);
 
   return new pipes.Pipe(scope, props.eventPipeName, {
     /* Source */
     source: new SqsSource(props.sqsQueue, {
-      batchSize: 5,
-      maximumBatchingWindow: Duration.seconds(10),
+      batchSize: props.batchSize ?? 10,
+      maximumBatchingWindow: props.batchingWindow ?? Duration.seconds(10),
     }),
     /* Target */
     target: new SfnTarget(stepFunctionObject, {

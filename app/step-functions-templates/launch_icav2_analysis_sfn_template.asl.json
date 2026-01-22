@@ -29,7 +29,8 @@
               "FunctionName": "${__update_status_on_wes_api_lambda_function_arn__}",
               "Payload": {
                 "status": "RUNNABLE",
-                "name": "{% $name %}"
+                "name": "{% $name %}",
+                "stepsLaunchExecutionArn": "{% $states.context.Execution.Id %}"
               }
             },
             "Retry": [

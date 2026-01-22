@@ -143,7 +143,7 @@ class Icav2WesAnalysisPatch(BaseModel):
     icav2AnalysisId: Optional[str] = None
     status: AnalysisStatusType
     errorType: Optional[ErrorType] = None
-    errorMessage: Optional[str] = None
+    errorMessageUri: Optional[str] = None
 
 
 class Icav2WesAnalysisData(Icav2WesAnalysisWithId, Dyntastic):

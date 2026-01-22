@@ -16,7 +16,7 @@ export function buildSchema(scope: Construct, props: BuildSchemaProps): schemas.
   // Import the schema file from the schemas directory
   const schemaPath = path.join(
     EVENT_SCHEMAS_DIR,
-    camelCaseToKebabCase(props.schemaName) + '-schema.json'
+    camelCaseToKebabCase(props.schemaName) + '.schema.json'
   );
 
   // Create a new schema in the Event Schemas service

@@ -65,6 +65,7 @@ export const lambdaToRequirementsMap: LambdaToRequirementsMapType = {
   },
   updateStatusOnWesApi: {
     needsOrcabusTookitLayer: true,
+    needsArtefactBucketPermissions: true,
   },
   abortAnalysis: {
     needsIcav2ToolkitLayer: true,

@@ -21,8 +21,8 @@ importers:
         specifier: 2.235.1-alpha.0
         version: 2.235.1-alpha.0(@aws-cdk/aws-pipes-alpha@2.235.1-alpha.0(aws-cdk-lib@2.235.1(constructs@10.4.5))(constructs@10.4.5))(aws-cdk-lib@2.235.1(constructs@10.4.5))(constructs@10.4.5)
       '@orcabus/platform-cdk-constructs':
-        specifier: 1.0.4
-        version: 1.0.4(@aws-cdk/aws-lambda-python-alpha@2.235.1-alpha.0(aws-cdk-lib@2.235.1(constructs@10.4.5))(constructs@10.4.5))(aws-cdk-lib@2.235.1(constructs@10.4.5))(constructs@10.4.5)
+        specifier: 1.0.5
+        version: 1.0.5(@aws-cdk/aws-lambda-python-alpha@2.235.1-alpha.0(aws-cdk-lib@2.235.1(constructs@10.4.5))(constructs@10.4.5))(aws-cdk-lib@2.235.1(constructs@10.4.5))(constructs@10.4.5)
       aws-cdk-lib:
         specifier: ^2.235.1
         version: 2.235.1(constructs@10.4.5)
@@ -429,8 +429,8 @@ packages:
   '@jridgewell/trace-mapping@0.3.9':
     resolution: {integrity: sha512-3Belt6tdc8bPgAtbcmdtNJlirVoTmEb5e2gC94PnkwEW9jI6CAHUeoG85tjWP5WquqfavoMtMwiG4P926ZKKuQ==}
 
-  '@orcabus/platform-cdk-constructs@1.0.4':
-    resolution: {integrity: sha512-4EqCiv5Fo4TmX8RXeorTMTAhTloNDnlXbQQLDPBySa2bU/o0bBEGW36VHVo29ZKGFe29wFJvoUFW6X7Y4/+N6w==}
+  '@orcabus/platform-cdk-constructs@1.0.5':
+    resolution: {integrity: sha512-o3a2R5LDeYBh1y+LWSqUU50SmPjx3wA9baHDoQw8RYn1bQDaecbPoFrVE46zMIM5PEl6lQElCrdIEElrnzUELg==}
     peerDependencies:
       '@aws-cdk/aws-lambda-python-alpha': ^2.233.0-alpha.0
       aws-cdk-lib: ^2.233.0
@@ -2180,7 +2180,7 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
 
-  '@orcabus/platform-cdk-constructs@1.0.4(@aws-cdk/aws-lambda-python-alpha@2.235.1-alpha.0(aws-cdk-lib@2.235.1(constructs@10.4.5))(constructs@10.4.5))(aws-cdk-lib@2.235.1(constructs@10.4.5))(constructs@10.4.5)':
+  '@orcabus/platform-cdk-constructs@1.0.5(@aws-cdk/aws-lambda-python-alpha@2.235.1-alpha.0(aws-cdk-lib@2.235.1(constructs@10.4.5))(constructs@10.4.5))(aws-cdk-lib@2.235.1(constructs@10.4.5))(constructs@10.4.5)':
     dependencies:
       '@aws-cdk/aws-lambda-python-alpha': 2.235.1-alpha.0(aws-cdk-lib@2.235.1(constructs@10.4.5))(constructs@10.4.5)
       aws-cdk-lib: 2.235.1(constructs@10.4.5)
