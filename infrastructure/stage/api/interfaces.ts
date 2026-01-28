@@ -5,7 +5,6 @@ import { OrcaBusApiGateway } from '@orcabus/platform-cdk-constructs/api-gateway'
 import { HttpLambdaIntegration } from 'aws-cdk-lib/aws-apigatewayv2-integrations';
 import { SfnObjectProps } from '../step-functions/interfaces';
 import { IStringParameter } from 'aws-cdk-lib/aws-ssm';
-import { IQueue } from 'aws-cdk-lib/aws-sqs';
 
 export interface LambdaApiProps {
   /* The lambda name */
@@ -17,7 +16,6 @@ export interface LambdaApiProps {
 
   /* Step Functions */
   stepFunctions: SfnObjectProps[];
-  sqsQueues: IQueue[];
 
   /* Event Bus */
   eventBus: IEventBus;

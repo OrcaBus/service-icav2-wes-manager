@@ -22,6 +22,7 @@ export interface BuildSfnsProps {
   eventBus: IEventBus;
   eventSource: string;
   payloadsTable: ITableV2;
+  callbackTable: ITableV2;
 }
 
 export interface SfnProps extends BuildSfnsProps {
@@ -44,7 +45,11 @@ export const stepFunctionToLambdaMap: { [key in SfnName]: Array<LambdaName> } = 
     'copyNextflowFilesFromLogsUri',
     'filemanagerSync',
   ],
-  launchIcav2Analysis: ['launchIcav2AnalysisViaWrapica', 'updateStatusOnWesApi'],
+  launchIcav2Analysis: [
+    'launchIcav2AnalysisViaWrapica',
+    'updateStatusOnWesApi',
+    'unlockCallbackId',
+  ],
 };
 
 export interface SfnRequirementsProps {
@@ -54,8 +59,9 @@ export interface SfnRequirementsProps {
   in order to copy the log files into the proper location
   */
   needsExternalEventBusPutPermissions?: boolean;
-  needsPayloadDbPermissions?: boolean;
   isExpressSfn?: boolean;
+  needsPayloadDbPermissions?: boolean;
+  needsCallbackTablePermissions?: boolean;
 }
 
 export type SfnToRequirementsMapType = { [key in SfnName]: SfnRequirementsProps };
@@ -71,6 +77,5 @@ export const sfnToRequirementsMap: SfnToRequirementsMapType = {
   launchIcav2Analysis: {
     needsExternalEventBusPutPermissions: false,
     needsPayloadDbPermissions: true,
-    isExpressSfn: true,
   },
 };

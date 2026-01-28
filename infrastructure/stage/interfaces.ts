@@ -5,11 +5,12 @@ import { StageName } from '@orcabus/platform-cdk-constructs/shared-config/accoun
 /** Application Interfaces */
 export interface StatefulApplicationStackConfig extends cdk.StackProps {
   /* Dynamodb table name */
-  tableName: string;
+  wesTableName: string;
   indexNames: string[];
 
   /* Extra tables */
   payloadsTableName: string;
+  callbackTableName: string;
 
   /* Extra buckets */
   payloadsBucketName: string;
@@ -20,9 +21,14 @@ export interface StatefulApplicationStackConfig extends cdk.StackProps {
 
   /* SQS Stuff */
   slackTopicName: string;
+
+  /* ICAv2 WES Request stuff */
+  icav2WesRequestSqsQueueName: string;
+
   /* Launch name / event pipe stuff */
   launchIcaAnalysisSqsQueueName: string;
   launchIcaAnalysisEventPipeName: string;
+
   /* External sqs name / event pipe stuff */
   icaExternalSqsQueueName: string;
   icaExternalEventPipeName: string;
@@ -38,6 +44,7 @@ export interface StatelessApplicationStackConfig extends cdk.StackProps {
 
   /* Extra tables */
   payloadsTableName: string;
+  callbackTableName: string;
 
   /* Extra buckets */
   payloadsBucketName: string;
@@ -59,6 +66,7 @@ export interface StatelessApplicationStackConfig extends cdk.StackProps {
   icaExternalEventPipeName: string;
   icav2AnalysisStateChangeEventCode: string;
   icav2WesManagerTagKey: string;
+  icav2WesRequestSqsQueueName: string;
   launchIcaAnalysisSqsQueueName: string;
 
   /* SSM - Secrets */

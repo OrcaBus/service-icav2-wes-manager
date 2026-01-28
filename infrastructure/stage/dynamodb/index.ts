@@ -54,3 +54,17 @@ export function buildPayloadsTable(scope: Construct, props: PayloadsTableProps) 
     timeToLiveAttribute: 'ttl',
   });
 }
+
+export function buildCallbackTable(scope: Construct, props: PayloadsTableProps) {
+  new dynamodb.TableV2(scope, props.tableName, {
+    partitionKey: {
+      name: 'id',
+      type: AttributeType.STRING,
+    },
+    tableName: props.tableName,
+    removalPolicy: TABLE_REMOVAL_POLICY,
+    pointInTimeRecoverySpecification: {
+      pointInTimeRecoveryEnabled: true,
+    },
+  });
+}

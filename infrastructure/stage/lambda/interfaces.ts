@@ -1,11 +1,14 @@
 import { PythonFunction } from '@aws-cdk/aws-lambda-python-alpha';
 import { IBucket } from 'aws-cdk-lib/aws-s3';
+import { IQueue } from 'aws-cdk-lib/aws-sqs';
+import { ITableV2 } from 'aws-cdk-lib/aws-dynamodb';
 
 export type LambdaName =
   // Pre analysis
   | 'generateWesPostRequestFromEvent'
   // Run analysis
   | 'launchIcav2AnalysisViaWrapica'
+  | 'unlockCallbackId'
   // Mid analysis
   | 'getIcav2WesObject'
   | 'updateStatusOnWesApi'
@@ -23,6 +26,7 @@ export const lambdaNameList: Array<LambdaName> = [
   'generateWesPostRequestFromEvent',
   // Run analysis
   'launchIcav2AnalysisViaWrapica',
+  'unlockCallbackId',
   // Mid analysis
   'getIcav2WesObject',
   'updateStatusOnWesApi',
@@ -41,6 +45,9 @@ export interface LambdaRequirementProps {
   needsTestDataBucketPermissions?: boolean;
   needsReferenceDataBucketPermissions?: boolean;
   needsArtefactBucketPermissions?: boolean;
+  needsSqsEventSource?: boolean;
+  needsCallbackPermissions?: boolean;
+  needsDurableExecutionPermissions?: boolean;
 }
 
 export type LambdaToRequirementsMapType = { [key in LambdaName]: LambdaRequirementProps };
@@ -49,6 +56,8 @@ export const lambdaToRequirementsMap: LambdaToRequirementsMapType = {
   // Pre analysis
   generateWesPostRequestFromEvent: {
     needsOrcabusTookitLayer: true,
+    needsSqsEventSource: true,
+    needsDurableExecutionPermissions: true,
   },
   // Run analysis
   launchIcav2AnalysisViaWrapica: {
@@ -57,6 +66,9 @@ export const lambdaToRequirementsMap: LambdaToRequirementsMapType = {
     needsTestDataBucketPermissions: true,
     needsReferenceDataBucketPermissions: true,
     needsArtefactBucketPermissions: true,
+  },
+  unlockCallbackId: {
+    needsCallbackPermissions: true,
   },
   // Mid analysis
   getIcav2WesObject: {
@@ -94,6 +106,8 @@ export interface BuildLambdaProps {
   artefactsBucket: IBucket;
   payloadsKeyPrefix: string;
   errorLogsKeyPrefix: string;
+  sourceEventQueue: IQueue;
+  callbackTable: ITableV2;
 }
 
 export type BuildAllLambdasProps = Omit<BuildLambdaProps, 'lambdaName'>;

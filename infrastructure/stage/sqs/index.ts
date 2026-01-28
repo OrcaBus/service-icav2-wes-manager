@@ -24,7 +24,7 @@ export function getTopicArnFromTopicName(topicName: string): string {
 
 // Create the INPUT SQS queue that will receive the ICA events
 // This should have a DLQ and be monitored via CloudWatch alarm and Slack notifications
-function createMonitoredQueue(scope: Construct, props: SqsQueueConstructProps): Queue {
+export function createMonitoredQueue(scope: Construct, props: SqsQueueConstructProps): Queue {
   const mq = new MonitoredQueue(scope, props.queueName, {
     queueProps: {
       queueName: props.queueName,

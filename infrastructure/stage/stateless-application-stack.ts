@@ -43,6 +43,11 @@ export class StatelessApplicationStack extends cdk.Stack {
       props.payloadsTableName,
       props.payloadsTableName
     );
+    const callbackTable = dynamodb.TableV2.fromTableName(
+      this,
+      props.callbackTableName,
+      props.callbackTableName
+    );
 
     // Extra buckets
     const payloadsBucket = s3.Bucket.fromBucketName(
@@ -84,11 +89,11 @@ export class StatelessApplicationStack extends cdk.Stack {
       props.testDataBucketName
     );
 
-    // Get the launchIcav2AnalysisSqsQueueName from props
-    const launchIcav2AnalysisSqsQueue: IQueue = sqs.Queue.fromQueueArn(
+    // Get the ICA WES Request SQS Queue from props
+    const icav2WesRequestSqsQueue: IQueue = sqs.Queue.fromQueueArn(
       this,
-      props.launchIcaAnalysisSqsQueueName,
-      `arn:aws:sqs:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:${props.launchIcaAnalysisSqsQueueName}`
+      props.icav2WesRequestSqsQueueName,
+      `arn:aws:sqs:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:${props.icav2WesRequestSqsQueueName}`
     );
 
     // Build the lambdas
@@ -98,6 +103,8 @@ export class StatelessApplicationStack extends cdk.Stack {
       errorLogsKeyPrefix: props.errorLogsKeyPrefix,
       referenceDataBucket: referenceDataBucket,
       testDataBucket: testDataBucket,
+      sourceEventQueue: icav2WesRequestSqsQueue,
+      callbackTable: callbackTable,
     });
 
     // Build the step functions
@@ -106,6 +113,7 @@ export class StatelessApplicationStack extends cdk.Stack {
       eventBus: externalEventBusObject,
       eventSource: props.eventSource,
       payloadsTable: payloadsTable,
+      callbackTable: callbackTable,
     });
 
     // Build event bridge rules
@@ -123,8 +131,7 @@ export class StatelessApplicationStack extends cdk.Stack {
     // Add the event-bridge rules
     buildAllEventBridgeTargets({
       eventBridgeRuleObjects: eventBridgeRuleObjects,
-      stepFunctionObjects: stepFunctionObjects,
-      lambdaObjects: lambdaObjects,
+      sqsQueues: [icav2WesRequestSqsQueue],
     });
 
     // Build the API interface lambda
@@ -140,9 +147,6 @@ export class StatelessApplicationStack extends cdk.Stack {
       stepFunctions: stepFunctionObjects.filter((stepFunctionObject) =>
         ['launchIcav2Analysis', 'abortIcav2Analysis'].includes(stepFunctionObject.stateMachineName)
       ),
-
-      /* SQS Queues */
-      sqsQueues: [launchIcav2AnalysisSqsQueue],
 
       /* Event bus */
       eventBus: externalEventBusObject,

@@ -31,13 +31,12 @@ from ..models.analysis import (
 )
 from ..models.analysis_query import AnalysisQueryParameters
 from ..globals import (
-    ICAV2_WES_LAUNCH_SQS_QUEUE_NAME_ENV_VAR,
     ICAV2_WES_ABORT_MACHINE_ARN_ENV_VAR,
-    get_default_job_patch_entry,
+    get_default_job_patch_entry, ICAV2_WES_LAUNCH_STATE_MACHINE_ARN_ENV_VAR,
 )
 from ..utils import (
     sanitise_icav2_wes_analysis_orcabus_id,
-    launch_sfn, put_sqs_message
+    launch_sfn
 )
 from ..events.events import put_icav2_wes_analysis_update_event
 
@@ -177,9 +176,12 @@ async def create_job(analysis_obj: Icav2WesAnalysisCreate) -> Icav2WesAnalysisRe
     # Now launch the job - we skip the 'PENDING' phase for now
     # Instead we go straight to 'SUBMITTED'
     analysis_obj.start_time = datetime.now(timezone.utc)
-    put_sqs_message(
-        queue_name=environ[ICAV2_WES_LAUNCH_SQS_QUEUE_NAME_ENV_VAR],
-        message_body=dict(analysis_obj.to_dict())
+    # Now launch the job - we skip the 'PENDING' phase for now
+    # Instead we go straight to 'SUBMITTED'
+    analysis_obj.start_time = datetime.now(timezone.utc)
+    analysis_obj.steps_launch_execution_arn = launch_sfn(
+        sfn_name=environ[ICAV2_WES_LAUNCH_STATE_MACHINE_ARN_ENV_VAR],
+        sfn_input=dict(analysis_obj.to_dict())
     )
 
     # Save the analysis (so two events dont get created)

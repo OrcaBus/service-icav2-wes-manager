@@ -46,9 +46,13 @@ export const DEFAULT_QUEUE_TIMEOUT = Duration.seconds(300);
 export const DEFAULT_DLQ_ALARM_THRESHOLD = 1;
 export const SLACK_TOPIC_NAME = 'AwsChatBotTopic';
 
+// WES Request
+export const DEFAULT_WES_REQUEST_SQS_QUEUE_NAME = 'Icav2WesRequestSqsQueue';
+
 // Launch ICA Analysis SQS
-export const DEFAULT_LAUNCH_ICA_ANALYSIS_SQS_QUEUE_NAME = 'Icav2WesLaunchIcaAnalysisSqsQueue';
+export const DEFAULT_MAX_ICAV2_WES_REQUEST_API_CONCURRENCY = 5;
 export const DEFAULT_LAUNCH_ICA_ANALYSIS_EVENT_PIPE_NAME = 'Icav2WesLaunchIcaAnalysisEventPipe';
+export const DEFAULT_LAUNCH_ICA_ANALYSIS_SQS_QUEUE_NAME = 'Icav2WesLaunchIcaAnalysisSqsQueue';
 
 // External SQS
 // The SQS queue pushes directly to the handleAnalysisStateChange step function
@@ -70,6 +74,7 @@ export const TABLE_REMOVAL_POLICY = RemovalPolicy.RETAIN_ON_UPDATE_OR_DELETE; //
 
 /* Extra tables */
 export const PAYLOADS_TABLE_NAME = 'icav2WesManagerPayloadsTable';
+export const CALLBACK_TABLE_NAME = 'icav2WesManagerCallbackTable';
 
 /* Event constants */
 export const EVENT_BUS_NAME_INTERNAL = 'OrcaBusICAv2WesManagerInternal'; // Events for internal use only, i.e handling ICAV2 Events

@@ -24,6 +24,8 @@ import {
   DEFAULT_LAUNCH_ICA_ANALYSIS_SQS_QUEUE_NAME,
   DEFAULT_EXTERNAL_ICA_EVENT_SQS_NAME,
   ERROR_LOGS_KEY_PREFIX,
+  DEFAULT_WES_REQUEST_SQS_QUEUE_NAME,
+  CALLBACK_TABLE_NAME,
 } from './constants';
 import { ICAV2_ACCESS_TOKEN_SECRET_ID } from '@orcabus/platform-cdk-constructs/shared-config/icav2';
 import { StageName } from '@orcabus/platform-cdk-constructs/shared-config/accounts';
@@ -35,11 +37,12 @@ import {
 export const getStatefulStackProps = (stage: StageName): StatefulApplicationStackConfig => {
   return {
     // Table stuff
-    tableName: TABLE_NAME,
+    wesTableName: TABLE_NAME,
     indexNames: TABLE_INDEX_NAMES,
 
     // Extra table stuff
     payloadsTableName: PAYLOADS_TABLE_NAME,
+    callbackTableName: CALLBACK_TABLE_NAME,
 
     // Extra buckets stuff
     payloadsBucketName: S3_ARTEFACTS_BUCKET_NAME[stage],
@@ -49,6 +52,7 @@ export const getStatefulStackProps = (stage: StageName): StatefulApplicationStac
     internalEventBusDescription: INTERNAL_EVENT_BUS_DESCRIPTION,
 
     // SQS Stuff
+    icav2WesRequestSqsQueueName: DEFAULT_WES_REQUEST_SQS_QUEUE_NAME,
     launchIcaAnalysisEventPipeName: DEFAULT_LAUNCH_ICA_ANALYSIS_EVENT_PIPE_NAME,
     launchIcaAnalysisSqsQueueName: DEFAULT_LAUNCH_ICA_ANALYSIS_SQS_QUEUE_NAME,
     icaExternalSqsQueueName: DEFAULT_EXTERNAL_ICA_EVENT_SQS_NAME,
@@ -73,6 +77,7 @@ export const getStatelessStackProps = (stage: StageName): StatelessApplicationSt
 
     // Internal event handling stuff
     internalEventBusName: EVENT_BUS_NAME_INTERNAL,
+    icav2WesRequestSqsQueueName: DEFAULT_WES_REQUEST_SQS_QUEUE_NAME,
     launchIcaAnalysisSqsQueueName: DEFAULT_LAUNCH_ICA_ANALYSIS_SQS_QUEUE_NAME,
     icaExternalEventPipeName: DEFAULT_EXTERNAL_ICA_EVENT_PIPE_NAME,
     icav2AnalysisStateChangeEventCode: ICAV2_ANALYSIS_STATE_CHANGE_JOB_EVENT_CODE,
@@ -83,6 +88,7 @@ export const getStatelessStackProps = (stage: StageName): StatelessApplicationSt
 
     // Extra table stuff
     payloadsTableName: PAYLOADS_TABLE_NAME,
+    callbackTableName: CALLBACK_TABLE_NAME,
 
     // Extra bucket stuff
     payloadsBucketName: S3_ARTEFACTS_BUCKET_NAME[stage],

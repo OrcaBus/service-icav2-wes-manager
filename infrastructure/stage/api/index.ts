@@ -1,11 +1,6 @@
 import { PythonUvFunction } from '@orcabus/platform-cdk-constructs/lambda';
 import path from 'path';
-import {
-  API_VERSION,
-  DEFAULT_LAUNCH_ICA_ANALYSIS_SQS_QUEUE_NAME,
-  ICAV2_WES_SUBDOMAIN_NAME,
-  INTERFACE_DIR,
-} from '../constants';
+import { API_VERSION, ICAV2_WES_SUBDOMAIN_NAME, INTERFACE_DIR } from '../constants';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import { Duration } from 'aws-cdk-lib';
 import * as cdk from 'aws-cdk-lib';
@@ -29,7 +24,7 @@ export function buildApiInterfaceLambda(scope: Construct, props: LambdaApiProps)
   // Create the lambda function
   const lambdaFunction = new PythonUvFunction(scope, props.lambdaName, {
     entry: path.join(INTERFACE_DIR),
-    runtime: lambda.Runtime.PYTHON_3_12,
+    runtime: lambda.Runtime.PYTHON_3_14,
     architecture: lambda.Architecture.ARM_64,
     index: 'handler.py',
     handler: 'handler',
@@ -43,22 +38,18 @@ export function buildApiInterfaceLambda(scope: Construct, props: LambdaApiProps)
   for (const sfnObject of props.stepFunctions) {
     sfnObject.stateMachineObj.grantStartExecution(lambdaFunction.currentVersion);
     switch (sfnObject.stateMachineName) {
+      case 'launchIcav2Analysis': {
+        lambdaFunction.addEnvironment(
+          'ICAV2_WES_LAUNCH_STATE_MACHINE_ARN',
+          sfnObject.stateMachineObj.stateMachineArn
+        );
+        break;
+      }
       case 'abortIcav2Analysis': {
         lambdaFunction.addEnvironment(
           'ICAV2_WES_ABORT_STATE_MACHINE_ARN',
           sfnObject.stateMachineObj.stateMachineArn
         );
-        break;
-      }
-    }
-  }
-
-  // Add SQS queue urls as environment variables
-  for (const sqsObject of props.sqsQueues) {
-    sqsObject.grantSendMessages(lambdaFunction.currentVersion);
-    switch (sqsObject.queueName) {
-      case DEFAULT_LAUNCH_ICA_ANALYSIS_SQS_QUEUE_NAME: {
-        lambdaFunction.addEnvironment('ICAV2_WES_LAUNCH_SQS_QUEUE_NAME', sqsObject.queueName);
         break;
       }
     }
@@ -101,14 +92,6 @@ export function buildApiInterfaceLambda(scope: Construct, props: LambdaApiProps)
     'ICAV2_WES_BASE_URL',
     `https://${ICAV2_WES_SUBDOMAIN_NAME}.${props.hostedZoneSsmParameter.stringValue}`
   );
-
-  // Add in stack suppressions
-  NagSuppressions.addResourceSuppressions(lambdaFunction, [
-    {
-      id: 'AwsSolutions-L1',
-      reason: 'Will migrate to PYTHON_3_13 ASAP, soz',
-    },
-  ]);
 
   return lambdaFunction;
 }

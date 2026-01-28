@@ -21,10 +21,10 @@ import {
 } from './constants';
 import {
   createExternalIcaEventBridgePipe,
-  createLaunchIcaAnalysisEventBridgePipe,
+  createMonitoredQueue,
   getTopicArnFromTopicName,
 } from './sqs';
-import { buildICAv2WesDb, buildPayloadsTable } from './dynamodb';
+import { buildCallbackTable, buildICAv2WesDb, buildPayloadsTable } from './dynamodb';
 import { createArtefactsBucket } from './s3';
 import { buildSchemas } from './event-schemas';
 import { Topic } from 'aws-cdk-lib/aws-sns';
@@ -43,14 +43,12 @@ export class StatefulApplicationStack extends cdk.Stack {
       getTopicArnFromTopicName(props.slackTopicName)
     ) as Topic;
 
-    // Create the launch sqs queue to stagger launch requests to ICA
-    createLaunchIcaAnalysisEventBridgePipe(this, {
-      eventPipeName: props.launchIcaAnalysisEventPipeName,
-      stepFunctionName: 'launchIcav2Analysis',
-      queueName: props.launchIcaAnalysisSqsQueueName,
+    // Buffer to launch ICA analysis requests
+    createMonitoredQueue(this, {
+      dlqMessageThreshold: 1,
+      queueName: props.icav2WesRequestSqsQueueName,
       queueVizTimeout: DEFAULT_QUEUE_TIMEOUT,
       slackTopic: slackTopic,
-      dlqMessageThreshold: 1,
     });
 
     // Create the event pipe to join the ICA SQS queue to the event bus
@@ -66,13 +64,17 @@ export class StatefulApplicationStack extends cdk.Stack {
 
     // Build the ICAv2 WES database
     buildICAv2WesDb(this, {
-      tableName: props.tableName,
+      tableName: props.wesTableName,
       indexNames: props.indexNames,
     });
 
     // Extra tables
     buildPayloadsTable(this, {
       tableName: props.payloadsTableName,
+    });
+
+    buildCallbackTable(this, {
+      tableName: props.callbackTableName,
     });
 
     // Extra buckets
