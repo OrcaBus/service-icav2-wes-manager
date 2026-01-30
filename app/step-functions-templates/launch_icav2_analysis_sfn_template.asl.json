@@ -4,14 +4,14 @@
   "States": {
     "Get Inputs": {
       "Type": "Pass",
-      "Next": "Update wes API",
       "Assign": {
         "icav2WesOrcabusId": "{% $states.input.id %}",
         "name": "{% $states.input.name %}",
         "inputs": "{% $states.input.inputs %}",
         "engineParameters": "{% $states.input.engineParameters %}",
         "tags": "{% $states.input.tags %}"
-      }
+      },
+      "Next": "Update wes API"
     },
     "Update wes API": {
       "Type": "Task",
@@ -21,7 +21,8 @@
         "FunctionName": "${__update_status_on_wes_api_lambda_function_arn__}",
         "Payload": {
           "status": "RUNNABLE",
-          "name": "{% $name %}"
+          "name": "{% $name %}",
+          "stepsLaunchExecutionArn": "{% $states.context.Execution.Id %}"
         }
       },
       "Retry": [
@@ -70,6 +71,13 @@
           "MaxAttempts": 3,
           "BackoffRate": 2,
           "JitterStrategy": "FULL"
+        },
+        {
+          "ErrorEquals": ["CreateAnalysisInputFailure", "AnalysisLaunchFailure"],
+          "BackoffRate": 2,
+          "IntervalSeconds": 5,
+          "MaxAttempts": 2,
+          "Comment": "Retry sporadic launch failures"
         }
       ],
       "Catch": [
@@ -77,7 +85,8 @@
           "ErrorEquals": ["States.ALL"],
           "Assign": {
             "status": "FAILED",
-            "errorMessage": "{% $states.errorOutput %}"
+            "errorMessage": "{% $parse($states.errorOutput.Cause) ~> $lookup('errorMessage') %}",
+            "errorType": "{% $states.errorOutput.Error %}"
           },
           "Next": "Update WES API with Failed Status"
         }
@@ -107,17 +116,47 @@
           }
         }
       },
+      "Next": "Get callback id from icav2 wes id"
+    },
+    "Get callback id from icav2 wes id": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:getItem",
+      "Arguments": {
+        "TableName": "${__icav2_wes_request_callback_table_name__}",
+        "Key": {
+          "id": {
+            "S": "{% $icav2WesOrcabusId %}"
+          }
+        }
+      },
+      "Next": "Has callback id",
+      "Assign": {
+        "callbackId": "{% $states.result.Item.callback_id.S ? $states.result.Item.callback_id.S : null %}"
+      }
+    },
+    "Has callback id": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Next": "Unlock callback id",
+          "Condition": "{% $callbackId ? true : false %}",
+          "Comment": "Callback id in database"
+        }
+      ],
+      "Default": "Pass"
+    },
+    "Pass": {
+      "Type": "Pass",
       "End": true
     },
-    "Update WES API with Failed Status": {
+    "Unlock callback id": {
       "Type": "Task",
       "Resource": "arn:aws:states:::lambda:invoke",
       "Output": "{% $states.result.Payload %}",
       "Arguments": {
-        "FunctionName": "${__update_status_on_wes_api_lambda_function_arn__}",
+        "FunctionName": "${__unlock_callback_id_lambda_function_arn__}",
         "Payload": {
-          "name": "{% $name %}",
-          "status": "FAILED"
+          "callbackId": "{% $callbackId %}"
         }
       },
       "Retry": [
@@ -134,7 +173,55 @@
           "JitterStrategy": "FULL"
         }
       ],
+      "Next": "Delete Callback id from database",
+      "Catch": [
+        {
+          "ErrorEquals": ["States.TaskFailed"],
+          "Next": "Delete Callback id from database"
+        }
+      ]
+    },
+    "Delete Callback id from database": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:deleteItem",
+      "Arguments": {
+        "TableName": "${__icav2_wes_request_callback_table_name__}",
+        "Key": {
+          "id": {
+            "S": "{% $icav2WesOrcabusId %}"
+          }
+        }
+      },
       "End": true
+    },
+    "Update WES API with Failed Status": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Output": "{% $states.result.Payload %}",
+      "Arguments": {
+        "FunctionName": "${__update_status_on_wes_api_lambda_function_arn__}",
+        "Payload": {
+          "name": "{% $name %}",
+          "status": "FAILED",
+          "errorType": "{% $errorType ? $errorType : null %}",
+          "errorMessage": "{% $errorMessage ? $errorMessage : null %}"
+        }
+      },
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 1,
+          "MaxAttempts": 3,
+          "BackoffRate": 2,
+          "JitterStrategy": "FULL"
+        }
+      ],
+      "Next": "Get callback id from icav2 wes id"
     }
   },
   "QueryLanguage": "JSONata"

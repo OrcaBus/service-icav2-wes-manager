@@ -1,12 +1,13 @@
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import {
-  IcaEventPipeConstructProps,
   IcaSqsEventPipeProps,
   IcaSqsQueueConstructProps,
+  SfnEventPipeConstructProps,
+  sqsEventPipeProps,
+  SqsQueueConstructProps,
 } from './interfaces';
 import { Queue } from 'aws-cdk-lib/aws-sqs';
-import { Topic } from 'aws-cdk-lib/aws-sns';
 import { MonitoredQueue } from 'sqs-dlq-monitoring';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as pipes from '@aws-cdk/aws-pipes-alpha';
@@ -23,31 +24,44 @@ export function getTopicArnFromTopicName(topicName: string): string {
 
 // Create the INPUT SQS queue that will receive the ICA events
 // This should have a DLQ and be monitored via CloudWatch alarm and Slack notifications
-function createMonitoredQueue(scope: Construct, props: IcaSqsQueueConstructProps): Queue {
-  // Note: the construct MonitoredQueue demands a "Topic" construct as it usually modifies the topic adding subscriptions.
-  // However, our use case, as we don't add any additional subscriptions, does not require topic modification, so we can pass on an "ITopic" as "Topic".
-  const topic: Topic = Topic.fromTopicArn(scope, 'SlackTopic', props.slackTopicArn) as Topic;
-
-  const mq = new MonitoredQueue(scope, props.icaQueueName, {
+export function createMonitoredQueue(scope: Construct, props: SqsQueueConstructProps): Queue {
+  const mq = new MonitoredQueue(scope, props.queueName, {
     queueProps: {
-      queueName: props.icaQueueName,
+      queueName: props.queueName,
       enforceSSL: true,
-      visibilityTimeout: props.icaQueueVizTimeout,
+      visibilityTimeout: props.queueVizTimeout,
+      receiveMessageWaitTime: props.receiveMessageWaitTime,
     },
     dlqProps: {
-      queueName: props.icaQueueName + '-dlq',
+      queueName: props.queueName + '-dlq',
       enforceSSL: true,
-      visibilityTimeout: props.icaQueueVizTimeout,
+      visibilityTimeout: props.queueVizTimeout,
     },
     messageThreshold: props.dlqMessageThreshold,
-    topic: topic,
+    topic: props.slackTopic,
   });
-  mq.queue.grantSendMessages(new iam.AccountPrincipal(props.icaAwsAccountNumber));
 
   return mq.queue;
 }
 
-function createEventPipe(scope: Construct, props: IcaEventPipeConstructProps) {
+function createExternalIcaMonitoredQueue(
+  scope: Construct,
+  props: IcaSqsQueueConstructProps
+): Queue {
+  const mq = createMonitoredQueue(scope, {
+    queueName: props.queueName,
+    slackTopic: props.slackTopic,
+    dlqMessageThreshold: props.dlqMessageThreshold,
+    queueVizTimeout: props.queueVizTimeout,
+  });
+
+  // Grant send message permissions to the ICA account
+  mq.grantSendMessages(new iam.AccountPrincipal(props.icaAwsAccountNumber));
+
+  return mq;
+}
+
+function createEventPipe(scope: Construct, props: SfnEventPipeConstructProps) {
   const targetInputTransformation = pipes.InputTransformation.fromObject({
     input: pipes.DynamicInput.fromEventPath('$.body'),
   });
@@ -55,18 +69,18 @@ function createEventPipe(scope: Construct, props: IcaEventPipeConstructProps) {
   /* Get the step function object */
   const stepFunctionObject = sfn.StateMachine.fromStateMachineName(
     scope,
-    'handleIcaEventSfn',
+    props.stepFunctionName,
     `${STACK_PREFIX}--${props.stepFunctionName}`
   );
 
   // Inside your function:
-  const logGroup = new LogGroup(scope, 'IcaEventPipeLogGroup');
+  const logGroup = new LogGroup(scope, `${props.eventPipeName}--eventPipeLogGroup`);
 
-  return new pipes.Pipe(scope, props.icaEventPipeName, {
+  return new pipes.Pipe(scope, props.eventPipeName, {
     /* Source */
-    source: new SqsSource(props.icaSqsQueue, {
-      batchSize: 5,
-      maximumBatchingWindow: Duration.seconds(10),
+    source: new SqsSource(props.sqsQueue, {
+      batchSize: props.batchSize ?? 10,
+      maximumBatchingWindow: props.batchingWindow ?? Duration.seconds(10),
     }),
     /* Target */
     target: new SfnTarget(stepFunctionObject, {
@@ -76,44 +90,64 @@ function createEventPipe(scope: Construct, props: IcaEventPipeConstructProps) {
       We only want to process messages where the array payload.tags.technicalTags contains an element
       that startswith "icav2_wes_orcabus_id="
    */
-    filter: {
-      filters: [
-        {
-          pattern: JSON.stringify({
-            body: {
-              payload: {
-                tags: {
-                  technicalTags: [
-                    {
-                      prefix: 'icav2_wes_orcabus_id=',
-                    },
-                  ],
-                },
-              },
-            },
-          }),
-        },
-      ],
-    },
+    filter: props.filters
+      ? {
+          filters: props.filters,
+        }
+      : undefined,
     logDestinations: [new pipes.CloudwatchLogsLogDestination(logGroup)],
   });
 }
 
-export function createEventBridgePipe(scope: Construct, props: IcaSqsEventPipeProps) {
-  /* Part 1 - Create the monitored  */
+export function createLaunchIcaAnalysisEventBridgePipe(scope: Construct, props: sqsEventPipeProps) {
+  /* Part 1 - Create the sqs queue */
   const monitoredQueue = createMonitoredQueue(scope, {
-    icaQueueName: props.icaQueueName,
-    slackTopicArn: props.slackTopicArn,
-    icaAwsAccountNumber: props.icaAwsAccountNumber,
-    icaQueueVizTimeout: props.icaQueueVizTimeout,
+    queueName: props.queueName,
+    slackTopic: props.slackTopic,
+    queueVizTimeout: props.queueVizTimeout,
     dlqMessageThreshold: props.dlqMessageThreshold,
   });
 
   /* Part 2 - Create the event pipe */
   createEventPipe(scope, {
-    icaEventPipeName: props.icaEventPipeName,
-    icaSqsQueue: monitoredQueue,
+    eventPipeName: props.eventPipeName,
+    sqsQueue: monitoredQueue,
     stepFunctionName: props.stepFunctionName,
+  });
+}
+
+export function createExternalIcaEventBridgePipe(scope: Construct, props: IcaSqsEventPipeProps) {
+  /* Part 1 - Create the sqs queue */
+  const monitoredQueue = createExternalIcaMonitoredQueue(scope, {
+    queueName: props.queueName,
+    slackTopic: props.slackTopic,
+    icaAwsAccountNumber: props.icaAwsAccountNumber,
+    queueVizTimeout: props.queueVizTimeout,
+    dlqMessageThreshold: props.dlqMessageThreshold,
+  });
+
+  /* Part 2 - Create the event pipe */
+  createEventPipe(scope, {
+    eventPipeName: props.eventPipeName,
+    sqsQueue: monitoredQueue,
+    stepFunctionName: props.stepFunctionName,
+    filters: [
+      {
+        pattern: JSON.stringify({
+          body: {
+            payload: {
+              tags: {
+                technicalTags: [
+                  {
+                    prefix: 'icav2_wes_orcabus_id=',
+                  },
+                ],
+              },
+            },
+          },
+        }),
+      },
+    ],
   });
 }
 

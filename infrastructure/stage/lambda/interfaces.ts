@@ -1,11 +1,14 @@
 import { PythonFunction } from '@aws-cdk/aws-lambda-python-alpha';
 import { IBucket } from 'aws-cdk-lib/aws-s3';
+import { IQueue } from 'aws-cdk-lib/aws-sqs';
+import { ITableV2 } from 'aws-cdk-lib/aws-dynamodb';
 
 export type LambdaName =
   // Pre analysis
   | 'generateWesPostRequestFromEvent'
   // Run analysis
   | 'launchIcav2AnalysisViaWrapica'
+  | 'unlockCallbackId'
   // Mid analysis
   | 'getIcav2WesObject'
   | 'updateStatusOnWesApi'
@@ -23,6 +26,7 @@ export const lambdaNameList: Array<LambdaName> = [
   'generateWesPostRequestFromEvent',
   // Run analysis
   'launchIcav2AnalysisViaWrapica',
+  'unlockCallbackId',
   // Mid analysis
   'getIcav2WesObject',
   'updateStatusOnWesApi',
@@ -40,7 +44,11 @@ export interface LambdaRequirementProps {
   needsOrcabusTookitLayer?: boolean;
   needsTestDataBucketPermissions?: boolean;
   needsReferenceDataBucketPermissions?: boolean;
-  needsPayloadsBucketPermissions?: boolean;
+  needsArtefactBucketPermissions?: boolean;
+  needsSqsEventSource?: boolean;
+  needsCallbackPermissions?: boolean;
+  needsDurableExecutionPermissions?: boolean;
+  needsCallbackDbPermissions?: boolean;
 }
 
 export type LambdaToRequirementsMapType = { [key in LambdaName]: LambdaRequirementProps };
@@ -49,6 +57,9 @@ export const lambdaToRequirementsMap: LambdaToRequirementsMapType = {
   // Pre analysis
   generateWesPostRequestFromEvent: {
     needsOrcabusTookitLayer: true,
+    needsSqsEventSource: true,
+    needsDurableExecutionPermissions: true,
+    needsCallbackDbPermissions: true,
   },
   // Run analysis
   launchIcav2AnalysisViaWrapica: {
@@ -56,7 +67,10 @@ export const lambdaToRequirementsMap: LambdaToRequirementsMapType = {
     needsOrcabusTookitLayer: true,
     needsTestDataBucketPermissions: true,
     needsReferenceDataBucketPermissions: true,
-    needsPayloadsBucketPermissions: true,
+    needsArtefactBucketPermissions: true,
+  },
+  unlockCallbackId: {
+    needsCallbackPermissions: true,
   },
   // Mid analysis
   getIcav2WesObject: {
@@ -65,6 +79,7 @@ export const lambdaToRequirementsMap: LambdaToRequirementsMapType = {
   },
   updateStatusOnWesApi: {
     needsOrcabusTookitLayer: true,
+    needsArtefactBucketPermissions: true,
   },
   abortAnalysis: {
     needsIcav2ToolkitLayer: true,
@@ -90,8 +105,11 @@ export interface BuildLambdaProps {
   lambdaName: LambdaName;
   testDataBucket: IBucket;
   referenceDataBucket: IBucket;
-  payloadsBucket: IBucket;
+  artefactsBucket: IBucket;
   payloadsKeyPrefix: string;
+  errorLogsKeyPrefix: string;
+  sourceEventQueue: IQueue;
+  callbackTable: ITableV2;
 }
 
 export type BuildAllLambdasProps = Omit<BuildLambdaProps, 'lambdaName'>;

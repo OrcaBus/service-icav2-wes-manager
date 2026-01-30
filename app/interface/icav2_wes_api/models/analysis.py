@@ -32,7 +32,7 @@ from ..utils import (
     to_camel, get_ulid,
     get_icav2_wes_analysis_endpoint_url
 )
-from . import AnalysisStatusType, AnalysisStorageSizeType
+from . import AnalysisStatusType, AnalysisStorageSizeType, ErrorType
 
 
 class EngineParameters(BaseModel):
@@ -108,6 +108,8 @@ class Icav2WesAnalysisWithId(Icav2WesAnalysisBase, Icav2WesAnalysisOrcabusId):
     icav2_analysis_id: Optional[str] = None
     start_time: Optional[datetime] = None
     end_time: Optional[datetime] = None
+    error_type: Optional[ErrorType] = None
+    error_message_uri: Optional[str] = None
 
 
 class Icav2WesAnalysisResponse(Icav2WesAnalysisWithId):
@@ -140,6 +142,8 @@ class Icav2WesAnalysisCreate(Icav2WesAnalysisBase):
 class Icav2WesAnalysisPatch(BaseModel):
     icav2AnalysisId: Optional[str] = None
     status: AnalysisStatusType
+    errorType: Optional[ErrorType] = None
+    errorMessageUri: Optional[str] = None
 
 
 class Icav2WesAnalysisData(Icav2WesAnalysisWithId, Dyntastic):

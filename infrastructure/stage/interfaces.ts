@@ -1,24 +1,42 @@
 import * as cdk from 'aws-cdk-lib';
 import { OrcaBusApiGatewayProps } from '@orcabus/platform-cdk-constructs/api-gateway';
 import { StageName } from '@orcabus/platform-cdk-constructs/shared-config/accounts';
+import { EventBridgeRuleName } from './event-rules/interfaces';
 
 /** Application Interfaces */
 export interface StatefulApplicationStackConfig extends cdk.StackProps {
   /* Dynamodb table name */
-  tableName: string;
+  wesTableName: string;
   indexNames: string[];
 
   /* Extra tables */
   payloadsTableName: string;
+  callbackTableName: string;
 
   /* Extra buckets */
   payloadsBucketName: string;
 
+  /* Main Event Stuff */
+  externalEventBusName: string;
+
   /* Internal event stuff */
   internalEventBusName: string;
   internalEventBusDescription: string;
-  icav2EventPipeName: string;
+
+  /* SQS Stuff */
   slackTopicName: string;
+
+  /* ICAv2 WES Request stuff */
+  icav2WesRequestEventRuleName: EventBridgeRuleName;
+  icav2WesRequestSqsQueueName: string;
+
+  /* Launch name / event pipe stuff */
+  launchIcaAnalysisSqsQueueName: string;
+  launchIcaAnalysisEventPipeName: string;
+
+  /* External sqs name / event pipe stuff */
+  icaExternalSqsQueueName: string;
+  icaExternalEventPipeName: string;
 }
 
 export interface StatelessApplicationStackConfig extends cdk.StackProps {
@@ -31,10 +49,12 @@ export interface StatelessApplicationStackConfig extends cdk.StackProps {
 
   /* Extra tables */
   payloadsTableName: string;
+  callbackTableName: string;
 
   /* Extra buckets */
   payloadsBucketName: string;
   payloadsKeyPrefix: string;
+  errorLogsKeyPrefix: string;
 
   /* External event stuff */
   externalEventBusName: string;
@@ -48,9 +68,11 @@ export interface StatelessApplicationStackConfig extends cdk.StackProps {
 
   /* Internal event stuff */
   internalEventBusName: string;
-  icav2EventPipeName: string;
+  icaExternalEventPipeName: string;
   icav2AnalysisStateChangeEventCode: string;
   icav2WesManagerTagKey: string;
+  icav2WesRequestSqsQueueName: string;
+  launchIcaAnalysisSqsQueueName: string;
 
   /* SSM - Secrets */
   hostedZoneSsmParameterName: string;

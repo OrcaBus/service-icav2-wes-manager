@@ -7,6 +7,8 @@ import * as events from 'aws-cdk-lib/aws-events';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as ssm from 'aws-cdk-lib/aws-ssm';
 import * as s3 from 'aws-cdk-lib/aws-s3';
+import * as sqs from 'aws-cdk-lib/aws-sqs';
+import { IQueue } from 'aws-cdk-lib/aws-sqs';
 
 // Local imports
 import { StatelessApplicationStackConfig } from './interfaces';
@@ -40,6 +42,11 @@ export class StatelessApplicationStack extends cdk.Stack {
       this,
       props.payloadsTableName,
       props.payloadsTableName
+    );
+    const callbackTable = dynamodb.TableV2.fromTableName(
+      this,
+      props.callbackTableName,
+      props.callbackTableName
     );
 
     // Extra buckets
@@ -82,12 +89,22 @@ export class StatelessApplicationStack extends cdk.Stack {
       props.testDataBucketName
     );
 
+    // Get the ICA WES Request SQS Queue from props
+    const icav2WesRequestSqsQueue: IQueue = sqs.Queue.fromQueueArn(
+      this,
+      props.icav2WesRequestSqsQueueName,
+      `arn:aws:sqs:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:${props.icav2WesRequestSqsQueueName}`
+    );
+
     // Build the lambdas
     const lambdaObjects = buildAllLambdas(this, {
-      payloadsBucket: payloadsBucket,
+      artefactsBucket: payloadsBucket,
       payloadsKeyPrefix: props.payloadsKeyPrefix,
+      errorLogsKeyPrefix: props.errorLogsKeyPrefix,
       referenceDataBucket: referenceDataBucket,
       testDataBucket: testDataBucket,
+      sourceEventQueue: icav2WesRequestSqsQueue,
+      callbackTable: callbackTable,
     });
 
     // Build the step functions
@@ -96,6 +113,7 @@ export class StatelessApplicationStack extends cdk.Stack {
       eventBus: externalEventBusObject,
       eventSource: props.eventSource,
       payloadsTable: payloadsTable,
+      callbackTable: callbackTable,
     });
 
     // Build event bridge rules
@@ -113,8 +131,7 @@ export class StatelessApplicationStack extends cdk.Stack {
     // Add the event-bridge rules
     buildAllEventBridgeTargets({
       eventBridgeRuleObjects: eventBridgeRuleObjects,
-      stepFunctionObjects: stepFunctionObjects,
-      lambdaObjects: lambdaObjects,
+      sqsQueues: [icav2WesRequestSqsQueue],
     });
 
     // Build the API interface lambda

@@ -47,6 +47,19 @@ WesAnalysisStorageSizeType = Literal[
 ]
 
 
+# Custom errors
+class CreateAnalysisInputFailure(Exception):
+    pass
+
+
+class AnalysisLaunchFailure(Exception):
+    pass
+
+
+class PipelineNotFoundFailure(Exception):
+    pass
+
+
 def camel_case_to_snake_case(camel_case_str: str) -> str:
     # Convert fastqListRowId to fastq_list_row_id
     return ''.join(['_' + i.lower() if i.isupper() else i for i in camel_case_str]).lstrip('_')
@@ -125,10 +138,14 @@ def handler(event, context):
 
     # Get the pipeline object (to get the workflow language type)
     logger.info("Getting the pipeline object")
-    pipeline_obj = get_project_pipeline_obj(
-        project_id=project_id,
-        pipeline_id=pipeline_id
-    ).pipeline
+    try:
+        pipeline_obj = get_project_pipeline_obj(
+            project_id=project_id,
+            pipeline_id=pipeline_id
+        ).pipeline
+    except Exception as e:
+        logger.error(f"Error getting the pipeline object: {e}")
+        raise PipelineNotFoundFailure(f"Pipeline with id {pipeline_id} not found in project {project_id}") from e
 
     # Get the analysis storage size from the event
     logger.info("Getting the analysis storage size")
@@ -174,20 +191,24 @@ def handler(event, context):
 
     # Initialise an ICAv2CWLPipeline Analysis object
     logger.info("Generating the analysis object")
-    analysis_obj = ICAv2PipelineAnalysis(
-        user_reference=name,
-        project_id=project_id,
-        pipeline_id=pipeline_id,
-        analysis_input=icav2_analysis_input_obj.create_analysis_input(),
-        analysis_storage_size=analysis_storage_size,
-        analysis_output_uri=analysis_output_uri,
-        ica_logs_uri=ica_logs_uri,
-        tags=ICAv2PipelineAnalysisTags(
-            technical_tags=technical_tags,
-            user_tags=user_tags,
-            reference_tags=[]
+    try:
+        analysis_obj = ICAv2PipelineAnalysis(
+            user_reference=name,
+            project_id=project_id,
+            pipeline_id=pipeline_id,
+            analysis_input=icav2_analysis_input_obj.create_analysis_input(),
+            analysis_storage_size=analysis_storage_size,
+            analysis_output_uri=analysis_output_uri,
+            ica_logs_uri=ica_logs_uri,
+            tags=ICAv2PipelineAnalysisTags(
+                technical_tags=technical_tags,
+                user_tags=user_tags,
+                reference_tags=[]
+            )
         )
-    )
+    except Exception as e:
+        logger.error(f"Error generating the analysis object: {e}")
+        raise CreateAnalysisInputFailure("Failed to create analysis input object") from e
 
     # Wait a few seconds for the samplesheet to be available in ICAv2
     sleep(5)
@@ -195,9 +216,13 @@ def handler(event, context):
     # Generate the inputs and analysis object
     # Call the object to launch it
     logger.info("Launching the analysis object")
-    analysis_launch_obj = analysis_obj(
-        idempotency_key=id_
-    )
+    try:
+        analysis_launch_obj = analysis_obj(
+            idempotency_key=id_
+        )
+    except Exception as e:
+        logger.error(f"Error launching the analysis object: {e}")
+        raise AnalysisLaunchFailure("Failed to launch analysis") from e
 
     # Get the current date and upload path
     logger.info("Uploading the analysis launch object to S3")
@@ -232,13 +257,13 @@ def handler(event, context):
         s3_client: 'S3Client' = boto3.client('s3')
         s3_client.upload_file(
             Filename=temp_file_gz.name,
-            Bucket=environ['S3_ANALYSIS_PAYLOAD_BUCKET_NAME'],
+            Bucket=environ['S3_ANALYSIS_ARTEFACTS_BUCKET_NAME'],
             Key=upload_path
         )
 
     s3_payload_uri = str(urlunparse((
         's3',
-        environ['S3_ANALYSIS_PAYLOAD_BUCKET_NAME'],
+        environ['S3_ANALYSIS_ARTEFACTS_BUCKET_NAME'],
         str(upload_path),
         None, None, None
     )))

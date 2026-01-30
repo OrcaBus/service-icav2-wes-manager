@@ -31,9 +31,8 @@ from ..models.analysis import (
 )
 from ..models.analysis_query import AnalysisQueryParameters
 from ..globals import (
-    ICAV2_WES_LAUNCH_STATE_MACHINE_ARN_ENV_VAR,
     ICAV2_WES_ABORT_MACHINE_ARN_ENV_VAR,
-    get_default_job_patch_entry,
+    get_default_job_patch_entry, ICAV2_WES_LAUNCH_STATE_MACHINE_ARN_ENV_VAR,
 )
 from ..utils import (
     sanitise_icav2_wes_analysis_orcabus_id,
@@ -177,6 +176,9 @@ async def create_job(analysis_obj: Icav2WesAnalysisCreate) -> Icav2WesAnalysisRe
     # Now launch the job - we skip the 'PENDING' phase for now
     # Instead we go straight to 'SUBMITTED'
     analysis_obj.start_time = datetime.now(timezone.utc)
+    # Now launch the job - we skip the 'PENDING' phase for now
+    # Instead we go straight to 'SUBMITTED'
+    analysis_obj.start_time = datetime.now(timezone.utc)
     analysis_obj.steps_launch_execution_arn = launch_sfn(
         sfn_name=environ[ICAV2_WES_LAUNCH_STATE_MACHINE_ARN_ENV_VAR],
         sfn_input=dict(analysis_obj.to_dict())
@@ -226,6 +228,12 @@ async def update_job(
         # Add in end time if the job is in a terminal state
         if analysis_obj.status in ['SUCCEEDED', 'FAILED', 'ABORTED']:
             analysis_obj.end_time = datetime.now(timezone.utc)
+
+        # Add error type and error message uri if provided
+        if analysis_change_object.errorType is not None:
+            analysis_obj.error_type = analysis_change_object.errorType
+        if analysis_change_object.errorMessageUri is not None:
+            analysis_obj.error_message_uri = analysis_change_object.errorMessageUri
 
         # Update the ICAv2 analysis id if provided and not already set
         if (

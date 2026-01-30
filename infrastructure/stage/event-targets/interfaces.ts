@@ -1,30 +1,21 @@
-import { StateMachine } from 'aws-cdk-lib/aws-stepfunctions';
-import { Rule } from 'aws-cdk-lib/aws-events';
 import { EventBridgeRuleObject } from '../event-rules/interfaces';
-import { SfnObjectProps } from '../step-functions/interfaces';
-import { LambdaObject } from '../lambda/interfaces';
+import { IQueue } from 'aws-cdk-lib/aws-sqs';
 
 export type EventBridgeTargetsNameList =
   // Post Request to WES Lambda
-  'icav2WesPostRequestTargetToGenerateWesPostRequestLambda';
+  'icav2WesPostRequestTargetToGenerateWesPostRequestSqsQueue';
 
 export const eventBridgeTargetsNameList: Array<EventBridgeTargetsNameList> = [
   // Post Request to WES Lambda
-  'icav2WesPostRequestTargetToGenerateWesPostRequestLambda',
+  'icav2WesPostRequestTargetToGenerateWesPostRequestSqsQueue',
 ];
 
 export interface EventBridgeTargetsProps {
   eventBridgeRuleObjects: EventBridgeRuleObject[];
-  stepFunctionObjects: SfnObjectProps[];
-  lambdaObjects: LambdaObject[];
+  sqsQueues: IQueue[];
 }
 
-export interface AddSfnAsEventBridgeTargetProps {
-  stateMachineObj: StateMachine;
-  eventBridgeRuleObj: Rule;
-}
-
-export interface AddLambdaAsEventBridgeTargetProps {
-  lambdaFunction: LambdaObject;
-  eventBridgeRuleObj: Rule;
+export interface AddSqsAsEventBridgeTargetProps {
+  sqsQueue: IQueue;
+  eventBridgeRuleObj: EventBridgeRuleObject;
 }

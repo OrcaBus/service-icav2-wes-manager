@@ -16,3 +16,10 @@ AnalysisStatusType = Literal[
     'FAILED',
     'ABORTED',
 ]
+
+ErrorType = Literal[
+    'CreateAnalysisInputFailure',
+    'AnalysisLaunchFailure',
+    'PipelineNotFoundFailure',
+    'AnalysisFailure'
+]

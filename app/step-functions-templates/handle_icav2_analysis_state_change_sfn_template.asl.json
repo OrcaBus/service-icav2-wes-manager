@@ -16,7 +16,8 @@
             "Assign": {
               "icav2AnalysisId": "{% $states.input.payload.id %}",
               "status": "{% $states.input.payload.status %}",
-              "name": "{% $states.input.payload.userReference %}"
+              "name": "{% $states.input.payload.userReference %}",
+              "errorMessage": "{% $states.input.payload.summary ? $states.input.payload.summary : null %}"
             }
           },
           "Is Relevant Status": {
@@ -174,7 +175,9 @@
               "Payload": {
                 "name": "{% $name %}",
                 "status": "{% /* https://try.jsonata.org/WVD2IGYzV */\n(\n  $statusMap := {\n    \"INITIALIZING\": \"STARTING\",\n    \"IN_PROGRESS\": \"RUNNING\",\n    \"SUCCEEDED\": \"SUCCEEDED\",\n    \"FAILED\": \"FAILED\",\n    \"ABORTED\": \"ABORTED\"\n  };\n  $lookup($statusMap, $status)\n) %}",
-                "icav2AnalysisId": "{% $icav2AnalysisId %}"
+                "icav2AnalysisId": "{% $icav2AnalysisId %}",
+                "errorMessage": "{% $status != 'SUCCEEDED' ? $errorMessage : null %}",
+                "errorType": "{% $status != 'SUCCEEDED' ? 'AnalysisFailure' : null %}"
               }
             },
             "Retry": [

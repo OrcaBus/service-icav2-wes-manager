@@ -51,6 +51,7 @@ export function buildEventBridgeRules(
             eventBus: props.externalEventBus,
             icav2WesRequestDetailType: props.icav2WesRequestDetailType,
           }),
+          eventBus: props.externalEventBus,
         });
         break;
       }

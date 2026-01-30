@@ -10,3 +10,8 @@ export interface PayloadsTableProps {
   /* The name of the table */
   tableName: string;
 }
+
+export interface CallbackTableProps {
+  /* The name of the table */
+  tableName: string;
+}
