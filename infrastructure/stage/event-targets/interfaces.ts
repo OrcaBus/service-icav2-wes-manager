@@ -1,4 +1,3 @@
-import { Rule } from 'aws-cdk-lib/aws-events';
 import { EventBridgeRuleObject } from '../event-rules/interfaces';
 import { IQueue } from 'aws-cdk-lib/aws-sqs';
 
@@ -18,5 +17,5 @@ export interface EventBridgeTargetsProps {
 
 export interface AddSqsAsEventBridgeTargetProps {
   sqsQueue: IQueue;
-  eventBridgeRuleObj: Rule;
+  eventBridgeRuleObj: EventBridgeRuleObject;
 }

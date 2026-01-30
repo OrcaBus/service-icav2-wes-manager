@@ -13,6 +13,8 @@ export interface SqsQueueConstructProps {
   queueName: string;
   /* The visibility timeout for the queue */
   queueVizTimeout: Duration;
+  /* For long polling */
+  receiveMessageWaitTime?: Duration;
 }
 
 export interface IcaSqsQueueConstructProps extends SqsQueueConstructProps {

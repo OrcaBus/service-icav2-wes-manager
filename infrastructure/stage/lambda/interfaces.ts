@@ -48,6 +48,7 @@ export interface LambdaRequirementProps {
   needsSqsEventSource?: boolean;
   needsCallbackPermissions?: boolean;
   needsDurableExecutionPermissions?: boolean;
+  needsCallbackDbPermissions?: boolean;
 }
 
 export type LambdaToRequirementsMapType = { [key in LambdaName]: LambdaRequirementProps };
@@ -58,6 +59,7 @@ export const lambdaToRequirementsMap: LambdaToRequirementsMapType = {
     needsOrcabusTookitLayer: true,
     needsSqsEventSource: true,
     needsDurableExecutionPermissions: true,
+    needsCallbackDbPermissions: true,
   },
   // Run analysis
   launchIcav2AnalysisViaWrapica: {

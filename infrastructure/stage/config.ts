@@ -47,11 +47,15 @@ export const getStatefulStackProps = (stage: StageName): StatefulApplicationStac
     // Extra buckets stuff
     payloadsBucketName: S3_ARTEFACTS_BUCKET_NAME[stage],
 
+    // Main Event Stuff
+    externalEventBusName: DEFAULT_EXTERNAL_EVENT_BUS_NAME,
+
     // Internal Event stuff
     internalEventBusName: EVENT_BUS_NAME_INTERNAL,
     internalEventBusDescription: INTERNAL_EVENT_BUS_DESCRIPTION,
 
     // SQS Stuff
+    icav2WesRequestEventRuleName: 'icav2WesPostRequestRule',
     icav2WesRequestSqsQueueName: DEFAULT_WES_REQUEST_SQS_QUEUE_NAME,
     launchIcaAnalysisEventPipeName: DEFAULT_LAUNCH_ICA_ANALYSIS_EVENT_PIPE_NAME,
     launchIcaAnalysisSqsQueueName: DEFAULT_LAUNCH_ICA_ANALYSIS_SQS_QUEUE_NAME,

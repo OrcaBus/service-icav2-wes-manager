@@ -154,7 +154,7 @@
       "Resource": "arn:aws:states:::lambda:invoke",
       "Output": "{% $states.result.Payload %}",
       "Arguments": {
-        "FunctionName": "${__unlock_callback_lambda_function_arn__}",
+        "FunctionName": "${__unlock_callback_id_lambda_function_arn__}",
         "Payload": {
           "callbackId": "{% $callbackId %}"
         }

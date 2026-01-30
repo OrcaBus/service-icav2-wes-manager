@@ -1,24 +1,25 @@
 import { EventPattern, IEventBus, Rule } from 'aws-cdk-lib/aws-events';
 
-export type EventBridgeRuleNameList =
+export type EventBridgeRuleName =
   // External rule - for requests to run analyses
   'icav2WesPostRequestRule';
 
-export const eventBridgeRuleNameList: Array<EventBridgeRuleNameList> = ['icav2WesPostRequestRule'];
+export const eventBridgeRuleNameList: Array<EventBridgeRuleName> = ['icav2WesPostRequestRule'];
 
 export interface Icav2WesPostRequestTargetRuleEventPatternProps {
   icav2WesRequestDetailType: string;
 }
 
 export interface EventBridgeRuleProps {
-  ruleName: EventBridgeRuleNameList;
+  ruleName: EventBridgeRuleName;
   eventBus: IEventBus;
   eventPattern: EventPattern;
 }
 
 export interface EventBridgeRuleObject {
-  ruleName: EventBridgeRuleNameList;
+  ruleName: EventBridgeRuleName;
   ruleObject: Rule;
+  eventBus: IEventBus;
 }
 
 export type buildIcav2WesPostRequestRuleProps = Omit<

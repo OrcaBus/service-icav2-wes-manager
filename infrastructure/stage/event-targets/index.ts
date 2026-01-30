@@ -1,7 +1,6 @@
 /* Event Bridge Target Stuff */
 import * as eventsTargets from 'aws-cdk-lib/aws-events-targets';
 import * as events from 'aws-cdk-lib/aws-events';
-
 import {
   AddSqsAsEventBridgeTargetProps,
   eventBridgeTargetsNameList,
@@ -9,7 +8,7 @@ import {
 } from './interfaces';
 
 function buildSqsEventBridgeTargetWithInputAsDetail(props: AddSqsAsEventBridgeTargetProps): void {
-  props.eventBridgeRuleObj.addTarget(
+  props.eventBridgeRuleObj.ruleObject.addTarget(
     new eventsTargets.SqsQueue(props.sqsQueue, {
       message: events.RuleTargetInput.fromEventPath('$.detail'),
     })
@@ -24,7 +23,7 @@ export function buildAllEventBridgeTargets(props: EventBridgeTargetsProps): void
         buildSqsEventBridgeTargetWithInputAsDetail(<AddSqsAsEventBridgeTargetProps>{
           eventBridgeRuleObj: props.eventBridgeRuleObjects.find(
             (eventBridgeObject) => eventBridgeObject.ruleName === 'icav2WesPostRequestRule'
-          )?.ruleObject,
+          ),
           sqsQueue: props.sqsQueues.find(
             (sqsObject) => sqsObject.queueName === 'Icav2WesRequestSqsQueue'
           ),

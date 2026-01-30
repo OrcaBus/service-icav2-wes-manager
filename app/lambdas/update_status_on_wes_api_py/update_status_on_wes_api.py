@@ -53,7 +53,7 @@ def handler(event, context) -> Dict:
     icav2_analysis_id = event.get("icav2AnalysisId")
 
     # Get the steps execution arn if present
-    steps_execution_arn = event.get("stepsExecutionArn")
+    steps_execution_arn = event.get("stepsLaunchExecutionArn")
 
     # Get the errorMessage and errorType if they are present
     error_type = event.get("errorType")

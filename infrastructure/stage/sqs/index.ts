@@ -30,6 +30,7 @@ export function createMonitoredQueue(scope: Construct, props: SqsQueueConstructP
       queueName: props.queueName,
       enforceSSL: true,
       visibilityTimeout: props.queueVizTimeout,
+      receiveMessageWaitTime: props.receiveMessageWaitTime,
     },
     dlqProps: {
       queueName: props.queueName + '-dlq',

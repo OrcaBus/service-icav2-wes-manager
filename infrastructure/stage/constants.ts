@@ -42,9 +42,10 @@ export const ICAV2_WES_MANAGER_TAG_KEY = 'icav2_wes_orcabus_id';
 
 /* SQS */
 // SHARED QUEUE PARAMS
-export const DEFAULT_QUEUE_TIMEOUT = Duration.seconds(300);
+export const DEFAULT_ICAV2_PROCESS_QUEUE_TIMEOUT = Duration.seconds(300);
 export const DEFAULT_DLQ_ALARM_THRESHOLD = 1;
 export const SLACK_TOPIC_NAME = 'AwsChatBotTopic';
+export const DEFAULT_WES_REQUEST_QUEUE_TIMEOUT = Duration.minutes(15); // Max timeout for an event source mapping is 15 minutes
 
 // WES Request
 export const DEFAULT_WES_REQUEST_SQS_QUEUE_NAME = 'Icav2WesRequestSqsQueue';

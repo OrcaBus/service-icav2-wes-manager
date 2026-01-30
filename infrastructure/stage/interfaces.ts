@@ -1,6 +1,7 @@
 import * as cdk from 'aws-cdk-lib';
 import { OrcaBusApiGatewayProps } from '@orcabus/platform-cdk-constructs/api-gateway';
 import { StageName } from '@orcabus/platform-cdk-constructs/shared-config/accounts';
+import { EventBridgeRuleName } from './event-rules/interfaces';
 
 /** Application Interfaces */
 export interface StatefulApplicationStackConfig extends cdk.StackProps {
@@ -15,6 +16,9 @@ export interface StatefulApplicationStackConfig extends cdk.StackProps {
   /* Extra buckets */
   payloadsBucketName: string;
 
+  /* Main Event Stuff */
+  externalEventBusName: string;
+
   /* Internal event stuff */
   internalEventBusName: string;
   internalEventBusDescription: string;
@@ -23,6 +27,7 @@ export interface StatefulApplicationStackConfig extends cdk.StackProps {
   slackTopicName: string;
 
   /* ICAv2 WES Request stuff */
+  icav2WesRequestEventRuleName: EventBridgeRuleName;
   icav2WesRequestSqsQueueName: string;
 
   /* Launch name / event pipe stuff */

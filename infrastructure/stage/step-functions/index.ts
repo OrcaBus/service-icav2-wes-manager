@@ -48,6 +48,11 @@ function createStateMachineDefinitionSubstitutions(props: SfnProps): {
     definitionSubstitutions['__payloads_table_name__'] = props.payloadsTable.tableName;
   }
 
+  if (sfnRequirements.needsCallbackTablePermissions) {
+    definitionSubstitutions['__icav2_wes_request_callback_table_name__'] =
+      props.callbackTable.tableName;
+  }
+
   return definitionSubstitutions;
 }
 
@@ -66,6 +71,10 @@ function wireUpStateMachinePermissions(props: SfnObjectProps): void {
 
   if (sfnRequirements.needsPayloadDbPermissions) {
     props.payloadsTable.grantReadWriteData(props.stateMachineObj);
+  }
+
+  if (sfnRequirements.needsCallbackTablePermissions) {
+    props.callbackTable.grantReadWriteData(props.stateMachineObj);
   }
 
   /* Allow the state machine to invoke the lambda function */

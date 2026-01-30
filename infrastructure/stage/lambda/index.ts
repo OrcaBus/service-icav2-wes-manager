@@ -56,7 +56,7 @@ function buildLambda(scope: Construct, props: BuildLambdaProps): LambdaObject {
     includeOrcabusApiToolsLayer: lambdaRequirements.needsOrcabusTookitLayer,
     durableConfig: lambdaRequirements.needsDurableExecutionPermissions
       ? {
-          executionTimeout: Duration.minutes(60),
+          executionTimeout: Duration.minutes(15),
           retentionPeriod: Duration.days(1),
         }
       : undefined,
@@ -65,9 +65,11 @@ function buildLambda(scope: Construct, props: BuildLambdaProps): LambdaObject {
   // If the lambda has an SQS event source, we need to add this in
   if (lambdaRequirements.needsSqsEventSource) {
     // Find the SQS queue from the props
-    lambdaFunction.addEventSource(
+    lambdaFunction.currentVersion.addEventSource(
       new SqsEventSource(props.sourceEventQueue, {
         maxConcurrency: DEFAULT_MAX_ICAV2_WES_REQUEST_API_CONCURRENCY,
+        // Allow only one message per batch to be processed
+        batchSize: 1,
       })
     );
   }
@@ -159,10 +161,6 @@ function buildLambda(scope: Construct, props: BuildLambdaProps): LambdaObject {
       props.artefactsBucket.bucketName
     );
     lambdaFunction.addEnvironment('S3_ANALYSIS_PAYLOAD_KEY_PREFIX', props.payloadsKeyPrefix);
-    lambdaFunction.addEnvironment(
-      'S3_ANALYSIS_ARTEFACTS_BUCKET_NAME',
-      props.artefactsBucket.bucketName
-    );
     lambdaFunction.addEnvironment('S3_ANALYSIS_ERROR_LOGS_PREFIX', props.errorLogsKeyPrefix);
   }
 
@@ -192,6 +190,14 @@ function buildLambda(scope: Construct, props: BuildLambdaProps): LambdaObject {
       ],
       true
     );
+  }
+
+  if (lambdaRequirements.needsCallbackDbPermissions) {
+    // Grant write permissions to allow the lambda to update the callback database table
+    props.callbackTable.grantReadWriteData(lambdaFunction.currentVersion);
+
+    // Add the CALLBACK_DATABASE_NAME environment variable
+    lambdaFunction.addEnvironment('CALLBACK_DATABASE_NAME', props.callbackTable.tableName);
   }
 
   /* Return the function */

@@ -11,13 +11,16 @@ This involves a few things,
 */
 
 import * as cdk from 'aws-cdk-lib';
+import * as iam from 'aws-cdk-lib/aws-iam';
+import { Effect } from 'aws-cdk-lib/aws-iam';
 import { Construct } from 'constructs';
 
 import { StatefulApplicationStackConfig } from './interfaces';
 import {
   DEFAULT_DLQ_ALARM_THRESHOLD,
   DEFAULT_ICA_AWS_ACCOUNT_NUMBER,
-  DEFAULT_QUEUE_TIMEOUT,
+  DEFAULT_ICAV2_PROCESS_QUEUE_TIMEOUT,
+  DEFAULT_WES_REQUEST_QUEUE_TIMEOUT,
 } from './constants';
 import {
   createExternalIcaEventBridgePipe,
@@ -28,6 +31,8 @@ import { buildCallbackTable, buildICAv2WesDb, buildPayloadsTable } from './dynam
 import { createArtefactsBucket } from './s3';
 import { buildSchemas } from './event-schemas';
 import { Topic } from 'aws-cdk-lib/aws-sns';
+import { Duration } from 'aws-cdk-lib';
+import { EventBus } from 'aws-cdk-lib/aws-events';
 
 export type StatefulApplicationStackProps = StatefulApplicationStackConfig & cdk.StackProps;
 
@@ -43,20 +48,43 @@ export class StatefulApplicationStack extends cdk.Stack {
       getTopicArnFromTopicName(props.slackTopicName)
     ) as Topic;
 
+    const eventBus = EventBus.fromEventBusName(
+      this,
+      props.externalEventBusName,
+      props.externalEventBusName
+    );
+
     // Buffer to launch ICA analysis requests
-    createMonitoredQueue(this, {
+    const icav2WesRequestQueue = createMonitoredQueue(this, {
       dlqMessageThreshold: 1,
       queueName: props.icav2WesRequestSqsQueueName,
-      queueVizTimeout: DEFAULT_QUEUE_TIMEOUT,
+      queueVizTimeout: DEFAULT_WES_REQUEST_QUEUE_TIMEOUT,
       slackTopic: slackTopic,
+      receiveMessageWaitTime: Duration.seconds(20),
     });
+
+    // From https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-use-resource-based.html#sqs-permissions
+    // In order to allow EventBridge to send messages to your SQS queue, you must add a resource-based policy to the queue.
+    icav2WesRequestQueue.addToResourcePolicy(
+      new iam.PolicyStatement({
+        effect: Effect.ALLOW,
+        principals: [new iam.ServicePrincipal('events.amazonaws.com')],
+        actions: ['sqs:SendMessage'],
+        resources: [icav2WesRequestQueue.queueArn],
+        conditions: {
+          ArnEquals: {
+            'aws:SourceArn': `arn:aws:events:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:rule/${eventBus.eventBusName}/${props.icav2WesRequestEventRuleName}`,
+          },
+        },
+      })
+    );
 
     // Create the event pipe to join the ICA SQS queue to the event bus
     createExternalIcaEventBridgePipe(this, {
       eventPipeName: props.icaExternalEventPipeName,
       stepFunctionName: 'handleIcav2AnalysisStateChange',
       queueName: props.icaExternalSqsQueueName,
-      queueVizTimeout: DEFAULT_QUEUE_TIMEOUT,
+      queueVizTimeout: DEFAULT_ICAV2_PROCESS_QUEUE_TIMEOUT,
       slackTopic: slackTopic,
       dlqMessageThreshold: DEFAULT_DLQ_ALARM_THRESHOLD,
       icaAwsAccountNumber: DEFAULT_ICA_AWS_ACCOUNT_NUMBER,
