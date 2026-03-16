@@ -38,7 +38,8 @@ export class StatelessApplicationStack extends cdk.Stack {
 
     // Create the ssm parameter for this stack id
     new ssm.StringParameter(this, 'gitCommitId', {
-      parameterName: `/cdk/git/${this.stackId}`,
+      // `stackId` is tokenized; use construct id to keep the parameter name fully resolvable at synth time.
+      parameterName: `/cdk/git/${this.node.id}`,
       stringValue: process.env.CODEBUILD_RESOLVED_SOURCE_VERSION || 'unknown',
     });
 
