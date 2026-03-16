@@ -21,7 +21,7 @@ def handler(event, context):
     portal_run_id = event.get("portalRunId")
 
     return {
-        "ingestId": list(map(
+        "ingestIdList": list(map(
             lambda file_object_iter_: file_object_iter_.get("ingestId"),
             list_files_from_portal_run_id(portal_run_id)
         ))
