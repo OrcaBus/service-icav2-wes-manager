@@ -29,12 +29,16 @@ CALLBACK_DATABASE_NAME_ENV_VAR = "CALLBACK_DATABASE_NAME"
 HANDLE_ICA_ANALYSIS_STATE_CHANGE_SFN_ARN_ENV_VAR = "HANDLE_ICA_ANALYSIS_STATE_CHANGE_SFN_ARN"
 
 
+# Helper functions
 def get_dynamodb_client() -> 'DynamoDBClient':
     return boto3.client('dynamodb')
+
 
 def get_sfn_client() -> 'SFNClient':
     return boto3.client('stepfunctions')
 
+
+# Durable Lambda Handler
 @durable_execution
 def handler(event, context: DurableContext):
     """
@@ -73,22 +77,6 @@ def handler(event, context: DurableContext):
         ).split("=")[-1]
         message_receipt_handle_token = record.get("receiptHandle")
 
-        # Launch the step function (asynchronously)
-        get_sfn_client().start_execution(
-            stateMachineArn=environ[HANDLE_ICA_ANALYSIS_STATE_CHANGE_SFN_ARN_ENV_VAR],
-            input=json.dumps(
-                {
-                    "icav2AnalysisId": icav2_analysis_id,
-                    "status": status,
-                    "name": name,
-                    "errorMessage": error_message,
-                    "icav2WesOrcabusId": icav2_wes_orcabus_id,
-                    "messageReceiptHandleToken": message_receipt_handle_token
-                },
-                separators=(",", ":")
-            )
-        )
-
         # Run the durable execution callback configuration
         # Step 1: Create the callback
         callback = context.create_callback(
@@ -112,5 +100,21 @@ def handler(event, context: DurableContext):
             TableName=environ[CALLBACK_DATABASE_NAME_ENV_VAR]
         )
 
-        # Step 3: Wait here for the callback to be invoked
+        # Step 3: Launch the step function (asynchronously)
+        get_sfn_client().start_execution(
+            stateMachineArn=environ[HANDLE_ICA_ANALYSIS_STATE_CHANGE_SFN_ARN_ENV_VAR],
+            input=json.dumps(
+                {
+                    "icav2AnalysisId": icav2_analysis_id,
+                    "status": status,
+                    "name": name,
+                    "errorMessage": error_message,
+                    "icav2WesOrcabusId": icav2_wes_orcabus_id,
+                    "messageReceiptHandleToken": message_receipt_handle_token
+                },
+                separators=(",", ":")
+            )
+        )
+
+        # Step 4: Wait here for the callback to be invoked
         callback.result()

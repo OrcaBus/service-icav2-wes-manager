@@ -4,7 +4,7 @@
   "States": {
     "Get event inputs": {
       "Type": "Pass",
-      "Next": "Wait 5 Seconds",
+      "Next": "Is Relevant Status",
       "Assign": {
         "icav2AnalysisId": "{% $states.input.icav2AnalysisId %}",
         "status": "{% $states.input.status %}",
@@ -13,11 +13,6 @@
         "icav2WesOrcabusId": "{% $states.input.icav2WesOrcabusId %}",
         "messageReceiptHandleToken": "{% $states.input.messageReceiptHandleToken %}"
       }
-    },
-    "Wait 5 Seconds": {
-      "Type": "Wait",
-      "Seconds": 5,
-      "Next": "Is Relevant Status"
     },
     "Is Relevant Status": {
       "Type": "Choice",
@@ -471,7 +466,7 @@
                     "Arguments": {
                       "FunctionName": "${__get_matching_ingest_ids_lambda_function_arn__}",
                       "Payload": {
-                        "ingestIdList": "{% $states.input %}"
+                        "ingestIdList": "{% $states.input.Items %}"
                       }
                     },
                     "Retry": [
@@ -623,7 +618,7 @@
                           "Arguments": {
                             "FunctionName": "${__is_file_corrupted_lambda_function_arn__}",
                             "Payload": {
-                              "ingestId": "{% $states.input %}"
+                              "ingestId": "{% $ingestIdMapIter %}"
                             }
                           },
                           "Retry": [
