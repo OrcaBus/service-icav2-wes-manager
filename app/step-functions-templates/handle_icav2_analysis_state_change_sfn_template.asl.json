@@ -155,10 +155,20 @@
               "Type": "Task",
               "Arguments": {
                 "QueueUrl": "${__icav2_wes_analysis_queue_url__}",
-                "ReceiptHandle": "$messageReceiptHandleToken",
+                "ReceiptHandle": "{% $messageReceiptHandleToken %}",
                 "VisibilityTimeout": 300
               },
               "Resource": "arn:aws:states:::aws-sdk:sqs:changeMessageVisibility",
+              "End": true,
+              "Catch": [
+                {
+                  "ErrorEquals": ["Sqs.SqsException"],
+                  "Next": "Catch failed message bump (nextflow)"
+                }
+              ]
+            },
+            "Catch failed message bump (nextflow)": {
+              "Type": "Pass",
               "End": true
             }
           }
@@ -345,10 +355,20 @@
               "Type": "Task",
               "Arguments": {
                 "QueueUrl": "${__icav2_wes_analysis_queue_url__}",
-                "ReceiptHandle": "$messageReceiptHandleToken",
+                "ReceiptHandle": "{% $messageReceiptHandleToken %}",
                 "VisibilityTimeout": 300
               },
               "Resource": "arn:aws:states:::aws-sdk:sqs:changeMessageVisibility",
+              "End": true,
+              "Catch": [
+                {
+                  "ErrorEquals": ["Sqs.SqsException"],
+                  "Next": "Catch failed message bump (filemanager)"
+                }
+              ]
+            },
+            "Catch failed message bump (filemanager)": {
+              "Type": "Pass",
               "End": true
             }
           }
@@ -676,10 +696,20 @@
               "Type": "Task",
               "Arguments": {
                 "QueueUrl": "${__icav2_wes_analysis_queue_url__}",
-                "ReceiptHandle": "$messageReceiptHandleToken",
+                "ReceiptHandle": "{% $messageReceiptHandleToken %}",
                 "VisibilityTimeout": 3600
               },
               "Resource": "arn:aws:states:::aws-sdk:sqs:changeMessageVisibility",
+              "Catch": [
+                {
+                  "ErrorEquals": ["Sqs.SqsException"],
+                  "Next": "Catch failed message bump (corrupt files check)"
+                }
+              ],
+              "End": true
+            },
+            "Catch failed message bump (corrupt files check)": {
+              "Type": "Pass",
               "End": true
             }
           }
