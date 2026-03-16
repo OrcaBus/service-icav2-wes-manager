@@ -1,13 +1,14 @@
 // Standard cdk imports
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
-import * as events from 'aws-cdk-lib/aws-events';
 
 // Application imports
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as ssm from 'aws-cdk-lib/aws-ssm';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as sqs from 'aws-cdk-lib/aws-sqs';
+import * as secretsManager from 'aws-cdk-lib/aws-secretsmanager';
+import * as events from 'aws-cdk-lib/aws-events';
 import { IQueue } from 'aws-cdk-lib/aws-sqs';
 
 // Local imports
@@ -24,6 +25,7 @@ import {
   buildApiIntegration,
   buildApiInterfaceLambda,
 } from './api';
+import { buildAllEcsFargateTasks } from './ecs';
 
 export type StatelessApplicationStackProps = StatelessApplicationStackConfig & cdk.StackProps;
 
@@ -75,6 +77,13 @@ export class StatelessApplicationStack extends cdk.Stack {
       props.hostedZoneSsmParameterName
     );
 
+    // Secrests
+    const orcabusTokenSecretParameterObj = secretsManager.Secret.fromSecretNameV2(
+      this,
+      props.orcabusTokenSecretName,
+      props.orcabusTokenSecretName
+    );
+
     // Buckets - refdata and testData buckets
     const referenceDataBucket = s3.Bucket.fromBucketName(
       this,
@@ -96,6 +105,12 @@ export class StatelessApplicationStack extends cdk.Stack {
       `arn:aws:sqs:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:${props.icav2WesRequestSqsQueueName}`
     );
 
+    const icaExternalSqsQueue: IQueue = sqs.Queue.fromQueueArn(
+      this,
+      props.icaExternalSqsQueueName,
+      `arn:aws:sqs:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:${props.icaExternalSqsQueueName}`
+    );
+
     // Build the lambdas
     const lambdaObjects = buildAllLambdas(this, {
       artefactsBucket: payloadsBucket,
@@ -103,17 +118,27 @@ export class StatelessApplicationStack extends cdk.Stack {
       errorLogsKeyPrefix: props.errorLogsKeyPrefix,
       referenceDataBucket: referenceDataBucket,
       testDataBucket: testDataBucket,
-      sourceEventQueue: icav2WesRequestSqsQueue,
+      generateWesPostRequestEventQueue: icav2WesRequestSqsQueue,
+      externalIcaEventQueue: icaExternalSqsQueue,
+      handleIcaStateChangeSfnName: 'handleIcav2AnalysisStateChange',
       callbackTable: callbackTable,
+    });
+
+    // Build the ecs tasks
+    const ecsTasks = buildAllEcsFargateTasks(this, {
+      hostnameSsmParameter: hostedZoneSsmParameterObj,
+      orcabusTokenSecretObj: orcabusTokenSecretParameterObj,
     });
 
     // Build the step functions
     const stepFunctionObjects = buildAllStepFunctions(this, {
       lambdaFunctions: lambdaObjects,
+      ecsTaskObjects: ecsTasks,
       eventBus: externalEventBusObject,
       eventSource: props.eventSource,
       payloadsTable: payloadsTable,
       callbackTable: callbackTable,
+      icaExternalSqsQueue: icaExternalSqsQueue,
     });
 
     // Build event bridge rules

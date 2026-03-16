@@ -30,13 +30,8 @@ export interface StatefulApplicationStackConfig extends cdk.StackProps {
   icav2WesRequestEventRuleName: EventBridgeRuleName;
   icav2WesRequestSqsQueueName: string;
 
-  /* Launch name / event pipe stuff */
-  launchIcaAnalysisSqsQueueName: string;
-  launchIcaAnalysisEventPipeName: string;
-
-  /* External sqs name / event pipe stuff */
+  /* External sqs name */
   icaExternalSqsQueueName: string;
-  icaExternalEventPipeName: string;
 }
 
 export interface StatelessApplicationStackConfig extends cdk.StackProps {
@@ -68,14 +63,14 @@ export interface StatelessApplicationStackConfig extends cdk.StackProps {
 
   /* Internal event stuff */
   internalEventBusName: string;
-  icaExternalEventPipeName: string;
   icav2AnalysisStateChangeEventCode: string;
   icav2WesManagerTagKey: string;
   icav2WesRequestSqsQueueName: string;
-  launchIcaAnalysisSqsQueueName: string;
+  icaExternalSqsQueueName: string;
 
   /* SSM - Secrets */
   hostedZoneSsmParameterName: string;
+  orcabusTokenSecretName: string;
   icav2AccessTokenSecretId: string;
 
   /* API Stuff */

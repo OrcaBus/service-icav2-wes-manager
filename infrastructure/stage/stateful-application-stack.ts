@@ -17,13 +17,12 @@ import { Construct } from 'constructs';
 
 import { StatefulApplicationStackConfig } from './interfaces';
 import {
-  DEFAULT_DLQ_ALARM_THRESHOLD,
   DEFAULT_ICA_AWS_ACCOUNT_NUMBER,
-  DEFAULT_ICAV2_PROCESS_QUEUE_TIMEOUT,
+  DEFAULT_ICA_STATE_CHANGE_MAX_TIMEOUT,
   DEFAULT_WES_REQUEST_QUEUE_TIMEOUT,
 } from './constants';
 import {
-  createExternalIcaEventBridgePipe,
+  createExternalIcaMonitoredQueue,
   createMonitoredQueue,
   getTopicArnFromTopicName,
 } from './sqs';
@@ -79,18 +78,16 @@ export class StatefulApplicationStack extends cdk.Stack {
       })
     );
 
-    // Create the event pipe to join the ICA SQS queue to the event bus
-    createExternalIcaEventBridgePipe(this, {
-      eventPipeName: props.icaExternalEventPipeName,
-      stepFunctionName: 'handleIcav2AnalysisStateChange',
+    // Buffer to handle ICA state change requests
+    createExternalIcaMonitoredQueue(this, {
       queueName: props.icaExternalSqsQueueName,
-      queueVizTimeout: DEFAULT_ICAV2_PROCESS_QUEUE_TIMEOUT,
       slackTopic: slackTopic,
-      dlqMessageThreshold: DEFAULT_DLQ_ALARM_THRESHOLD,
       icaAwsAccountNumber: DEFAULT_ICA_AWS_ACCOUNT_NUMBER,
+      queueVizTimeout: DEFAULT_ICA_STATE_CHANGE_MAX_TIMEOUT,
+      dlqMessageThreshold: 1,
     });
 
-    // Build the ICAv2 WES database
+    // // Build the ICAv2 WES database
     buildICAv2WesDb(this, {
       tableName: props.wesTableName,
       indexNames: props.indexNames,

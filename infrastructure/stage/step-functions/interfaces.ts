@@ -2,6 +2,8 @@ import { IEventBus } from 'aws-cdk-lib/aws-events';
 import { StateMachine } from 'aws-cdk-lib/aws-stepfunctions';
 import { LambdaName, LambdaObject } from '../lambda/interfaces';
 import { ITableV2 } from 'aws-cdk-lib/aws-dynamodb';
+import { EcsTaskName, EcsTaskObject } from '../ecs/interfaces';
+import { IQueue } from 'aws-cdk-lib/aws-sqs';
 
 export type SfnName =
   | 'abortIcav2Analysis'
@@ -16,13 +18,15 @@ export const sfnNameList: Array<SfnName> = [
 
 export interface BuildSfnsProps {
   /* Naming formation */
-  lambdaFunctions: Array<LambdaObject>;
-
+  lambdaFunctions: LambdaObject[];
+  ecsTaskObjects: EcsTaskObject[];
   /* The event bus to use */
   eventBus: IEventBus;
   eventSource: string;
   payloadsTable: ITableV2;
   callbackTable: ITableV2;
+  /* SQS Stuff */
+  icaExternalSqsQueue: IQueue;
 }
 
 export interface SfnProps extends BuildSfnsProps {
@@ -44,12 +48,23 @@ export const stepFunctionToLambdaMap: { [key in SfnName]: Array<LambdaName> } = 
     'getPipelineType',
     'copyNextflowFilesFromLogsUri',
     'filemanagerSync',
+    'getMatchingIngestIds',
+    'getOutputFileIngestIds',
+    'isBamFile',
+    'isFileCorrupted',
+    'unlockCallbackId',
   ],
   launchIcav2Analysis: [
     'launchIcav2AnalysisViaWrapica',
     'updateStatusOnWesApi',
     'unlockCallbackId',
   ],
+};
+
+export const stepFunctionEcsMap: { [key in SfnName]: Array<EcsTaskName> } = {
+  abortIcav2Analysis: [],
+  handleIcav2AnalysisStateChange: ['validateBamFile'],
+  launchIcav2Analysis: [],
 };
 
 export interface SfnRequirementsProps {
@@ -59,9 +74,11 @@ export interface SfnRequirementsProps {
   in order to copy the log files into the proper location
   */
   needsExternalEventBusPutPermissions?: boolean;
-  isExpressSfn?: boolean;
   needsPayloadDbPermissions?: boolean;
   needsCallbackTablePermissions?: boolean;
+  needsDistributedMapSupport?: boolean;
+  needsEcsPermissions?: boolean;
+  needsSetVisibilityTimeoutPermissions?: boolean;
 }
 
 export type SfnToRequirementsMapType = { [key in SfnName]: SfnRequirementsProps };
@@ -72,7 +89,10 @@ export const sfnToRequirementsMap: SfnToRequirementsMapType = {
   },
   handleIcav2AnalysisStateChange: {
     needsExternalEventBusPutPermissions: true,
-    isExpressSfn: true,
+    needsDistributedMapSupport: true,
+    needsEcsPermissions: true,
+    needsCallbackTablePermissions: true,
+    needsSetVisibilityTimeoutPermissions: true,
   },
   launchIcav2Analysis: {
     needsExternalEventBusPutPermissions: false,

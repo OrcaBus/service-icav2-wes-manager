@@ -4,14 +4,14 @@ import {
   eventBridgeRuleNameList,
   EventBridgeRuleObject,
   EventBridgeRuleProps,
-  Icav2WesPostRequestTargetRuleEventPatternProps,
+  Icav2WesPostRequestEventPatternProps,
 } from './interfaces';
 import { Rule } from 'aws-cdk-lib/aws-events';
 import { Construct } from 'constructs';
 import * as events from 'aws-cdk-lib/aws-events';
 
 /** Event bridge rules stuff */
-function buildIcav2WesPostRequestTarget(props: Icav2WesPostRequestTargetRuleEventPatternProps) {
+function buildIcav2WesPostRequestEventPattern(props: Icav2WesPostRequestEventPatternProps) {
   return {
     detailType: [props.icav2WesRequestDetailType],
   };
@@ -31,7 +31,7 @@ function buildIcav2WesPostRequestRule(
 ): Rule {
   return buildEventRule(scope, {
     ruleName: props.ruleName,
-    eventPattern: buildIcav2WesPostRequestTarget(props),
+    eventPattern: buildIcav2WesPostRequestEventPattern(props),
     eventBus: props.eventBus,
   });
 }

@@ -2,6 +2,7 @@ import { PythonFunction } from '@aws-cdk/aws-lambda-python-alpha';
 import { IBucket } from 'aws-cdk-lib/aws-s3';
 import { IQueue } from 'aws-cdk-lib/aws-sqs';
 import { ITableV2 } from 'aws-cdk-lib/aws-dynamodb';
+import { SfnName } from '../step-functions/interfaces';
 
 export type LambdaName =
   // Pre analysis
@@ -13,11 +14,17 @@ export type LambdaName =
   | 'getIcav2WesObject'
   | 'updateStatusOnWesApi'
   | 'abortAnalysis'
+  // ICA event handling
+  | 'handleIcaEvent'
   // Post analysis
   | 'addPortalRunIdAttributes'
   | 'getPipelineType'
   | 'copyNextflowFilesFromLogsUri'
-  | 'filemanagerSync';
+  | 'filemanagerSync'
+  | 'getMatchingIngestIds'
+  | 'getOutputFileIngestIds'
+  | 'isBamFile'
+  | 'isFileCorrupted';
 
 /* Lambda names array */
 /* Bit of double handling, BUT types are not parsed to JS */
@@ -31,11 +38,17 @@ export const lambdaNameList: Array<LambdaName> = [
   'getIcav2WesObject',
   'updateStatusOnWesApi',
   'abortAnalysis',
+  // ICA event handling
+  'handleIcaEvent',
   // Post analysis
   'addPortalRunIdAttributes',
   'getPipelineType',
   'copyNextflowFilesFromLogsUri',
   'filemanagerSync',
+  'getMatchingIngestIds',
+  'getOutputFileIngestIds',
+  'isBamFile',
+  'isFileCorrupted',
 ];
 
 /* We also throw in our custom application interfaces here too */
@@ -84,6 +97,13 @@ export const lambdaToRequirementsMap: LambdaToRequirementsMapType = {
   abortAnalysis: {
     needsIcav2ToolkitLayer: true,
   },
+  // ICA Event
+  handleIcaEvent: {
+    needsOrcabusTookitLayer: true,
+    needsSqsEventSource: true,
+    needsDurableExecutionPermissions: true,
+    needsCallbackDbPermissions: true,
+  },
   // Post analysis
   addPortalRunIdAttributes: {
     needsOrcabusTookitLayer: true,
@@ -99,6 +119,18 @@ export const lambdaToRequirementsMap: LambdaToRequirementsMapType = {
     needsOrcabusTookitLayer: true,
     needsIcav2ToolkitLayer: true,
   },
+  getMatchingIngestIds: {
+    needsOrcabusTookitLayer: true,
+  },
+  getOutputFileIngestIds: {
+    needsOrcabusTookitLayer: true,
+  },
+  isBamFile: {
+    needsOrcabusTookitLayer: true,
+  },
+  isFileCorrupted: {
+    needsOrcabusTookitLayer: true,
+  },
 };
 
 export interface BuildLambdaProps {
@@ -108,8 +140,10 @@ export interface BuildLambdaProps {
   artefactsBucket: IBucket;
   payloadsKeyPrefix: string;
   errorLogsKeyPrefix: string;
-  sourceEventQueue: IQueue;
+  generateWesPostRequestEventQueue: IQueue;
+  externalIcaEventQueue: IQueue;
   callbackTable: ITableV2;
+  handleIcaStateChangeSfnName: SfnName;
 }
 
 export type BuildAllLambdasProps = Omit<BuildLambdaProps, 'lambdaName'>;
