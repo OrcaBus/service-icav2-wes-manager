@@ -99,6 +99,9 @@ def handler(event, context: DurableContext):
                 "id": {
                     "S": icav2_wes_analysis_response['id'],
                 },
+                "id_type": {
+                    "S": "LAUNCH_REQUEST"
+                },
                 "callback_id": {
                     "S": callback.callback_id
                 },

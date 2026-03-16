@@ -21,5 +21,6 @@ ErrorType = Literal[
     'CreateAnalysisInputFailure',
     'AnalysisLaunchFailure',
     'PipelineNotFoundFailure',
-    'AnalysisFailure'
+    'AnalysisFailure',
+    'AnalysisOutputFileCorruption',
 ]

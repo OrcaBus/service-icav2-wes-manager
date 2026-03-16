@@ -6,7 +6,12 @@ import {
   LambdaObject,
   lambdaToRequirementsMap,
 } from './interfaces';
-import { DEFAULT_MAX_ICAV2_WES_REQUEST_API_CONCURRENCY, LAMBDA_DIR } from '../constants';
+import {
+  DEFAULT_MAX_ICA_STATE_CHANGE_API_CONCURRENCY,
+  DEFAULT_MAX_ICAV2_WES_REQUEST_API_CONCURRENCY,
+  LAMBDA_DIR,
+  STACK_PREFIX,
+} from '../constants';
 import { PythonUvFunction } from '@orcabus/platform-cdk-constructs/lambda';
 import { Construct } from 'constructs';
 import { camelCaseToSnakeCase } from '../utils';
@@ -63,13 +68,51 @@ function buildLambda(scope: Construct, props: BuildLambdaProps): LambdaObject {
   });
 
   // If the lambda has an SQS event source, we need to add this in
-  if (lambdaRequirements.needsSqsEventSource) {
+  // Generate Event Request uses the launch ICA Source Event Queue
+  if (props.lambdaName == 'generateWesPostRequestFromEvent') {
     // Find the SQS queue from the props
     lambdaFunction.currentVersion.addEventSource(
-      new SqsEventSource(props.sourceEventQueue, {
+      new SqsEventSource(props.generateWesPostRequestEventQueue, {
         maxConcurrency: DEFAULT_MAX_ICAV2_WES_REQUEST_API_CONCURRENCY,
         // Allow only one message per batch to be processed
         batchSize: 1,
+      })
+    );
+  }
+
+  // ICA State change lambda
+  if (props.lambdaName === 'handleIcaEvent') {
+    // Add the step function
+    // Update the environment variable for the step function name
+    // When we generate the state machine we will give the lambda permission to start the execution
+    lambdaFunction.addEnvironment(
+      'HANDLE_ICA_ANALYSIS_STATE_CHANGE_SFN_ARN',
+      `arn:aws:states:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:stateMachine:${STACK_PREFIX}--${props.handleIcaStateChangeSfnName}`
+    );
+
+    // Find the SQS queue from the props
+    lambdaFunction.currentVersion.addEventSource(
+      new SqsEventSource(props.externalIcaEventQueue, {
+        maxConcurrency: DEFAULT_MAX_ICA_STATE_CHANGE_API_CONCURRENCY,
+        // Allow only one message per batch to be processed
+        batchSize: 1,
+        filters: [
+          {
+            pattern: JSON.stringify({
+              body: {
+                payload: {
+                  tags: {
+                    technicalTags: [
+                      {
+                        prefix: 'icav2_wes_orcabus_id=',
+                      },
+                    ],
+                  },
+                },
+              },
+            }),
+          },
+        ],
       })
     );
   }

@@ -14,6 +14,7 @@ export const LAMBDA_DIR = path.join(APP_ROOT, 'lambdas');
 export const STEP_FUNCTIONS_DIR = path.join(APP_ROOT, 'step-functions-templates');
 export const INTERFACE_DIR = path.join(APP_ROOT, 'interface');
 export const EVENT_SCHEMAS_DIR = path.join(APP_ROOT, 'event-schemas');
+export const ECS_DIR = path.join(APP_ROOT, 'ecs');
 
 /* API constants */
 export const API_VERSION = 'v1';
@@ -42,18 +43,21 @@ export const ICAV2_WES_MANAGER_TAG_KEY = 'icav2_wes_orcabus_id';
 
 /* SQS */
 // SHARED QUEUE PARAMS
-export const DEFAULT_ICAV2_PROCESS_QUEUE_TIMEOUT = Duration.seconds(300);
 export const DEFAULT_DLQ_ALARM_THRESHOLD = 1;
 export const SLACK_TOPIC_NAME = 'AwsChatBotTopic';
 export const DEFAULT_WES_REQUEST_QUEUE_TIMEOUT = Duration.minutes(15); // Max timeout for an event source mapping is 15 minutes
 
 // WES Request
+export const DEFAULT_MAX_ICAV2_WES_REQUEST_API_CONCURRENCY = 5;
 export const DEFAULT_WES_REQUEST_SQS_QUEUE_NAME = 'Icav2WesRequestSqsQueue';
 
-// Launch ICA Analysis SQS
-export const DEFAULT_MAX_ICAV2_WES_REQUEST_API_CONCURRENCY = 5;
-export const DEFAULT_LAUNCH_ICA_ANALYSIS_EVENT_PIPE_NAME = 'Icav2WesLaunchIcaAnalysisEventPipe';
-export const DEFAULT_LAUNCH_ICA_ANALYSIS_SQS_QUEUE_NAME = 'Icav2WesLaunchIcaAnalysisSqsQueue';
+// Launch ICA Analysis SQS (coming soon)
+// export const DEFAULT_LAUNCH_ICA_ANALYSIS_EVENT_PIPE_NAME = 'Icav2WesLaunchIcaAnalysisEventPipe';
+// export const DEFAULT_LAUNCH_ICA_ANALYSIS_SQS_QUEUE_NAME = 'Icav2WesLaunchIcaAnalysisSqsQueue';
+
+// Handle External ICA SQS
+export const DEFAULT_ICA_STATE_CHANGE_MAX_TIMEOUT = Duration.minutes(5);
+export const DEFAULT_MAX_ICA_STATE_CHANGE_API_CONCURRENCY = 5;
 
 // External SQS
 // The SQS queue pushes directly to the handleAnalysisStateChange step function

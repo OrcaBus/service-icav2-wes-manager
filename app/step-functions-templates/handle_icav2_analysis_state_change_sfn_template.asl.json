@@ -1,364 +1,828 @@
 {
   "Comment": "A description of my state machine",
-  "StartAt": "For each event",
+  "StartAt": "Get event inputs",
   "States": {
-    "For each event": {
-      "Type": "Map",
-      "ItemProcessor": {
-        "ProcessorConfig": {
-          "Mode": "INLINE"
-        },
-        "StartAt": "Get event inputs",
-        "States": {
-          "Get event inputs": {
-            "Type": "Pass",
-            "Next": "Is Relevant Status",
-            "Assign": {
-              "icav2AnalysisId": "{% $states.input.payload.id %}",
-              "status": "{% $states.input.payload.status %}",
-              "name": "{% $states.input.payload.userReference %}",
-              "errorMessage": "{% $states.input.payload.summary ? $states.input.payload.summary : null %}"
-            }
-          },
-          "Is Relevant Status": {
-            "Type": "Choice",
-            "Choices": [
-              {
-                "Next": "Is Terminal Status",
-                "Condition": "{% /* https://try.jsonata.org/l5wpTUNXI */\n$status in [\n    \"INITIALIZING\",\n    \"IN_PROGRESS\",\n    \"SUCCEEDED\",\n    \"FAILED\",\n    \"FAILED_FINAL\",\n    \"ABORTED\"\n] %}",
-                "Comment": "Is relevant status"
-              }
-            ],
-            "Default": "Placeholder (non-status)"
-          },
-          "Is Terminal Status": {
-            "Type": "Choice",
-            "Choices": [
-              {
-                "Next": "Handle nextflow output files",
-                "Condition": "{% $status in [\n    \"SUCCEEDED\",\n    \"FAILED\",\n    \"FAILED_FINAL\",\n    \"ABORTED\"\n] %}",
-                "Comment": "Is terminal status"
-              }
-            ],
-            "Default": "Update WES API"
-          },
-          "Handle nextflow output files": {
-            "Type": "Parallel",
-            "Next": "Handle filemanager",
-            "Branches": [
-              {
-                "StartAt": "Get ICAv2 analysis object from name",
-                "States": {
-                  "Get ICAv2 analysis object from name": {
-                    "Type": "Task",
-                    "Resource": "arn:aws:states:::lambda:invoke",
-                    "Output": {
-                      "language": "{% $states.result.Payload.language %}"
-                    },
-                    "Arguments": {
-                      "FunctionName": "${__get_pipeline_type_lambda_function_arn__}",
-                      "Payload": {
-                        "name": "{% $name %}"
-                      }
-                    },
-                    "Retry": [
-                      {
-                        "ErrorEquals": [
-                          "Lambda.ServiceException",
-                          "Lambda.AWSLambdaException",
-                          "Lambda.SdkClientException",
-                          "Lambda.TooManyRequestsException"
-                        ],
-                        "IntervalSeconds": 1,
-                        "MaxAttempts": 3,
-                        "BackoffRate": 2,
-                        "JitterStrategy": "FULL"
-                      }
-                    ],
-                    "Next": "Is Nextflow workflow"
-                  },
-                  "Is Nextflow workflow": {
-                    "Type": "Choice",
-                    "Choices": [
-                      {
-                        "Next": "Get ICAv2 WES Object",
-                        "Condition": "{% $states.input.language = 'NEXTFLOW' %}"
-                      }
-                    ],
-                    "Default": "Nextflow (placeholder 2)"
-                  },
-                  "Get ICAv2 WES Object": {
-                    "Type": "Task",
-                    "Resource": "arn:aws:states:::lambda:invoke",
-                    "Output": {
-                      "logsUri": "{% $states.result.Payload.icav2WesObject.engineParameters.logsUri %}",
-                      "outputUri": "{% $states.result.Payload.icav2WesObject.engineParameters.outputUri %}"
-                    },
-                    "Arguments": {
-                      "FunctionName": "${__get_icav2_wes_object_lambda_function_arn__}",
-                      "Payload": {
-                        "name": "{% $name %}"
-                      }
-                    },
-                    "Retry": [
-                      {
-                        "ErrorEquals": [
-                          "Lambda.ServiceException",
-                          "Lambda.AWSLambdaException",
-                          "Lambda.SdkClientException",
-                          "Lambda.TooManyRequestsException"
-                        ],
-                        "IntervalSeconds": 1,
-                        "MaxAttempts": 3,
-                        "BackoffRate": 2,
-                        "JitterStrategy": "FULL"
-                      }
-                    ],
-                    "Next": "Copy nextflow files"
-                  },
-                  "Copy nextflow files": {
-                    "Type": "Task",
-                    "Resource": "arn:aws:states:::lambda:invoke",
-                    "Arguments": {
-                      "FunctionName": "${__copy_nextflow_files_from_logs_uri_lambda_function_arn__}",
-                      "Payload": {
-                        "logsUri": "{% $states.input.logsUri %}",
-                        "outputUri": "{% $states.input.outputUri %}"
-                      }
-                    },
-                    "Retry": [
-                      {
-                        "ErrorEquals": [
-                          "Lambda.ServiceException",
-                          "Lambda.AWSLambdaException",
-                          "Lambda.SdkClientException",
-                          "Lambda.TooManyRequestsException"
-                        ],
-                        "IntervalSeconds": 1,
-                        "MaxAttempts": 3,
-                        "BackoffRate": 2,
-                        "JitterStrategy": "FULL"
-                      }
-                    ],
-                    "End": true,
-                    "Output": {}
-                  },
-                  "Nextflow (placeholder 2)": {
-                    "Type": "Pass",
-                    "End": true
-                  }
+    "Get event inputs": {
+      "Type": "Pass",
+      "Next": "Is Relevant Status",
+      "Assign": {
+        "icav2AnalysisId": "{% $states.input.icav2AnalysisId %}",
+        "status": "{% $states.input.status %}",
+        "name": "{% $states.input.name %}",
+        "errorMessage": "{% $states.input.errorMessage %}",
+        "icav2WesOrcabusId": "{% $states.input.icav2WesOrcabusId %}",
+        "messageReceiptHandleToken": "{% $states.input.messageReceiptHandleToken %}"
+      }
+    },
+    "Is Relevant Status": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Next": "Is Terminal Status",
+          "Condition": "{% /* https://try.jsonata.org/l5wpTUNXI */\n$status in [\n    \"INITIALIZING\",\n    \"IN_PROGRESS\",\n    \"SUCCEEDED\",\n    \"FAILED\",\n    \"FAILED_FINAL\",\n    \"ABORTED\"\n] %}",
+          "Comment": "Is relevant status"
+        }
+      ],
+      "Default": "Placeholder (non-status)"
+    },
+    "Is Terminal Status": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Next": "Handle nextflow output files",
+          "Condition": "{% $status in [\n    \"SUCCEEDED\",\n    \"FAILED\",\n    \"FAILED_FINAL\",\n    \"ABORTED\"\n] %}",
+          "Comment": "Is terminal status"
+        }
+      ],
+      "Default": "Update WES API"
+    },
+    "Handle nextflow output files": {
+      "Type": "Parallel",
+      "Next": "Handle filemanager",
+      "Branches": [
+        {
+          "StartAt": "Get ICAv2 analysis object from name",
+          "States": {
+            "Get ICAv2 analysis object from name": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Output": {
+                "language": "{% $states.result.Payload.language %}"
+              },
+              "Arguments": {
+                "FunctionName": "${__get_pipeline_type_lambda_function_arn__}",
+                "Payload": {
+                  "name": "{% $name %}"
                 }
               },
-              {
-                "StartAt": "Nextflow (placeholder)",
-                "States": {
-                  "Nextflow (placeholder)": {
-                    "Type": "Pass",
-                    "End": true
-                  }
+              "Retry": [
+                {
+                  "ErrorEquals": [
+                    "Lambda.ServiceException",
+                    "Lambda.AWSLambdaException",
+                    "Lambda.SdkClientException",
+                    "Lambda.TooManyRequestsException"
+                  ],
+                  "IntervalSeconds": 1,
+                  "MaxAttempts": 3,
+                  "BackoffRate": 2,
+                  "JitterStrategy": "FULL"
                 }
-              }
-            ],
-            "Output": {},
-            "Catch": [
-              {
-                "ErrorEquals": ["States.BranchFailed"],
-                "Next": "Handle filemanager"
-              }
-            ]
-          },
-          "Update WES API": {
-            "Type": "Task",
-            "Resource": "arn:aws:states:::lambda:invoke",
-            "Arguments": {
-              "FunctionName": "${__update_status_on_wes_api_lambda_function_arn__}",
-              "Payload": {
-                "name": "{% $name %}",
-                "status": "{% /* https://try.jsonata.org/WVD2IGYzV */\n(\n  $statusMap := {\n    \"INITIALIZING\": \"STARTING\",\n    \"IN_PROGRESS\": \"RUNNING\",\n    \"SUCCEEDED\": \"SUCCEEDED\",\n    \"FAILED\": \"FAILED\",\n    \"ABORTED\": \"ABORTED\"\n  };\n  $lookup($statusMap, $status)\n) %}",
-                "icav2AnalysisId": "{% $icav2AnalysisId %}",
-                "errorMessage": "{% $status != 'SUCCEEDED' ? $errorMessage : null %}",
-                "errorType": "{% $status != 'SUCCEEDED' ? 'AnalysisFailure' : null %}"
-              }
+              ],
+              "Next": "Is Nextflow workflow"
             },
-            "Retry": [
-              {
-                "ErrorEquals": [
-                  "Lambda.ServiceException",
-                  "Lambda.AWSLambdaException",
-                  "Lambda.SdkClientException",
-                  "Lambda.TooManyRequestsException"
-                ],
-                "IntervalSeconds": 1,
-                "MaxAttempts": 3,
-                "BackoffRate": 2,
-                "JitterStrategy": "FULL"
-              }
-            ],
-            "End": true,
-            "Output": {}
-          },
-          "Handle filemanager": {
-            "Type": "Parallel",
-            "Next": "Update WES API",
-            "Branches": [
-              {
-                "StartAt": "Set vars",
-                "States": {
-                  "Set vars": {
-                    "Type": "Pass",
-                    "Next": "Get output dir and portal run id",
-                    "Assign": {
-                      "fmWaitCount": 0
-                    }
-                  },
-                  "Get output dir and portal run id": {
-                    "Type": "Task",
-                    "Resource": "arn:aws:states:::lambda:invoke",
-                    "Arguments": {
-                      "FunctionName": "${__get_icav2_wes_object_lambda_function_arn__}",
-                      "Payload": {
-                        "name": "{% $name %}"
-                      }
-                    },
-                    "Retry": [
-                      {
-                        "ErrorEquals": [
-                          "Lambda.ServiceException",
-                          "Lambda.AWSLambdaException",
-                          "Lambda.SdkClientException",
-                          "Lambda.TooManyRequestsException"
-                        ],
-                        "IntervalSeconds": 1,
-                        "MaxAttempts": 3,
-                        "BackoffRate": 2,
-                        "JitterStrategy": "FULL"
-                      }
-                    ],
-                    "Next": "Update filemanager attributes",
-                    "Assign": {
-                      "outputUri": "{% $states.result.Payload.icav2WesObject.engineParameters.outputUri %}",
-                      "portalRunId": "{% $states.result.Payload.icav2WesObject.tags.portalRunId %}"
-                    }
-                  },
-                  "Update filemanager attributes": {
-                    "Type": "Task",
-                    "Resource": "arn:aws:states:::lambda:invoke",
-                    "Output": "{% $states.result.Payload %}",
-                    "Arguments": {
-                      "FunctionName": "${__add_portal_run_id_attributes_lambda_function_arn__}",
-                      "Payload": {
-                        "outputUri": "{% $outputUri %}",
-                        "portalRunId": "{% $portalRunId %}"
-                      }
-                    },
-                    "Retry": [
-                      {
-                        "ErrorEquals": [
-                          "Lambda.ServiceException",
-                          "Lambda.AWSLambdaException",
-                          "Lambda.SdkClientException",
-                          "Lambda.TooManyRequestsException"
-                        ],
-                        "IntervalSeconds": 1,
-                        "MaxAttempts": 3,
-                        "BackoffRate": 2,
-                        "JitterStrategy": "FULL"
-                      }
-                    ],
-                    "Next": "Filemanager sync"
-                  },
-                  "Filemanager sync": {
-                    "Type": "Task",
-                    "Resource": "arn:aws:states:::lambda:invoke",
-                    "Arguments": {
-                      "FunctionName": "${__filemanager_sync_lambda_function_arn__}",
-                      "Payload": {
-                        "outputUri": "{% $outputUri %}",
-                        "portalRunId": "{% $portalRunId %}"
-                      }
-                    },
-                    "Retry": [
-                      {
-                        "ErrorEquals": [
-                          "Lambda.ServiceException",
-                          "Lambda.AWSLambdaException",
-                          "Lambda.SdkClientException",
-                          "Lambda.TooManyRequestsException"
-                        ],
-                        "IntervalSeconds": 1,
-                        "MaxAttempts": 3,
-                        "BackoffRate": 2,
-                        "JitterStrategy": "FULL"
-                      }
-                    ],
-                    "Output": {
-                      "isSynced": "{% $states.result.Payload.isSynced %}"
-                    },
-                    "Next": "Filemanager is synced"
-                  },
-                  "Filemanager is synced": {
-                    "Type": "Choice",
-                    "Choices": [
-                      {
-                        "Next": "Filemanager synced",
-                        "Condition": "{% $states.input.isSynced %}"
-                      }
-                    ],
-                    "Default": "Waited more than one hour"
-                  },
-                  "Filemanager synced": {
-                    "Type": "Pass",
-                    "End": true
-                  },
-                  "Waited more than one hour": {
-                    "Type": "Choice",
-                    "Choices": [
-                      {
-                        "Next": "Could not sync file manager",
-                        "Condition": "{% $fmWaitCount > 12 %}"
-                      }
-                    ],
-                    "Default": "Wait for filemanager to sync"
-                  },
-                  "Wait for filemanager to sync": {
-                    "Type": "Wait",
-                    "Seconds": 300,
-                    "Assign": {
-                      "fmWaitCount": "{% $fmWaitCount + 1 %}"
-                    },
-                    "Next": "Filemanager sync"
-                  },
-                  "Could not sync file manager": {
-                    "Type": "Fail"
-                  }
+            "Is Nextflow workflow": {
+              "Type": "Choice",
+              "Choices": [
+                {
+                  "Next": "Get ICAv2 WES Object",
+                  "Condition": "{% $states.input.language = 'NEXTFLOW' %}"
+                }
+              ],
+              "Default": "Nextflow (placeholder 2)"
+            },
+            "Get ICAv2 WES Object": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Output": {
+                "logsUri": "{% $states.result.Payload.icav2WesObject.engineParameters.logsUri %}",
+                "outputUri": "{% $states.result.Payload.icav2WesObject.engineParameters.outputUri %}"
+              },
+              "Arguments": {
+                "FunctionName": "${__get_icav2_wes_object_lambda_function_arn__}",
+                "Payload": {
+                  "name": "{% $name %}"
                 }
               },
-              {
-                "StartAt": "Placeholder (fm)",
-                "States": {
-                  "Placeholder (fm)": {
-                    "Type": "Pass",
-                    "End": true
-                  }
+              "Retry": [
+                {
+                  "ErrorEquals": [
+                    "Lambda.ServiceException",
+                    "Lambda.AWSLambdaException",
+                    "Lambda.SdkClientException",
+                    "Lambda.TooManyRequestsException"
+                  ],
+                  "IntervalSeconds": 1,
+                  "MaxAttempts": 3,
+                  "BackoffRate": 2,
+                  "JitterStrategy": "FULL"
                 }
-              }
-            ],
-            "Catch": [
-              {
-                "ErrorEquals": ["States.BranchFailed"],
-                "Next": "Update WES API"
-              }
-            ]
-          },
-          "Placeholder (non-status)": {
-            "Type": "Pass",
-            "End": true
+              ],
+              "Next": "Copy nextflow files"
+            },
+            "Copy nextflow files": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Arguments": {
+                "FunctionName": "${__copy_nextflow_files_from_logs_uri_lambda_function_arn__}",
+                "Payload": {
+                  "logsUri": "{% $states.input.logsUri %}",
+                  "outputUri": "{% $states.input.outputUri %}"
+                }
+              },
+              "Retry": [
+                {
+                  "ErrorEquals": [
+                    "Lambda.ServiceException",
+                    "Lambda.AWSLambdaException",
+                    "Lambda.SdkClientException",
+                    "Lambda.TooManyRequestsException"
+                  ],
+                  "IntervalSeconds": 1,
+                  "MaxAttempts": 3,
+                  "BackoffRate": 2,
+                  "JitterStrategy": "FULL"
+                }
+              ],
+              "End": true,
+              "Output": {}
+            },
+            "Nextflow (placeholder 2)": {
+              "Type": "Pass",
+              "End": true
+            }
+          }
+        },
+        {
+          "StartAt": "Bump Message Visibility 5 minutes (nextflow)",
+          "States": {
+            "Bump Message Visibility 5 minutes (nextflow)": {
+              "Type": "Task",
+              "Arguments": {
+                "QueueUrl": "${__icav2_wes_analysis_queue_url__}",
+                "ReceiptHandle": "{% $messageReceiptHandleToken %}",
+                "VisibilityTimeout": 300
+              },
+              "Resource": "arn:aws:states:::aws-sdk:sqs:changeMessageVisibility",
+              "End": true,
+              "Catch": [
+                {
+                  "ErrorEquals": ["Sqs.SqsException", "Sqs.QueueDoesNotExistException"],
+                  "Next": "Catch failed message bump (nextflow)"
+                }
+              ]
+            },
+            "Catch failed message bump (nextflow)": {
+              "Type": "Pass",
+              "End": true
+            }
           }
         }
+      ],
+      "Output": {},
+      "Catch": [
+        {
+          "ErrorEquals": ["States.BranchFailed"],
+          "Next": "Handle filemanager"
+        }
+      ]
+    },
+    "Update WES API": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Arguments": {
+        "FunctionName": "${__update_status_on_wes_api_lambda_function_arn__}",
+        "Payload": {
+          "name": "{% $name %}",
+          "status": "{% /* https://try.jsonata.org/WVD2IGYzV */\n(\n  $statusMap := {\n    \"INITIALIZING\": \"STARTING\",\n    \"IN_PROGRESS\": \"RUNNING\",\n    \"SUCCEEDED\": \"SUCCEEDED\",\n    \"FAILED\": \"FAILED\",\n    \"FAILED_FINAL\": \"FAILED\",\n    \"ABORTED\": \"ABORTED\"\n  };\n  $lookup($statusMap, $status)\n) %}",
+          "icav2AnalysisId": "{% $icav2AnalysisId %}",
+          "errorMessage": "{% $status != 'SUCCEEDED' ? $errorMessage : null %}",
+          "errorType": "{% $errorType ? $errorType : \n(\n  $status != 'SUCCEEDED' ? 'AnalysisFailure' : null\n) %}"
+        }
       },
-      "Items": "{% [ $states.input.(input) ] %}",
-      "MaxConcurrency": 1,
-      "End": true
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 1,
+          "MaxAttempts": 3,
+          "BackoffRate": 2,
+          "JitterStrategy": "FULL"
+        }
+      ],
+      "Output": {},
+      "Next": "Get callback id"
+    },
+    "Handle filemanager": {
+      "Type": "Parallel",
+      "Next": "Is workflow SUCCEEDED",
+      "Branches": [
+        {
+          "StartAt": "Set vars",
+          "States": {
+            "Set vars": {
+              "Type": "Pass",
+              "Next": "Get output dir and portal run id",
+              "Assign": {
+                "fmWaitCount": 0
+              }
+            },
+            "Get output dir and portal run id": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Arguments": {
+                "FunctionName": "${__get_icav2_wes_object_lambda_function_arn__}",
+                "Payload": {
+                  "name": "{% $name %}"
+                }
+              },
+              "Retry": [
+                {
+                  "ErrorEquals": [
+                    "Lambda.ServiceException",
+                    "Lambda.AWSLambdaException",
+                    "Lambda.SdkClientException",
+                    "Lambda.TooManyRequestsException"
+                  ],
+                  "IntervalSeconds": 1,
+                  "MaxAttempts": 3,
+                  "BackoffRate": 2,
+                  "JitterStrategy": "FULL"
+                }
+              ],
+              "Next": "Update filemanager attributes",
+              "Assign": {
+                "outputUri": "{% $states.result.Payload.icav2WesObject.engineParameters.outputUri %}",
+                "portalRunId": "{% $states.result.Payload.icav2WesObject.tags.portalRunId %}"
+              }
+            },
+            "Update filemanager attributes": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Output": "{% $states.result.Payload %}",
+              "Arguments": {
+                "FunctionName": "${__add_portal_run_id_attributes_lambda_function_arn__}",
+                "Payload": {
+                  "outputUri": "{% $outputUri %}",
+                  "portalRunId": "{% $portalRunId %}"
+                }
+              },
+              "Retry": [
+                {
+                  "ErrorEquals": [
+                    "Lambda.ServiceException",
+                    "Lambda.AWSLambdaException",
+                    "Lambda.SdkClientException",
+                    "Lambda.TooManyRequestsException"
+                  ],
+                  "IntervalSeconds": 1,
+                  "MaxAttempts": 3,
+                  "BackoffRate": 2,
+                  "JitterStrategy": "FULL"
+                }
+              ],
+              "Next": "Filemanager sync"
+            },
+            "Filemanager sync": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Arguments": {
+                "FunctionName": "${__filemanager_sync_lambda_function_arn__}",
+                "Payload": {
+                  "outputUri": "{% $outputUri %}",
+                  "portalRunId": "{% $portalRunId %}"
+                }
+              },
+              "Retry": [
+                {
+                  "ErrorEquals": [
+                    "Lambda.ServiceException",
+                    "Lambda.AWSLambdaException",
+                    "Lambda.SdkClientException",
+                    "Lambda.TooManyRequestsException"
+                  ],
+                  "IntervalSeconds": 1,
+                  "MaxAttempts": 3,
+                  "BackoffRate": 2,
+                  "JitterStrategy": "FULL"
+                }
+              ],
+              "Output": {
+                "isSynced": "{% $states.result.Payload.isSynced %}"
+              },
+              "Next": "Filemanager is synced"
+            },
+            "Filemanager is synced": {
+              "Type": "Choice",
+              "Choices": [
+                {
+                  "Next": "Filemanager synced",
+                  "Condition": "{% $states.input.isSynced %}"
+                }
+              ],
+              "Default": "Waited more than one hour"
+            },
+            "Filemanager synced": {
+              "Type": "Pass",
+              "End": true
+            },
+            "Waited more than one hour": {
+              "Type": "Choice",
+              "Choices": [
+                {
+                  "Next": "Could not sync file manager",
+                  "Condition": "{% $fmWaitCount > 12 %}"
+                }
+              ],
+              "Default": "Wait for filemanager to sync"
+            },
+            "Wait for filemanager to sync": {
+              "Type": "Wait",
+              "Seconds": 300,
+              "Assign": {
+                "fmWaitCount": "{% $fmWaitCount + 1 %}"
+              },
+              "Next": "Filemanager sync"
+            },
+            "Could not sync file manager": {
+              "Type": "Fail"
+            }
+          }
+        },
+        {
+          "StartAt": "Bump Message Visibility 5 minutes (Filemanager)",
+          "States": {
+            "Bump Message Visibility 5 minutes (Filemanager)": {
+              "Type": "Task",
+              "Arguments": {
+                "QueueUrl": "${__icav2_wes_analysis_queue_url__}",
+                "ReceiptHandle": "{% $messageReceiptHandleToken %}",
+                "VisibilityTimeout": 300
+              },
+              "Resource": "arn:aws:states:::aws-sdk:sqs:changeMessageVisibility",
+              "End": true,
+              "Catch": [
+                {
+                  "ErrorEquals": ["Sqs.SqsException", "Sqs.QueueDoesNotExistException"],
+                  "Next": "Catch failed message bump (filemanager)"
+                }
+              ]
+            },
+            "Catch failed message bump (filemanager)": {
+              "Type": "Pass",
+              "End": true
+            }
+          }
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.BranchFailed"],
+          "Next": "Is workflow SUCCEEDED"
+        }
+      ]
+    },
+    "Is workflow SUCCEEDED": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Next": "Handle corrupted files",
+          "Condition": "{% $status = 'SUCCEEDED' %}",
+          "Comment": "Workflow is SUCCEEDED status"
+        }
+      ],
+      "Default": "Update WES API"
+    },
+    "Handle corrupted files": {
+      "Type": "Parallel",
+      "Next": "Update WES API",
+      "Branches": [
+        {
+          "StartAt": "Get portal run id (corrupted files check)",
+          "States": {
+            "Get portal run id (corrupted files check)": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Output": "{% $states.result.Payload %}",
+              "Arguments": {
+                "FunctionName": "${__get_icav2_wes_object_lambda_function_arn__}",
+                "Payload": {
+                  "name": "{% $name %}"
+                }
+              },
+              "Retry": [
+                {
+                  "ErrorEquals": [
+                    "Lambda.ServiceException",
+                    "Lambda.AWSLambdaException",
+                    "Lambda.SdkClientException",
+                    "Lambda.TooManyRequestsException"
+                  ],
+                  "IntervalSeconds": 1,
+                  "MaxAttempts": 3,
+                  "BackoffRate": 2,
+                  "JitterStrategy": "FULL"
+                }
+              ],
+              "Next": "Get all output file ingest ids",
+              "Assign": {
+                "portalRunId": "{% $states.result.Payload.icav2WesObject.tags.portalRunId %}"
+              }
+            },
+            "Get all output file ingest ids": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Arguments": {
+                "FunctionName": "${__get_output_file_ingest_ids_lambda_function_arn__}",
+                "Payload": {
+                  "portalRunId": "{% $portalRunId %}"
+                }
+              },
+              "Retry": [
+                {
+                  "ErrorEquals": [
+                    "Lambda.ServiceException",
+                    "Lambda.AWSLambdaException",
+                    "Lambda.SdkClientException",
+                    "Lambda.TooManyRequestsException"
+                  ],
+                  "IntervalSeconds": 1,
+                  "MaxAttempts": 3,
+                  "BackoffRate": 2,
+                  "JitterStrategy": "FULL"
+                }
+              ],
+              "Next": "For each Ingest Id (batched)",
+              "Output": {
+                "ingestIdList": "{% $states.result.Payload.ingestIdList %}"
+              }
+            },
+            "For each Ingest Id (batched)": {
+              "Type": "Map",
+              "ItemProcessor": {
+                "ProcessorConfig": {
+                  "Mode": "DISTRIBUTED",
+                  "ExecutionType": "STANDARD"
+                },
+                "StartAt": "Filter to matching ingest ids",
+                "States": {
+                  "Filter to matching ingest ids": {
+                    "Type": "Task",
+                    "Resource": "arn:aws:states:::lambda:invoke",
+                    "Arguments": {
+                      "FunctionName": "${__get_matching_ingest_ids_lambda_function_arn__}",
+                      "Payload": {
+                        "ingestIdList": "{% $states.input.Items %}"
+                      }
+                    },
+                    "Retry": [
+                      {
+                        "ErrorEquals": [
+                          "Lambda.ServiceException",
+                          "Lambda.AWSLambdaException",
+                          "Lambda.SdkClientException",
+                          "Lambda.TooManyRequestsException"
+                        ],
+                        "IntervalSeconds": 1,
+                        "MaxAttempts": 3,
+                        "BackoffRate": 2,
+                        "JitterStrategy": "FULL"
+                      }
+                    ],
+                    "Output": {
+                      "matchingIngestIds": "{% $states.result.Payload.matchingIngestIds %}"
+                    },
+                    "Next": "For each matching ingest id"
+                  },
+                  "For each matching ingest id": {
+                    "Type": "Map",
+                    "ItemProcessor": {
+                      "ProcessorConfig": {
+                        "Mode": "INLINE"
+                      },
+                      "StartAt": "Set env vars",
+                      "States": {
+                        "Set env vars": {
+                          "Type": "Pass",
+                          "Next": "Check is bam file",
+                          "Assign": {
+                            "ingestIdMapIter": "{% $states.input %}"
+                          }
+                        },
+                        "Check is bam file": {
+                          "Type": "Task",
+                          "Resource": "arn:aws:states:::lambda:invoke",
+                          "Arguments": {
+                            "FunctionName": "${__is_bam_file_lambda_function_arn__}",
+                            "Payload": {
+                              "ingestId": "{% $ingestIdMapIter %}"
+                            }
+                          },
+                          "Retry": [
+                            {
+                              "ErrorEquals": [
+                                "Lambda.ServiceException",
+                                "Lambda.AWSLambdaException",
+                                "Lambda.SdkClientException",
+                                "Lambda.TooManyRequestsException"
+                              ],
+                              "IntervalSeconds": 1,
+                              "MaxAttempts": 3,
+                              "BackoffRate": 2,
+                              "JitterStrategy": "FULL"
+                            }
+                          ],
+                          "Next": "Is bam file",
+                          "Output": {
+                            "isBamFile": "{% $states.result.Payload.isBamFile %}"
+                          }
+                        },
+                        "Is bam file": {
+                          "Type": "Choice",
+                          "Choices": [
+                            {
+                              "Next": "Get file uri from ingest id",
+                              "Condition": "{% $states.input.isBamFile ? true : false %}"
+                            }
+                          ],
+                          "Default": "Check is file corrupted"
+                        },
+                        "Get file uri from ingest id": {
+                          "Type": "Task",
+                          "Resource": "arn:aws:states:::lambda:invoke",
+                          "Arguments": {
+                            "FunctionName": "${__get_file_uri_from_ingest_id_lambda_function_arn__}",
+                            "Payload": {
+                              "ingestId": "{% $ingestIdMapIter %}"
+                            }
+                          },
+                          "Retry": [
+                            {
+                              "ErrorEquals": [
+                                "Lambda.ServiceException",
+                                "Lambda.AWSLambdaException",
+                                "Lambda.SdkClientException",
+                                "Lambda.TooManyRequestsException"
+                              ],
+                              "IntervalSeconds": 1,
+                              "MaxAttempts": 3,
+                              "BackoffRate": 2,
+                              "JitterStrategy": "FULL"
+                            }
+                          ],
+                          "Next": "Validate BAM File",
+                          "Output": {
+                            "outputFileUri": "{% $states.result.Payload.outputFileUri %}"
+                          }
+                        },
+                        "Validate BAM File": {
+                          "Type": "Task",
+                          "Resource": "arn:aws:states:::ecs:runTask.sync",
+                          "Arguments": {
+                            "LaunchType": "FARGATE",
+                            "Cluster": "${__validate_bam_file_cluster_arn__}",
+                            "TaskDefinition": "${__validate_bam_file_task_definition_arn__}",
+                            "NetworkConfiguration": {
+                              "AwsvpcConfiguration": {
+                                "Subnets": "{% $split('${__validate_bam_file_subnets__}', ',') %}",
+                                "SecurityGroups": "{% [ '${__validate_bam_file_security_group__}' ] %}"
+                              }
+                            },
+                            "Overrides": {
+                              "ContainerOverrides": [
+                                {
+                                  "Name": "${__validate_bam_file_container_name__}",
+                                  "Environment": [
+                                    {
+                                      "Name": "INPUT_BAM_URI",
+                                      "Value": "{% $states.input.outputFileUri %}"
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          },
+                          "Catch": [
+                            {
+                              "ErrorEquals": ["States.TaskFailed"],
+                              "Output": {
+                                "corruptedS3Uri": "{% $states.input.outputFileUri %}"
+                              },
+                              "Next": "Catch invalid bam",
+                              "Comment": "Catch invalid bam"
+                            }
+                          ],
+                          "End": true
+                        },
+                        "Catch invalid bam": {
+                          "Type": "Pass",
+                          "End": true
+                        },
+                        "Check is file corrupted": {
+                          "Type": "Task",
+                          "Resource": "arn:aws:states:::lambda:invoke",
+                          "Arguments": {
+                            "FunctionName": "${__is_file_corrupted_lambda_function_arn__}",
+                            "Payload": {
+                              "ingestId": "{% $ingestIdMapIter %}"
+                            }
+                          },
+                          "Retry": [
+                            {
+                              "ErrorEquals": [
+                                "Lambda.ServiceException",
+                                "Lambda.AWSLambdaException",
+                                "Lambda.SdkClientException",
+                                "Lambda.TooManyRequestsException"
+                              ],
+                              "IntervalSeconds": 1,
+                              "MaxAttempts": 3,
+                              "BackoffRate": 2,
+                              "JitterStrategy": "FULL"
+                            }
+                          ],
+                          "End": true,
+                          "Output": {
+                            "corruptedS3Uri": "{% $states.result.Payload.corruptedS3Uri %}"
+                          }
+                        }
+                      }
+                    },
+                    "End": true,
+                    "Items": "{% $states.input.matchingIngestIds %}",
+                    "Output": {
+                      "corruptedS3UriList": "{% [\n    $states.result.(corruptedS3Uri) ~> \n    $filter(function($v){$v != null})\n] %}"
+                    }
+                  }
+                }
+              },
+              "Items": "{% $states.input.ingestIdList %}",
+              "Label": "ForeachIngestIdbatched",
+              "MaxConcurrency": 1000,
+              "ItemBatcher": {
+                "MaxItemsPerBatch": 50
+              },
+              "Output": {
+                "corruptedS3UriList": "{% $states.result.(corruptedS3UriList) %}"
+              },
+              "Next": "Handle corrupted file error"
+            },
+            "Handle corrupted file error": {
+              "Type": "Choice",
+              "Choices": [
+                {
+                  "Next": "Set status and error message",
+                  "Condition": "{% ( $states.input.corruptedS3UriList ~> $count ) > 0 %}",
+                  "Comment": "Handle corrupted files error"
+                }
+              ],
+              "Default": "Handle corrupted files placeholder (default)"
+            },
+            "Set status and error message": {
+              "Type": "Pass",
+              "Output": {
+                "status": "FAILED",
+                "errorMessage": "{% \"The following outputs were corrupted: \" & ($states.input.corruptedS3UriList ~> $join(\", \")) %}"
+              },
+              "End": true
+            },
+            "Handle corrupted files placeholder (default)": {
+              "Type": "Pass",
+              "End": true
+            }
+          }
+        },
+        {
+          "StartAt": "Bump Message Visibility 60 minutes (Corrupted files check)",
+          "States": {
+            "Bump Message Visibility 60 minutes (Corrupted files check)": {
+              "Type": "Task",
+              "Arguments": {
+                "QueueUrl": "${__icav2_wes_analysis_queue_url__}",
+                "ReceiptHandle": "{% $messageReceiptHandleToken %}",
+                "VisibilityTimeout": 3600
+              },
+              "Resource": "arn:aws:states:::aws-sdk:sqs:changeMessageVisibility",
+              "Catch": [
+                {
+                  "ErrorEquals": ["Sqs.SqsException", "Sqs.QueueDoesNotExistException"],
+                  "Next": "Catch failed message bump (corrupt files check)"
+                }
+              ],
+              "End": true
+            },
+            "Catch failed message bump (corrupt files check)": {
+              "Type": "Pass",
+              "End": true
+            }
+          }
+        }
+      ],
+      "Assign": {
+        "status": "{% $states.result.(status) ? $states.result.(status) : $status %}",
+        "errorMessage": "{% $states.result.(errorMessage) ? $states.result.(errorMessage) : null %}",
+        "errorType": "AnalysisOutputFileCorruption"
+      }
+    },
+    "Placeholder (non-status)": {
+      "Type": "Pass",
+      "Next": "Get callback id"
+    },
+    "Get callback id": {
+      "Type": "Parallel",
+      "End": true,
+      "Branches": [
+        {
+          "States": {
+            "Get callback id from icav2 wes id": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::dynamodb:getItem",
+              "Arguments": {
+                "TableName": "${__icav2_wes_request_callback_table_name__}",
+                "Key": {
+                  "id": {
+                    "S": "{% $icav2WesOrcabusId %}"
+                  },
+                  "id_type": {
+                    "S": "{% $status %}"
+                  }
+                }
+              },
+              "Next": "Has callback id",
+              "Assign": {
+                "callbackId": "{% $states.result.Item.callback_id.S ? $states.result.Item.callback_id.S : null %}"
+              }
+            },
+            "Has callback id": {
+              "Type": "Choice",
+              "Choices": [
+                {
+                  "Next": "Unlock callback id",
+                  "Condition": "{% $callbackId ? true : false %}",
+                  "Comment": "Callback id in database"
+                }
+              ],
+              "Default": "Pass"
+            },
+            "Pass": {
+              "Type": "Pass",
+              "End": true
+            },
+            "Unlock callback id": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Output": "{% $states.result.Payload %}",
+              "Arguments": {
+                "FunctionName": "${__unlock_callback_id_lambda_function_arn__}",
+                "Payload": {
+                  "callbackId": "{% $callbackId %}"
+                }
+              },
+              "Retry": [
+                {
+                  "ErrorEquals": [
+                    "Lambda.ServiceException",
+                    "Lambda.AWSLambdaException",
+                    "Lambda.SdkClientException",
+                    "Lambda.TooManyRequestsException"
+                  ],
+                  "IntervalSeconds": 1,
+                  "MaxAttempts": 3,
+                  "BackoffRate": 2,
+                  "JitterStrategy": "FULL"
+                }
+              ],
+              "Next": "Delete Callback id from database",
+              "Catch": [
+                {
+                  "ErrorEquals": ["States.TaskFailed"],
+                  "Next": "Delete Callback id from database"
+                }
+              ]
+            },
+            "Delete Callback id from database": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::dynamodb:deleteItem",
+              "Arguments": {
+                "TableName": "${__icav2_wes_request_callback_table_name__}",
+                "Key": {
+                  "id": {
+                    "S": "{% $icav2WesOrcabusId %}"
+                  },
+                  "id_type": {
+                    "S": "{% $status %}"
+                  }
+                }
+              },
+              "End": true
+            }
+          },
+          "StartAt": "Get callback id from icav2 wes id"
+        },
+        {
+          "StartAt": "Placeholder (get callback id)",
+          "States": {
+            "Placeholder (get callback id)": {
+              "Type": "Pass",
+              "End": true
+            }
+          }
+        }
+      ]
     }
   },
   "QueryLanguage": "JSONata"

@@ -1,10 +1,9 @@
 // Imports
 import * as sfn from 'aws-cdk-lib/aws-stepfunctions';
-import { StateMachineType } from 'aws-cdk-lib/aws-stepfunctions';
 import { Construct } from 'constructs';
 import * as path from 'path';
-import * as awsLogs from 'aws-cdk-lib/aws-logs';
-import { RetentionDays } from 'aws-cdk-lib/aws-logs';
+import * as iam from 'aws-cdk-lib/aws-iam';
+import * as cdk from 'aws-cdk-lib';
 
 // Local interfaces
 import {
@@ -13,11 +12,14 @@ import {
   SfnObjectProps,
   SfnProps,
   sfnToRequirementsMap,
+  stepFunctionEcsMap,
   stepFunctionToLambdaMap,
 } from './interfaces';
 import { camelCaseToSnakeCase } from '../utils';
 import { STACK_PREFIX, STEP_FUNCTIONS_DIR } from '../constants';
 import { NagSuppressions } from 'cdk-nag';
+import { LambdaObject } from '../lambda/interfaces';
+import { EcsTaskName } from '../ecs/interfaces';
 
 /** Step Function stuff */
 function createStateMachineDefinitionSubstitutions(props: SfnProps): {
@@ -30,12 +32,37 @@ function createStateMachineDefinitionSubstitutions(props: SfnProps): {
   const lambdaFunctions = props.lambdaFunctions.filter((lambdaObject) =>
     lambdaFunctionNamesInSfn.includes(lambdaObject.lambdaName)
   );
+  const ecsContainerNamesInSfn = stepFunctionEcsMap[props.stateMachineName];
+  const ecsTaskObjects = props.ecsTaskObjects.filter((ecsTaskObject) =>
+    ecsContainerNamesInSfn.includes(
+      <EcsTaskName>ecsTaskObject.ecsFargateTaskConstruct.containerDefinition.containerName
+    )
+  );
 
   /* Substitute lambdas in the state machine definition */
   for (const lambdaObject of lambdaFunctions) {
     const sfnSubtitutionKey = `__${camelCaseToSnakeCase(lambdaObject.lambdaName)}_lambda_function_arn__`;
     definitionSubstitutions[sfnSubtitutionKey] =
       lambdaObject.lambdaFunction.currentVersion.functionArn;
+  }
+
+  /* Add in fargate constructs */
+  for (const ecsTaskObject of ecsTaskObjects) {
+    const ecsContainerNameSnakeCase = camelCaseToSnakeCase(
+      ecsTaskObject.ecsFargateTaskConstruct.containerDefinition.containerName
+    );
+    definitionSubstitutions[`__${ecsContainerNameSnakeCase}_cluster_arn__`] =
+      ecsTaskObject.ecsFargateTaskConstruct.cluster.clusterArn;
+    definitionSubstitutions[`__${ecsContainerNameSnakeCase}_task_definition_arn__`] =
+      ecsTaskObject.ecsFargateTaskConstruct.taskDefinition.taskDefinitionArn;
+    definitionSubstitutions[`__${ecsContainerNameSnakeCase}_subnets__`] =
+      ecsTaskObject.ecsFargateTaskConstruct.cluster.vpc.privateSubnets
+        .map((subnet) => subnet.subnetId)
+        .join(',');
+    definitionSubstitutions[`__${ecsContainerNameSnakeCase}_security_group__`] =
+      ecsTaskObject.ecsFargateTaskConstruct.securityGroup.securityGroupId;
+    definitionSubstitutions[`__${ecsContainerNameSnakeCase}_container_name__`] =
+      ecsTaskObject.ecsFargateTaskConstruct.containerDefinition.containerName;
   }
 
   /* Sfn Requirements */
@@ -53,16 +80,27 @@ function createStateMachineDefinitionSubstitutions(props: SfnProps): {
       props.callbackTable.tableName;
   }
 
+  if (sfnRequirements.needsSetVisibilityTimeoutPermissions) {
+    definitionSubstitutions['__icav2_wes_analysis_queue_url__'] =
+      props.icaExternalSqsQueue.queueUrl;
+  }
+
   return definitionSubstitutions;
 }
 
-function wireUpStateMachinePermissions(props: SfnObjectProps): void {
+function wireUpStateMachinePermissions(scope: Construct, props: SfnObjectProps): void {
   /* Wire up lambda permissions */
   const sfnRequirements = sfnToRequirementsMap[props.stateMachineName];
 
   const lambdaFunctionNamesInSfn = stepFunctionToLambdaMap[props.stateMachineName];
   const lambdaFunctions = props.lambdaFunctions.filter((lambdaObject) =>
     lambdaFunctionNamesInSfn.includes(lambdaObject.lambdaName)
+  );
+  const ecsContainerNamesInSfn = stepFunctionEcsMap[props.stateMachineName];
+  const ecsTaskObjects = props.ecsTaskObjects.filter((ecsTaskObject) =>
+    ecsContainerNamesInSfn.includes(
+      <EcsTaskName>ecsTaskObject.ecsFargateTaskConstruct.containerDefinition.containerName
+    )
   );
 
   if (sfnRequirements.needsExternalEventBusPutPermissions) {
@@ -77,19 +115,125 @@ function wireUpStateMachinePermissions(props: SfnObjectProps): void {
     props.callbackTable.grantReadWriteData(props.stateMachineObj);
   }
 
+  if (sfnRequirements.needsSetVisibilityTimeoutPermissions) {
+    props.stateMachineObj.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ['sqs:ChangeMessageVisibility'],
+        resources: [
+          `arn:aws:sqs:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:${props.icaExternalSqsQueue.queueName}`,
+        ],
+      })
+    );
+  }
+
   /* Allow the state machine to invoke the lambda function */
   for (const lambdaObject of lambdaFunctions) {
     lambdaObject.lambdaFunction.currentVersion.grantInvoke(props.stateMachineObj);
   }
 
   /* Nag Suppressions for express sfns */
-  if (sfnRequirements.isExpressSfn) {
+  // if (sfnRequirements.isExpressSfn) {
+  //   NagSuppressions.addResourceSuppressions(
+  //     props.stateMachineObj,
+  //     [
+  //       {
+  //         id: 'AwsSolutions-IAM5',
+  //         reason: 'Needs permissions to write to logs',
+  //       },
+  //     ],
+  //     true
+  //   );
+  // }
+
+  // Grant ECS permissions if needed
+  if (sfnRequirements.needsEcsPermissions) {
+    // Grant the state machine access to run the ECS tasks
+    for (const ecsTaskObject of ecsTaskObjects) {
+      ecsTaskObject.ecsFargateTaskConstruct.taskDefinition.grantRun(props.stateMachineObj);
+    }
+    /* Grant the state machine access to monitor the tasks */
+    props.stateMachineObj.addToRolePolicy(
+      new iam.PolicyStatement({
+        resources: [
+          `arn:aws:events:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:rule/StepFunctionsGetEventsForECSTaskRule`,
+        ],
+        actions: ['events:PutTargets', 'events:PutRule', 'events:DescribeRule'],
+      })
+    );
+
+    /* Will need cdk nag suppressions for this */
     NagSuppressions.addResourceSuppressions(
       props.stateMachineObj,
       [
         {
           id: 'AwsSolutions-IAM5',
-          reason: 'Needs permissions to write to logs',
+          reason: 'Need ability to put targets and rules for ECS task monitoring',
+        },
+      ],
+      true
+    );
+  }
+
+  if (sfnRequirements.needsDistributedMapSupport) {
+    // Requirement for distributed maps to work
+    /* State machine runs a distributed map */
+    // Because this steps execution uses a distributed map running an express step function, we
+    // have to wire up some extra permissions
+    // Grant the state machine's role to execute itself
+    // However we cannot just grant permission to the role as this will result in a circular dependency
+    // between the state machine and the role
+    // Instead we use the workaround here - https://github.com/aws/aws-cdk/issues/28820#issuecomment-1936010520
+    const distributedMapPolicy = new iam.Policy(scope, `${props.stateMachineName}-dist-map-role`, {
+      document: new iam.PolicyDocument({
+        statements: [
+          new iam.PolicyStatement({
+            resources: [props.stateMachineObj.stateMachineArn],
+            actions: ['states:StartExecution'],
+          }),
+          new iam.PolicyStatement({
+            resources: [
+              `arn:aws:states:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:execution:${props.stateMachineObj.stateMachineName}/*:*`,
+            ],
+            actions: ['states:RedriveExecution'],
+          }),
+        ],
+      }),
+    });
+
+    // Add the policy to the state machine role
+    props.stateMachineObj.role.attachInlinePolicy(distributedMapPolicy);
+
+    // Will need a cdk nag suppression for this
+    NagSuppressions.addResourceSuppressions(
+      [props.stateMachineObj, distributedMapPolicy],
+      [
+        {
+          id: 'AwsSolutions-IAM5',
+          reason: 'Distributed Map IAM Policy requires asterisk in the resource ARN',
+        },
+      ],
+      true
+    );
+  }
+
+  /* If we have the step function handleIcav2AnalysisStateChange */
+  /* We need to allow the durable lambda handleIcaEvent to start that step function */
+  if (props.stateMachineName === 'handleIcav2AnalysisStateChange') {
+    /* Get the lambda object */
+    const handleIcaLambdaObject = <LambdaObject>(
+      props.lambdaFunctions.find((lambdaObject) => lambdaObject.lambdaName === 'handleIcaEvent')
+    );
+    /* Grant permissions to the lambda object */
+    props.stateMachineObj.grantStartExecution(handleIcaLambdaObject.lambdaFunction);
+
+    /* We also need to add permissions for the queue url */
+
+    NagSuppressions.addResourceSuppressions(
+      props.stateMachineObj,
+      [
+        {
+          id: 'AwsSolutions-IAM5',
+          reason: 'Needs permissions to start execution',
         },
       ],
       true
@@ -99,7 +243,7 @@ function wireUpStateMachinePermissions(props: SfnObjectProps): void {
 
 function buildStepFunction(scope: Construct, props: SfnProps): SfnObjectProps {
   const sfnNameToSnakeCase = camelCaseToSnakeCase(props.stateMachineName);
-  const sfnRequirements = sfnToRequirementsMap[props.stateMachineName];
+  // const sfnRequirements = sfnToRequirementsMap[props.stateMachineName];
 
   /* Create the state machine definition substitutions */
   const stateMachine = new sfn.StateMachine(scope, props.stateMachineName, {
@@ -108,24 +252,10 @@ function buildStepFunction(scope: Construct, props: SfnProps): SfnObjectProps {
       path.join(STEP_FUNCTIONS_DIR, sfnNameToSnakeCase + `_sfn_template.asl.json`)
     ),
     definitionSubstitutions: createStateMachineDefinitionSubstitutions(props),
-    stateMachineType: sfnRequirements.isExpressSfn
-      ? StateMachineType.EXPRESS
-      : StateMachineType.STANDARD,
-    logs: sfnRequirements.isExpressSfn
-      ? // Enable logging on the state machine for express step functions only
-        {
-          level: sfn.LogLevel.ALL,
-          // Create a new log group for the state machine
-          destination: new awsLogs.LogGroup(scope, `${props.stateMachineName}-logs`, {
-            retention: RetentionDays.ONE_WEEK,
-          }),
-          includeExecutionData: true,
-        }
-      : undefined,
   });
 
   /* Grant the state machine permissions */
-  wireUpStateMachinePermissions({
+  wireUpStateMachinePermissions(scope, {
     stateMachineObj: stateMachine,
     ...props,
   });

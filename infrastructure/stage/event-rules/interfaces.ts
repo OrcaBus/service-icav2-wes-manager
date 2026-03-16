@@ -6,7 +6,7 @@ export type EventBridgeRuleName =
 
 export const eventBridgeRuleNameList: Array<EventBridgeRuleName> = ['icav2WesPostRequestRule'];
 
-export interface Icav2WesPostRequestTargetRuleEventPatternProps {
+export interface Icav2WesPostRequestEventPatternProps {
   icav2WesRequestDetailType: string;
 }
 
@@ -23,7 +23,7 @@ export interface EventBridgeRuleObject {
 }
 
 export type buildIcav2WesPostRequestRuleProps = Omit<
-  Icav2WesPostRequestTargetRuleEventPatternProps & EventBridgeRuleProps,
+  Icav2WesPostRequestEventPatternProps & EventBridgeRuleProps,
   'eventPattern'
 >;
 
