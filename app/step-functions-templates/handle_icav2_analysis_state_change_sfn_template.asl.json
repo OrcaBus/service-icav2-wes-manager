@@ -658,7 +658,9 @@
               "Items": "{% $states.input.ingestIdList %}",
               "Label": "ForeachIngestIdbatched",
               "MaxConcurrency": 1000,
-              "ItemBatcher": {},
+              "ItemBatcher": {
+                "MaxItemsPerBatch": 50
+              },
               "Output": {
                 "corruptedS3UriList": "{% $states.result.(corruptedS3UriList) %}"
               },
