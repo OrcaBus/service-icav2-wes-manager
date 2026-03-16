@@ -81,7 +81,7 @@ function buildLambda(scope: Construct, props: BuildLambdaProps): LambdaObject {
   }
 
   // ICA State change lambda
-  if (props.lambdaName == 'handleIcaEvent') {
+  if (props.lambdaName === 'handleIcaEvent') {
     // Add the step function
     // Update the environment variable for the step function name
     // When we generate the state machine we will give the lambda permission to start the execution

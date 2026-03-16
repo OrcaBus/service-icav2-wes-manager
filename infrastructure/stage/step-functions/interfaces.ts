@@ -50,6 +50,7 @@ export const stepFunctionToLambdaMap: { [key in SfnName]: Array<LambdaName> } = 
     'filemanagerSync',
     'getMatchingIngestIds',
     'getOutputFileIngestIds',
+    'getFileUriFromIngestId',
     'isBamFile',
     'isFileCorrupted',
     'unlockCallbackId',

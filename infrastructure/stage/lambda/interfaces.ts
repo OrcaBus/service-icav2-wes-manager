@@ -23,6 +23,7 @@ export type LambdaName =
   | 'filemanagerSync'
   | 'getMatchingIngestIds'
   | 'getOutputFileIngestIds'
+  | 'getFileUriFromIngestId'
   | 'isBamFile'
   | 'isFileCorrupted';
 
@@ -47,6 +48,7 @@ export const lambdaNameList: Array<LambdaName> = [
   'filemanagerSync',
   'getMatchingIngestIds',
   'getOutputFileIngestIds',
+  'getFileUriFromIngestId',
   'isBamFile',
   'isFileCorrupted',
 ];
@@ -123,6 +125,9 @@ export const lambdaToRequirementsMap: LambdaToRequirementsMapType = {
     needsOrcabusTookitLayer: true,
   },
   getOutputFileIngestIds: {
+    needsOrcabusTookitLayer: true,
+  },
+  getFileUriFromIngestId: {
     needsOrcabusTookitLayer: true,
   },
   isBamFile: {

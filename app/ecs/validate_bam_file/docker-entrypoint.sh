@@ -3,18 +3,18 @@
 # Get the presigned url
 set -euo pipefail
 
-# Set the picard jar path
-PICARD_JAR="/usr/local/bin/picard.jar"
-
 # Check the following env vars are set
 if [[ ! -v HOSTNAME_SSM_PARAMETER_NAME ]]; then
   echo "Error: HOSTNAME_SSM_PARAMETER_NAME is not set" 1>&2
+  exit 1
 fi
 if [[ ! -v ORCABUS_TOKEN_SECRET_ID ]]; then
   echo "Error: ORCABUS_TOKEN_SECRET_ID is not set" 1>&2
+  exit 1
 fi
 if [[ ! -v INPUT_BAM_URI ]]; then
   echo "Error: INPUT_BAM_URI is not set" 1>&2
+  exit 1
 fi
 
 # Set the HOSTNAME environment variable
@@ -41,7 +41,7 @@ bucket="$(
 	python3 -c "from urllib.parse import urlparse; print(urlparse('${INPUT_BAM_URI}').netloc)"
 )"
 key="$(
-	python3 -c "from urllib.parse import urlparse; print(urlparse('${INPUT_BAM_URI}').key)"
+	python3 -c "from urllib.parse import urlparse; print(urlparse('${INPUT_BAM_URI}').path.lstrip('/'))"
 )"
 
 # Download the index
@@ -78,7 +78,10 @@ bam_presigned_url="$( \
 
 # Samtools stats args
 SAMTOOLS_STATS_ARGS_ARRAY=( \
-  "--customized-index-file" "$(basename "${key}").bai" \
+  # Set the customized index file parameter
+  "-X" \
   "${bam_presigned_url}" \
+  # But the index parameter must go after the bam file in arg positions
+  "$(basename "${key}").bai" \
 )
 samtools stats "${SAMTOOLS_STATS_ARGS_ARRAY[@]}"

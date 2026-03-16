@@ -69,13 +69,16 @@ def handler(event, context: DurableContext):
         status = payload.get("status")
         name = payload.get("userReference")
         error_message = payload.get("summary")
-        icav2_wes_orcabus_id = (
-            next(filter(
-                lambda technical_tag_iter_: technical_tag_iter_.startswith("icav2_wes_orcabus_id="),
-                payload.get("tags", {}).get("technicalTags", [])
-            ))
-        ).split("=")[-1]
         message_receipt_handle_token = record.get("receiptHandle")
+        try:
+            icav2_wes_orcabus_id = (
+                next(filter(
+                    lambda technical_tag_iter_: technical_tag_iter_.startswith("icav2_wes_orcabus_id="),
+                    payload.get("tags", {}).get("technicalTags", [])
+                ))
+            ).split("=")[-1]
+        except StopIteration:
+            raise ValueError("Missing icav2 wes orcabus id in technical tags")
 
         # Run the durable execution callback configuration
         # Step 1: Create the callback

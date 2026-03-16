@@ -184,7 +184,7 @@
         "FunctionName": "${__update_status_on_wes_api_lambda_function_arn__}",
         "Payload": {
           "name": "{% $name %}",
-          "status": "{% /* https://try.jsonata.org/WVD2IGYzV */\n(\n  $statusMap := {\n    \"INITIALIZING\": \"STARTING\",\n    \"IN_PROGRESS\": \"RUNNING\",\n    \"SUCCEEDED\": \"SUCCEEDED\",\n    \"FAILED\": \"FAILED\",\n    \"ABORTED\": \"ABORTED\"\n  };\n  $lookup($statusMap, $status)\n) %}",
+          "status": "{% /* https://try.jsonata.org/WVD2IGYzV */\n(\n  $statusMap := {\n    \"INITIALIZING\": \"STARTING\",\n    \"IN_PROGRESS\": \"RUNNING\",\n    \"SUCCEEDED\": \"SUCCEEDED\",\n    \"FAILED\": \"FAILED\",\n    \"FAILED_FINAL\": \"FAILED\",\n    \"ABORTED\": \"ABORTED\"\n  };\n  $lookup($statusMap, $status)\n) %}",
           "icav2AnalysisId": "{% $icav2AnalysisId %}",
           "errorMessage": "{% $status != 'SUCCEEDED' ? $errorMessage : null %}",
           "errorType": "{% $errorType ? $errorType : \n(\n  $status != 'SUCCEEDED' ? 'AnalysisFailure' : null\n) %}"
@@ -574,8 +574,8 @@
                           "Resource": "arn:aws:states:::ecs:runTask.sync",
                           "Arguments": {
                             "LaunchType": "FARGATE",
-                            "Cluster": "${__validate_bam_file_cluster__}",
-                            "TaskDefinition": "${__validate_bam_file_task_definition__}",
+                            "Cluster": "${__validate_bam_file_cluster_arn__}",
+                            "TaskDefinition": "${__validate_bam_file_task_definition_arn__}",
                             "NetworkConfiguration": {
                               "AwsvpcConfiguration": {
                                 "Subnets": "{% $split('${__validate_bam_file_subnets__}', ',') %}",
