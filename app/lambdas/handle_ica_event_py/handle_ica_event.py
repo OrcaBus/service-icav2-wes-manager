@@ -93,7 +93,7 @@ def handler(event, context: DurableContext):
         # Step 1: Create the callback
         callback = context.create_callback(
             name="WESRequestCallback",
-            config=CallbackConfig(timeout=Duration.from_minutes(15)),
+            config=CallbackConfig(timeout=Duration.from_minutes(60)),
         )
 
         # Step 2: Add the callback to the DynamoDb database
