@@ -214,7 +214,7 @@
     },
     "Handle filemanager": {
       "Type": "Parallel",
-      "Next": "Is workflow SUCCEEEDED",
+      "Next": "Is workflow SUCCEEDED",
       "Branches": [
         {
           "StartAt": "Set vars",
@@ -377,16 +377,16 @@
       "Catch": [
         {
           "ErrorEquals": ["States.BranchFailed"],
-          "Next": "Is workflow SUCCEEEDED"
+          "Next": "Is workflow SUCCEEDED"
         }
       ]
     },
-    "Is workflow SUCCEEEDED": {
+    "Is workflow SUCCEEDED": {
       "Type": "Choice",
       "Choices": [
         {
           "Next": "Handle corrupted files",
-          "Condition": "{% $status = '${__succeeded_status__}' %}",
+          "Condition": "{% $status = 'SUCCEEDED' %}",
           "Comment": "Workflow is SUCCEEDED status"
         }
       ],
