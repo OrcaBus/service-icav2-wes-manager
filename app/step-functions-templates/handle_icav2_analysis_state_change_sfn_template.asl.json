@@ -162,7 +162,7 @@
               "End": true,
               "Catch": [
                 {
-                  "ErrorEquals": ["Sqs.SqsException"],
+                  "ErrorEquals": ["Sqs.SqsException", "Sqs.QueueDoesNotExistException"],
                   "Next": "Catch failed message bump (nextflow)"
                 }
               ]
@@ -362,7 +362,7 @@
               "End": true,
               "Catch": [
                 {
-                  "ErrorEquals": ["Sqs.SqsException"],
+                  "ErrorEquals": ["Sqs.SqsException", "Sqs.QueueDoesNotExistException"],
                   "Next": "Catch failed message bump (filemanager)"
                 }
               ]
@@ -702,7 +702,7 @@
               "Resource": "arn:aws:states:::aws-sdk:sqs:changeMessageVisibility",
               "Catch": [
                 {
-                  "ErrorEquals": ["Sqs.SqsException"],
+                  "ErrorEquals": ["Sqs.SqsException", "Sqs.QueueDoesNotExistException"],
                   "Next": "Catch failed message bump (corrupt files check)"
                 }
               ],
