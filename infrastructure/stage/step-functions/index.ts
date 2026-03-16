@@ -119,9 +119,7 @@ function wireUpStateMachinePermissions(scope: Construct, props: SfnObjectProps):
     props.stateMachineObj.addToRolePolicy(
       new iam.PolicyStatement({
         actions: ['sqs:ChangeMessageVisibility'],
-        resources: [
-          `arn:aws:sqs:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:${props.icaExternalSqsQueue.queueName}`,
-        ],
+        resources: [props.icaExternalSqsQueue.queueArn],
       })
     );
   }
