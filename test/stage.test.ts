@@ -4,6 +4,7 @@ import { SynthesisMessage } from 'aws-cdk-lib/cx-api';
 import { AwsSolutionsChecks, NagSuppressions } from 'cdk-nag';
 import { StatelessApplicationStack } from '../infrastructure/stage/stateless-application-stack';
 import { getStatelessStackProps } from '../infrastructure/stage/config';
+import { PROD_ENVIRONMENT } from '@orcabus/platform-cdk-constructs/deployment-stack-pipeline';
 
 function synthesisMessageToString(sm: SynthesisMessage): string {
   return `${sm.entry.data} [${sm.id}]`;
@@ -15,6 +16,7 @@ describe('cdk-nag-stateless-toolchain-stack', () => {
   // You should configure all stack (sateless, stateful) to be tested
   const deployStack = new StatelessApplicationStack(app, 'DeployStack', {
     // Pick the prod environment to test as it is the most strict
+    env: PROD_ENVIRONMENT,
     ...getStatelessStackProps('PROD'),
   });
 
