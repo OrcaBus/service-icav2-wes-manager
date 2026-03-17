@@ -36,6 +36,13 @@ export class StatelessApplicationStack extends cdk.Stack {
     super(scope, id, props);
     this.stageName = props.stageName;
 
+    // Create the ssm parameter for this stack id
+    new ssm.StringParameter(this, 'gitCommitId', {
+      // `stackId` is tokenized; use construct id to keep the parameter name fully resolvable at synth time.
+      parameterName: `/cdk/git/${this.node.id}`,
+      stringValue: process.env.CODEBUILD_RESOLVED_SOURCE_VERSION || 'unknown',
+    });
+
     // Get dynamodb table (built in the stateful stack)
     const dynamodbTable = dynamodb.TableV2.fromTableName(this, props.tableName, props.tableName);
 
