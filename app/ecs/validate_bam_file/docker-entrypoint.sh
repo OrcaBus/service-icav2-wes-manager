@@ -44,26 +44,6 @@ key="$(
 	python3 -c "from urllib.parse import urlparse; print(urlparse('${INPUT_BAM_URI}').path.lstrip('/'))"
 )"
 
-# Download the index
-CURL_GET_S3_PRESIGNED_URL_BAM_INDEX_ARGS_ARRAY=(
-  "--fail" "--silent" "--location" "--show-error" \
-  "--header" "Accept: application/json" \
-  "--header" "Authorization: Bearer ${ORCABUS_TOKEN}" \
-  "https://file.${HOSTNAME}/api/v1/s3/presign?&responseContentDisposition=inline&bucket=${bucket}&key=${key}.bai" \
-)
-bam_index_presigned_url="$( \
-  curl "${CURL_GET_S3_PRESIGNED_URL_BAM_INDEX_ARGS_ARRAY[@]}" | \
-  jq --raw-output '.results[0]' \
-)"
-
-# Download bam index
-WGET_DOWNLOAD_INDEX_ARGS=( \
-  "--quiet" \
-  "--output-document" "$(basename "${key}").bai" \
-  "${bam_index_presigned_url}" \
-)
-wget "${WGET_DOWNLOAD_INDEX_ARGS[@]}"
-
 # Get bam presigned url
 CURL_GET_S3_PRESIGNED_URL_BAM_ARGS_ARRAY=( \
   "--fail" "--silent" "--location" "--show-error" \
@@ -76,12 +56,5 @@ bam_presigned_url="$( \
   jq --raw-output '.results[0]' \
 )"
 
-# Samtools stats args
-SAMTOOLS_STATS_ARGS_ARRAY=( \
-  # Set the customized index file parameter
-  "-X" \
-  "${bam_presigned_url}" \
-  # But the index parameter must go after the bam file in arg positions
-  "$(basename "${key}").bai" \
-)
-samtools stats "${SAMTOOLS_STATS_ARGS_ARRAY[@]}"
+# Run samtools quickcheck
+samtools quickcheck "${bam_presigned_url}"
