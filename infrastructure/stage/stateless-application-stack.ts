@@ -77,7 +77,7 @@ export class StatelessApplicationStack extends cdk.Stack {
       props.hostedZoneSsmParameterName
     );
 
-    // Secrests
+    // Secrets
     const orcabusTokenSecretParameterObj = secretsManager.Secret.fromSecretNameV2(
       this,
       props.orcabusTokenSecretName,
