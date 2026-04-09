@@ -44,7 +44,7 @@ function buildLambda(scope: Construct, props: BuildLambdaProps): LambdaObject {
   const lambdaRequirements = lambdaToRequirementsMap[props.lambdaName];
 
   // Create the lambda function
-  const lambdaFunction = new PythonUvFunction(scope, props.lambdaName, {
+  const lambdaFunction = new PythonUvFunction(scope, `${props.lambdaName}-lambda`, {
     entry: path.join(LAMBDA_DIR, lambdaNameToSnakeCase + '_py'),
     runtime: lambda.Runtime.PYTHON_3_14,
     architecture: lambda.Architecture.ARM_64,

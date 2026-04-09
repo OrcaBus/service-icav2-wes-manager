@@ -283,7 +283,7 @@ function buildStepFunction(scope: Construct, props: SfnProps): SfnObjectProps {
   // const sfnRequirements = sfnToRequirementsMap[props.stateMachineName];
 
   /* Create the state machine definition substitutions */
-  const stateMachine = new sfn.StateMachine(scope, props.stateMachineName, {
+  const stateMachine = new sfn.StateMachine(scope, `${props.stateMachineName}-sfn`, {
     stateMachineName: `${STACK_PREFIX}--${props.stateMachineName}`,
     definitionBody: sfn.DefinitionBody.fromFile(
       path.join(STEP_FUNCTIONS_DIR, sfnNameToSnakeCase + `_sfn_template.asl.json`)
