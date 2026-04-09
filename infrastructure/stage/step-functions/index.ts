@@ -237,6 +237,45 @@ function wireUpStateMachinePermissions(scope: Construct, props: SfnObjectProps):
       true
     );
   }
+
+  /*
+  Handle ICAv2 Analysis State Change also requires permissions to launch other objects
+   */
+  if (sfnRequirements.needsNestedSfnStartExecutionPermissions) {
+    if (props.stateMachineName == 'handleIcav2AnalysisStateChange') {
+      for (const nestedSfnName of sfnNameList) {
+        // For each of the active nested sfn functions
+        switch (nestedSfnName) {
+          case 'handleFilemanager':
+          case 'handleNextflowFiles':
+          case 'unlockCallbackId': {
+            props.stateMachineObj.addToRolePolicy(
+              new iam.PolicyStatement({
+                actions: ['states:StartExecution', 'states:DescribeExecution'],
+                resources: [
+                  `arn:aws:states:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:stateMachine:${STACK_PREFIX}--${nestedSfnName}`,
+                  `arn:aws:states:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:execution:${STACK_PREFIX}--${nestedSfnName}:*`,
+                ],
+              })
+            );
+            break;
+          }
+        }
+      }
+    }
+    // Suppress IAM5: Wildcard needed because execution ARNs include dynamic IDs
+    NagSuppressions.addResourceSuppressions(
+      props.stateMachineObj,
+      [
+        {
+          id: 'AwsSolutions-IAM5',
+          reason:
+            'Describe execution requires wildcard in resource ARN because execution IDs are dynamic',
+        },
+      ],
+      true
+    );
+  }
 }
 
 function buildStepFunction(scope: Construct, props: SfnProps): SfnObjectProps {

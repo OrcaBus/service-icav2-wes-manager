@@ -1,0 +1,112 @@
+{
+  "Comment": "A description of my state machine",
+  "StartAt": "Get Env vars",
+  "States": {
+    "Get Env vars": {
+      "Type": "Pass",
+      "Next": "Get ICAv2 analysis object from name",
+      "Assign": {
+        "name": "{% $states.input.name %}"
+      }
+    },
+    "Get ICAv2 analysis object from name": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Output": {
+        "language": "{% $states.result.Payload.language %}"
+      },
+      "Arguments": {
+        "FunctionName": "${__get_pipeline_type_lambda_function_arn__}",
+        "Payload": {
+          "name": "{% $name %}"
+        }
+      },
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 1,
+          "MaxAttempts": 3,
+          "BackoffRate": 2,
+          "JitterStrategy": "FULL"
+        }
+      ],
+      "Next": "Is Nextflow workflow"
+    },
+    "Is Nextflow workflow": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Next": "Get ICAv2 WES Object",
+          "Condition": "{% $states.input.language = 'NEXTFLOW' %}"
+        }
+      ],
+      "Default": "Nextflow (placeholder 2)"
+    },
+    "Get ICAv2 WES Object": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Output": {
+        "logsUri": "{% $states.result.Payload.icav2WesObject.engineParameters.logsUri %}",
+        "outputUri": "{% $states.result.Payload.icav2WesObject.engineParameters.outputUri %}"
+      },
+      "Arguments": {
+        "FunctionName": "${__get_icav2_wes_object_lambda_function_arn__}",
+        "Payload": {
+          "name": "{% $name %}"
+        }
+      },
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 1,
+          "MaxAttempts": 3,
+          "BackoffRate": 2,
+          "JitterStrategy": "FULL"
+        }
+      ],
+      "Next": "Copy nextflow files"
+    },
+    "Copy nextflow files": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Arguments": {
+        "FunctionName": "${__copy_nextflow_files_from_logs_uri_lambda_function_arn__}",
+        "Payload": {
+          "logsUri": "{% $states.input.logsUri %}",
+          "outputUri": "{% $states.input.outputUri %}"
+        }
+      },
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 1,
+          "MaxAttempts": 3,
+          "BackoffRate": 2,
+          "JitterStrategy": "FULL"
+        }
+      ],
+      "End": true,
+      "Output": {}
+    },
+    "Nextflow (placeholder 2)": {
+      "Type": "Pass",
+      "End": true
+    }
+  },
+  "QueryLanguage": "JSONata"
+}

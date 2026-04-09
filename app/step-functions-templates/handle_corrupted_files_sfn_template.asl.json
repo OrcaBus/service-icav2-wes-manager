@@ -1,0 +1,304 @@
+{
+  "StartAt": "Set env vars",
+  "States": {
+    "Set env vars": {
+      "Type": "Pass",
+      "Next": "Get portal run id (corrupted files check)",
+      "Assign": {
+        "name": "{% $states.input.name %}"
+      }
+    },
+    "Get portal run id (corrupted files check)": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Output": "{% $states.result.Payload %}",
+      "Arguments": {
+        "FunctionName": "${__get_icav2_wes_object_lambda_function_arn__}",
+        "Payload": {
+          "name": "{% $name %}"
+        }
+      },
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 1,
+          "MaxAttempts": 3,
+          "BackoffRate": 2,
+          "JitterStrategy": "FULL"
+        }
+      ],
+      "Next": "Get all output file ingest ids",
+      "Assign": {
+        "portalRunId": "{% $states.result.Payload.icav2WesObject.tags.portalRunId %}"
+      }
+    },
+    "Get all output file ingest ids": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Arguments": {
+        "FunctionName": "${__get_output_file_ingest_ids_lambda_function_arn__}",
+        "Payload": {
+          "portalRunId": "{% $portalRunId %}"
+        }
+      },
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 1,
+          "MaxAttempts": 3,
+          "BackoffRate": 2,
+          "JitterStrategy": "FULL"
+        }
+      ],
+      "Next": "For each Ingest Id (batched)",
+      "Output": {
+        "ingestIdList": "{% $states.result.Payload.ingestIdList %}"
+      }
+    },
+    "For each Ingest Id (batched)": {
+      "Type": "Map",
+      "ItemProcessor": {
+        "ProcessorConfig": {
+          "Mode": "DISTRIBUTED",
+          "ExecutionType": "STANDARD"
+        },
+        "StartAt": "Filter to matching ingest ids",
+        "States": {
+          "Filter to matching ingest ids": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::lambda:invoke",
+            "Arguments": {
+              "FunctionName": "${__get_matching_ingest_ids_lambda_function_arn__}",
+              "Payload": {
+                "ingestIdList": "{% $states.input.Items %}"
+              }
+            },
+            "Retry": [
+              {
+                "ErrorEquals": [
+                  "Lambda.ServiceException",
+                  "Lambda.AWSLambdaException",
+                  "Lambda.SdkClientException",
+                  "Lambda.TooManyRequestsException"
+                ],
+                "IntervalSeconds": 1,
+                "MaxAttempts": 3,
+                "BackoffRate": 2,
+                "JitterStrategy": "FULL"
+              }
+            ],
+            "Output": {
+              "matchingIngestIds": "{% $states.result.Payload.matchingIngestIds %}"
+            },
+            "Next": "For each matching ingest id"
+          },
+          "For each matching ingest id": {
+            "Type": "Map",
+            "ItemProcessor": {
+              "ProcessorConfig": {
+                "Mode": "INLINE"
+              },
+              "StartAt": "Set env vars (map)",
+              "States": {
+                "Set env vars (map)": {
+                  "Type": "Pass",
+                  "Next": "Check is bam file",
+                  "Assign": {
+                    "ingestIdMapIter": "{% $states.input %}"
+                  }
+                },
+                "Check is bam file": {
+                  "Type": "Task",
+                  "Resource": "arn:aws:states:::lambda:invoke",
+                  "Arguments": {
+                    "FunctionName": "${__is_bam_file_lambda_function_arn__}",
+                    "Payload": {
+                      "ingestId": "{% $ingestIdMapIter %}"
+                    }
+                  },
+                  "Retry": [
+                    {
+                      "ErrorEquals": [
+                        "Lambda.ServiceException",
+                        "Lambda.AWSLambdaException",
+                        "Lambda.SdkClientException",
+                        "Lambda.TooManyRequestsException"
+                      ],
+                      "IntervalSeconds": 1,
+                      "MaxAttempts": 3,
+                      "BackoffRate": 2,
+                      "JitterStrategy": "FULL"
+                    }
+                  ],
+                  "Next": "Is bam file",
+                  "Output": {
+                    "isBamFile": "{% $states.result.Payload.isBamFile %}"
+                  }
+                },
+                "Is bam file": {
+                  "Type": "Choice",
+                  "Choices": [
+                    {
+                      "Next": "Get file uri from ingest id",
+                      "Condition": "{% $states.input.isBamFile ? true : false %}"
+                    }
+                  ],
+                  "Default": "Check is file corrupted"
+                },
+                "Get file uri from ingest id": {
+                  "Type": "Task",
+                  "Resource": "arn:aws:states:::lambda:invoke",
+                  "Arguments": {
+                    "FunctionName": "${__get_file_uri_from_ingest_id_lambda_function_arn__}",
+                    "Payload": {
+                      "ingestId": "{% $ingestIdMapIter %}"
+                    }
+                  },
+                  "Retry": [
+                    {
+                      "ErrorEquals": [
+                        "Lambda.ServiceException",
+                        "Lambda.AWSLambdaException",
+                        "Lambda.SdkClientException",
+                        "Lambda.TooManyRequestsException"
+                      ],
+                      "IntervalSeconds": 1,
+                      "MaxAttempts": 3,
+                      "BackoffRate": 2,
+                      "JitterStrategy": "FULL"
+                    }
+                  ],
+                  "Next": "Validate BAM File",
+                  "Output": {
+                    "outputFileUri": "{% $states.result.Payload.outputFileUri %}"
+                  }
+                },
+                "Validate BAM File": {
+                  "Type": "Task",
+                  "Resource": "arn:aws:states:::ecs:runTask.sync",
+                  "Arguments": {
+                    "LaunchType": "FARGATE",
+                    "Cluster": "${__validate_bam_file_cluster_arn__}",
+                    "TaskDefinition": "${__validate_bam_file_task_definition_arn__}",
+                    "NetworkConfiguration": {
+                      "AwsvpcConfiguration": {
+                        "Subnets": "{% $split('${__validate_bam_file_subnets__}', ',') %}",
+                        "SecurityGroups": "{% [ '${__validate_bam_file_security_group__}' ] %}"
+                      }
+                    },
+                    "Overrides": {
+                      "ContainerOverrides": [
+                        {
+                          "Name": "${__validate_bam_file_container_name__}",
+                          "Environment": [
+                            {
+                              "Name": "INPUT_BAM_URI",
+                              "Value": "{% $states.input.outputFileUri %}"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  },
+                  "Catch": [
+                    {
+                      "ErrorEquals": ["States.TaskFailed"],
+                      "Output": {
+                        "corruptedS3Uri": "{% $states.input.outputFileUri %}"
+                      },
+                      "Next": "Catch invalid bam",
+                      "Comment": "Catch invalid bam"
+                    }
+                  ],
+                  "End": true
+                },
+                "Catch invalid bam": {
+                  "Type": "Pass",
+                  "End": true
+                },
+                "Check is file corrupted": {
+                  "Type": "Task",
+                  "Resource": "arn:aws:states:::lambda:invoke",
+                  "Arguments": {
+                    "FunctionName": "${__is_file_corrupted_lambda_function_arn__}",
+                    "Payload": {
+                      "ingestId": "{% $ingestIdMapIter %}"
+                    }
+                  },
+                  "Retry": [
+                    {
+                      "ErrorEquals": [
+                        "Lambda.ServiceException",
+                        "Lambda.AWSLambdaException",
+                        "Lambda.SdkClientException",
+                        "Lambda.TooManyRequestsException"
+                      ],
+                      "IntervalSeconds": 1,
+                      "MaxAttempts": 3,
+                      "BackoffRate": 2,
+                      "JitterStrategy": "FULL"
+                    }
+                  ],
+                  "End": true,
+                  "Output": {
+                    "corruptedS3Uri": "{% $states.result.Payload.corruptedS3Uri %}"
+                  }
+                }
+              }
+            },
+            "End": true,
+            "Items": "{% $states.input.matchingIngestIds %}",
+            "Output": {
+              "corruptedS3UriList": "{% [\n    $states.result.(corruptedS3Uri) ~> \n    $filter(function($v){$v != null})\n] %}"
+            }
+          }
+        }
+      },
+      "Items": "{% $states.input.ingestIdList %}",
+      "Label": "ForeachIngestIdbatched",
+      "MaxConcurrency": 1000,
+      "ItemBatcher": {
+        "MaxItemsPerBatch": 50
+      },
+      "Output": {
+        "corruptedS3UriList": "{% $states.result.(corruptedS3UriList) %}"
+      },
+      "Next": "Handle corrupted file error"
+    },
+    "Handle corrupted file error": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Next": "Set status and error message",
+          "Condition": "{% ( $states.input.corruptedS3UriList ~> $count ) > 0 %}",
+          "Comment": "Handle corrupted files error"
+        }
+      ],
+      "Default": "Handle corrupted files placeholder (default)"
+    },
+    "Set status and error message": {
+      "Type": "Pass",
+      "Output": {
+        "status": "FAILED",
+        "errorMessage": "{% \"The following outputs were corrupted: \" & ($states.input.corruptedS3UriList ~> $join(\", \")) %}"
+      },
+      "End": true
+    },
+    "Handle corrupted files placeholder (default)": {
+      "Type": "Pass",
+      "End": true
+    }
+  },
+  "QueryLanguage": "JSONata",
+  "Comment": "Handle Corrupted Files"
+}

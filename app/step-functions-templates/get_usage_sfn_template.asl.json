@@ -1,0 +1,124 @@
+{
+  "StartAt": "Get storage metrics",
+  "States": {
+    "Get storage metrics": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Arguments": {
+        "FunctionName": "${__collect_non_price_usage_metrics_lambda_function_arn__}",
+        "Payload": "{% $name %}"
+      },
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 1,
+          "MaxAttempts": 3,
+          "BackoffRate": 2,
+          "JitterStrategy": "FULL"
+        }
+      ],
+      "Next": "Get usage costs",
+      "Output": {
+        "usage": "{% $states.result.Payload.usage %}"
+      }
+    },
+    "Get usage costs": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Arguments": {
+        "FunctionName": "${__get_icav2_wes_cost_usage_price_lambda_function_arn__}",
+        "Payload": {
+          "name": "{% $name %}"
+        }
+      },
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 1,
+          "MaxAttempts": 3,
+          "BackoffRate": 2,
+          "JitterStrategy": "FULL"
+        }
+      ],
+      "Output": {
+        "usage": "{% [\n  {\n    \"price\": $states.result.Payload.price,\n  },\n  $states.input.usage\n] ~> $merge %}"
+      },
+      "Next": "Got price"
+    },
+    "Got price": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Next": "Add costs API",
+          "Condition": "{% $states.input.usage.price ? true : false %}"
+        }
+      ],
+      "Default": "Wait 5 minutes"
+    },
+    "Add costs API": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Output": "{% $states.result.Payload %}",
+      "Arguments": {
+        "FunctionName": "${__add_usage_costs_lambda_function_arn__}",
+        "Payload": "{% $states.input %}"
+      },
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 1,
+          "MaxAttempts": 3,
+          "BackoffRate": 2,
+          "JitterStrategy": "FULL"
+        }
+      ],
+      "Next": "Add cost summaries to Workflow Manager"
+    },
+    "Add cost summaries to Workflow Manager": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Output": "{% $states.result.Payload %}",
+      "Arguments": {
+        "FunctionName": "${__add_cost_summaries_comment_to_workflow_manager_lambda_function_arn__}",
+        "Payload": "{% $states.input %}"
+      },
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 1,
+          "MaxAttempts": 3,
+          "BackoffRate": 2,
+          "JitterStrategy": "FULL"
+        }
+      ],
+      "End": true
+    },
+    "Wait 5 minutes": {
+      "Type": "Wait",
+      "Seconds": 300,
+      "Next": "Get usage costs"
+    }
+  },
+  "QueryLanguage": "JSONata",
+  "Comment": "Get Usage"
+}

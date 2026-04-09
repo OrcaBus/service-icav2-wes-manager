@@ -5,52 +5,80 @@ import { ITableV2 } from 'aws-cdk-lib/aws-dynamodb';
 import { SfnName } from '../step-functions/interfaces';
 
 export type LambdaName =
+  // Shared functions
+  | 'getIcav2WesObject'
   // Pre analysis
   | 'generateWesPostRequestFromEvent'
   // Run analysis
   | 'launchIcav2AnalysisViaWrapica'
   | 'unlockCallbackId'
   // Mid analysis
-  | 'getIcav2WesObject'
   | 'updateStatusOnWesApi'
   | 'abortAnalysis'
   // ICA event handling
   | 'handleIcaEvent'
   // Post analysis
-  | 'addPortalRunIdAttributes'
+  // Handle nextflow files
   | 'getPipelineType'
   | 'copyNextflowFilesFromLogsUri'
+  // Handle Filemanager
+  | 'addPortalRunIdAttributes'
   | 'filemanagerSync'
-  | 'getMatchingIngestIds'
-  | 'getOutputFileIngestIds'
-  | 'getFileUriFromIngestId'
-  | 'isBamFile'
-  | 'isFileCorrupted';
+  // Handle task summaries
+  | 'listTasksInAnalysis' // Not yet implemented
+  | 'getAndRegisterAnalysisTasks' // Not yet implemented
+  | 'addTaskAnomaliesToWorkflowManager' // Not yet implemented
+  // Handle corrupted files
+  | 'getOutputFileIngestIds' // Not yet implemented
+  | 'getMatchingIngestIds' // Not yet implemented
+  | 'isBamFile' // Not yet implemented
+  | 'getFileUriFromIngestId' // Not yet implemented
+  | 'isFileCorrupted' // Not yet implemented
+  // Unlock callback id
+  // Get Usage
+  | 'collectNonPriceUsageMetrics' // Not yet implemented
+  | 'getIcav2WesCostUsagePrice' // Not yet implemented
+  | 'addUsageCosts' // Not yet implemented
+  | 'addCostSummariesCommentToWorkflowManager'; // Not yet implemented
 
 /* Lambda names array */
 /* Bit of double handling, BUT types are not parsed to JS */
 export const lambdaNameList: Array<LambdaName> = [
+  // Shared functions
+  'getIcav2WesObject',
   // Pre analysis
   'generateWesPostRequestFromEvent',
   // Run analysis
   'launchIcav2AnalysisViaWrapica',
   'unlockCallbackId',
   // Mid analysis
-  'getIcav2WesObject',
   'updateStatusOnWesApi',
   'abortAnalysis',
   // ICA event handling
   'handleIcaEvent',
   // Post analysis
-  'addPortalRunIdAttributes',
+  // Handle nextflow files
   'getPipelineType',
   'copyNextflowFilesFromLogsUri',
+  // Handle Filemanager
+  'addPortalRunIdAttributes',
   'filemanagerSync',
-  'getMatchingIngestIds',
-  'getOutputFileIngestIds',
-  'getFileUriFromIngestId',
-  'isBamFile',
-  'isFileCorrupted',
+  // Handle task summaries
+  // 'listTasksInAnalysis', // Not yet implemented
+  // 'getAndRegisterAnalysisTasks', // Not yet implemented
+  // 'addTaskAnomaliesToWorkflowManager', // Not yet implemented
+  // Handle corrupted files
+  // 'getOutputFileIngestIds',  // Not yet implemented
+  // 'getMatchingIngestIds',  // Not yet implemented
+  // 'isBamFile',  // Not yet implemented
+  // 'getFileUriFromIngestId',  // Not yet implemented
+  // 'isFileCorrupted',  // Not yet implemented
+  // Unlock callback id
+  // Get Usage
+  // 'collectNonPriceUsageMetrics',  // Not yet implemented
+  // 'getIcav2WesCostUsagePrice',  // Not yet implemented
+  // 'addUsageCosts',  // Not yet implemented
+  // 'addCostSummariesCommentToWorkflowManager',  // Not yet implemented
 ];
 
 /* We also throw in our custom application interfaces here too */
@@ -69,6 +97,11 @@ export interface LambdaRequirementProps {
 export type LambdaToRequirementsMapType = { [key in LambdaName]: LambdaRequirementProps };
 
 export const lambdaToRequirementsMap: LambdaToRequirementsMapType = {
+  // Shared functions
+  getIcav2WesObject: {
+    needsOrcabusTookitLayer: true,
+    needsIcav2ToolkitLayer: true,
+  },
   // Pre analysis
   generateWesPostRequestFromEvent: {
     needsOrcabusTookitLayer: true,
@@ -88,10 +121,6 @@ export const lambdaToRequirementsMap: LambdaToRequirementsMapType = {
     needsCallbackPermissions: true,
   },
   // Mid analysis
-  getIcav2WesObject: {
-    needsOrcabusTookitLayer: true,
-    needsIcav2ToolkitLayer: true,
-  },
   updateStatusOnWesApi: {
     needsOrcabusTookitLayer: true,
     needsArtefactBucketPermissions: true,
@@ -107,9 +136,7 @@ export const lambdaToRequirementsMap: LambdaToRequirementsMapType = {
     needsCallbackDbPermissions: true,
   },
   // Post analysis
-  addPortalRunIdAttributes: {
-    needsOrcabusTookitLayer: true,
-  },
+  // Handle nextflow files
   getPipelineType: {
     needsOrcabusTookitLayer: true,
     needsIcav2ToolkitLayer: true,
@@ -117,24 +144,53 @@ export const lambdaToRequirementsMap: LambdaToRequirementsMapType = {
   copyNextflowFilesFromLogsUri: {
     needsIcav2ToolkitLayer: true,
   },
+  // Handle Filemanager
+  addPortalRunIdAttributes: {
+    needsOrcabusTookitLayer: true,
+  },
   filemanagerSync: {
     needsOrcabusTookitLayer: true,
     needsIcav2ToolkitLayer: true,
   },
-  getMatchingIngestIds: {
-    needsOrcabusTookitLayer: true,
+  // Handle task summaries
+  listTasksInAnalysis: {
+    // Not yet implemented
   },
+  getAndRegisterAnalysisTasks: {
+    // Not yet implemented
+  },
+  addTaskAnomaliesToWorkflowManager: {
+    // Not yet implemented
+  },
+  // Handle corrupted files
   getOutputFileIngestIds: {
-    needsOrcabusTookitLayer: true,
+    // Not yet implemented
   },
-  getFileUriFromIngestId: {
-    needsOrcabusTookitLayer: true,
+  getMatchingIngestIds: {
+    // Not yet implemented
   },
   isBamFile: {
-    needsOrcabusTookitLayer: true,
+    // Not yet implemented
+  },
+  getFileUriFromIngestId: {
+    // Not yet implemented
   },
   isFileCorrupted: {
-    needsOrcabusTookitLayer: true,
+    // Not yet implemented
+  },
+  // Unlock callback id
+  // Get Usage
+  collectNonPriceUsageMetrics: {
+    // Not yet implemented
+  },
+  getIcav2WesCostUsagePrice: {
+    // Not yet implemented
+  },
+  addUsageCosts: {
+    // Not yet implemented
+  },
+  addCostSummariesCommentToWorkflowManager: {
+    // Not yet implemented
   },
 };
 
