@@ -69,7 +69,7 @@ function buildLambda(scope: Construct, props: BuildLambdaProps): LambdaObject {
 
   // If the lambda has an SQS event source, we need to add this in
   // Generate Event Request uses the launch ICA Source Event Queue
-  if (props.lambdaName == 'generateWesPostRequestFromEvent') {
+  if (props.lambdaName === 'generateWesPostRequestFromEvent') {
     // Find the SQS queue from the props
     lambdaFunction.currentVersion.addEventSource(
       new SqsEventSource(props.generateWesPostRequestEventQueue, {

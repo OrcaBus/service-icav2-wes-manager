@@ -85,6 +85,26 @@ function createStateMachineDefinitionSubstitutions(props: SfnProps): {
       props.icaExternalSqsQueue.queueUrl;
   }
 
+  if (sfnRequirements.needsNestedSfnStartExecutionPermissions) {
+    if (props.stateMachineName == 'handleIcav2AnalysisStateChange') {
+      for (const nestedSfnName of sfnNameList) {
+        // For each of the active nested sfn functions
+        // Add in the definition substitution
+        switch (nestedSfnName) {
+          case 'handleFilemanager':
+          case 'handleNextflowFiles':
+          case 'unlockCallbackId': {
+            definitionSubstitutions[
+              `__${camelCaseToSnakeCase(nestedSfnName)}_state_machine_arn__`
+            ] =
+              `arn:aws:states:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:stateMachine:${STACK_PREFIX}--${nestedSfnName}`;
+            break;
+          }
+        }
+      }
+    }
+  }
+
   return definitionSubstitutions;
 }
 
@@ -126,7 +146,7 @@ function wireUpStateMachinePermissions(scope: Construct, props: SfnObjectProps):
 
   /* Allow the state machine to invoke the lambda function */
   for (const lambdaObject of lambdaFunctions) {
-    lambdaObject.lambdaFunction.currentVersion.grantInvoke(props.stateMachineObj);
+    lambdaObject.lambdaFunction.grantInvoke(props.stateMachineObj);
   }
 
   /* Nag Suppressions for express sfns */
@@ -263,6 +283,18 @@ function wireUpStateMachinePermissions(scope: Construct, props: SfnObjectProps):
         }
       }
     }
+
+    // Because we run a nested state machine, we need to add the permissions to the state machine role
+    // See https://stackoverflow.com/questions/60612853/nested-step-function-in-a-step-function-unknown-error-not-authorized-to-cr
+    props.stateMachineObj.addToRolePolicy(
+      new iam.PolicyStatement({
+        resources: [
+          `arn:aws:events:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:rule/StepFunctionsGetEventsForStepFunctionsExecutionRule`,
+        ],
+        actions: ['events:PutTargets', 'events:PutRule', 'events:DescribeRule'],
+      })
+    );
+
     // Suppress IAM5: Wildcard needed because execution ARNs include dynamic IDs
     NagSuppressions.addResourceSuppressions(
       props.stateMachineObj,

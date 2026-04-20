@@ -23,7 +23,7 @@
           "Comment": "Is relevant status"
         }
       ],
-      "Default": "Placeholder (non-status)"
+      "Default": "Unlock Callback Id (sync)"
     },
     "Is Terminal Status": {
       "Type": "Choice",
@@ -44,18 +44,30 @@
         "VisibilityTimeout": 300
       },
       "Resource": "arn:aws:states:::aws-sdk:sqs:changeMessageVisibility",
-      "Next": "Handle Nextflow Output Files (sync)"
+      "Next": "Handle Nextflow Output Files (sync)",
+      "Catch": [
+        {
+          "ErrorEquals": ["Sqs.SqsException"],
+          "Next": "Handle Nextflow Output Files (sync)"
+        }
+      ]
     },
     "Handle Nextflow Output Files (sync)": {
       "Type": "Task",
       "Resource": "arn:aws:states:::states:startExecution.sync:2",
       "Arguments": {
-        "StateMachineArn": "${__handle_nextflow_output_files_state_machine_arn__}",
+        "StateMachineArn": "${__handle_nextflow_files_state_machine_arn__}",
         "Input": {
           "name": "{% $name %}"
         }
       },
-      "Next": "Handle Filemanager (sync)"
+      "Next": "Handle Filemanager (sync)",
+      "Catch": [
+        {
+          "ErrorEquals": ["States.TaskFailed"],
+          "Next": "Handle Filemanager (sync)"
+        }
+      ]
     },
     "Handle Filemanager (sync)": {
       "Type": "Task",
@@ -86,7 +98,7 @@
           "Condition": "{% false %}"
         }
       ],
-      "Default": "Get usage metrics (async)"
+      "Default": "Is workflow SUCCEEDED"
     },
     "Get usage metrics (async)": {
       "Type": "Task",
@@ -157,7 +169,10 @@
           "Comment": "Workflow is SUCCEEDED status"
         }
       ],
-      "Default": "Update WES API"
+      "Default": "Update WES API",
+      "Assign": {
+        "errorType": "{% $status = 'FAILED' ? 'AnalysisFailure' : null  %}"
+      }
     },
     "Checking corrupted files (false)": {
       "Type": "Choice",
@@ -177,10 +192,6 @@
         "Input": {}
       },
       "Next": "Update WES API"
-    },
-    "Placeholder (non-status)": {
-      "Type": "Pass",
-      "Next": "Unlock Callback Id (sync)"
     }
   },
   "QueryLanguage": "JSONata"
