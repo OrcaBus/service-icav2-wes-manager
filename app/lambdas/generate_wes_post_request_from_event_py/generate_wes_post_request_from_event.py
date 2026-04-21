@@ -22,7 +22,7 @@ from aws_durable_execution_sdk_python import (
     durable_execution, StepContext, durable_step
 )
 from aws_durable_execution_sdk_python.config import (
-    CallbackConfig, Duration, WaitForCallbackConfig
+    Duration, WaitForCallbackConfig
 )
 
 # Layer imports
