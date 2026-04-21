@@ -43,7 +43,7 @@ function createStateMachineDefinitionSubstitutions(props: SfnProps): {
   for (const lambdaObject of lambdaFunctions) {
     const sfnSubtitutionKey = `__${camelCaseToSnakeCase(lambdaObject.lambdaName)}_lambda_function_arn__`;
     definitionSubstitutions[sfnSubtitutionKey] =
-      lambdaObject.lambdaFunction.currentVersion.functionArn;
+      lambdaObject.lambdaFunction.latestVersion.functionArn;
   }
 
   /* Miscellaneous */
@@ -151,20 +151,17 @@ function wireUpStateMachinePermissions(scope: Construct, props: SfnObjectProps):
   for (const lambdaObject of lambdaFunctions) {
     lambdaObject.lambdaFunction.grantInvoke(props.stateMachineObj);
   }
-
-  /* Nag Suppressions for express sfns */
-  // if (sfnRequirements.isExpressSfn) {
-  //   NagSuppressions.addResourceSuppressions(
-  //     props.stateMachineObj,
-  //     [
-  //       {
-  //         id: 'AwsSolutions-IAM5',
-  //         reason: 'Needs permissions to write to logs',
-  //       },
-  //     ],
-  //     true
-  //   );
-  // }
+  /* Will need cdk nag suppressions for this */
+  NagSuppressions.addResourceSuppressions(
+    props.stateMachineObj,
+    [
+      {
+        id: 'AwsSolutions-IAM5',
+        reason: 'Grant invocation to all versions of the lambda',
+      },
+    ],
+    true
+  );
 
   // Grant ECS permissions if needed
   if (sfnRequirements.needsEcsPermissions) {
