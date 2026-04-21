@@ -46,6 +46,9 @@ function createStateMachineDefinitionSubstitutions(props: SfnProps): {
       lambdaObject.lambdaFunction.currentVersion.functionArn;
   }
 
+  /* Miscellaneous */
+  definitionSubstitutions['__one_hour_in_seconds__'] = String(3600);
+
   /* Add in fargate constructs */
   for (const ecsTaskObject of ecsTaskObjects) {
     const ecsContainerNameSnakeCase = camelCaseToSnakeCase(

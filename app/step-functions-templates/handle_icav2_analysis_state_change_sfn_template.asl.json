@@ -41,7 +41,7 @@
       "Arguments": {
         "QueueUrl": "${__icav2_wes_analysis_queue_url__}",
         "ReceiptHandle": "{% $messageReceiptHandleToken %}",
-        "VisibilityTimeout": 300
+        "VisibilityTimeout": "{% '${__one_hour_in_seconds__}' ~> $number %}"
       },
       "Resource": "arn:aws:states:::aws-sdk:sqs:changeMessageVisibility",
       "Next": "Handle Nextflow Output Files (sync)",
