@@ -36,7 +36,7 @@ export function buildApiInterfaceLambda(scope: Construct, props: LambdaApiProps)
   // Add SFN arns as environment variables
   // And allow the lambda to invoke the step functions
   for (const sfnObject of props.stepFunctions) {
-    sfnObject.stateMachineObj.grantStartExecution(lambdaFunction.currentVersion);
+    sfnObject.stateMachineObj.grantStartExecution(lambdaFunction);
     switch (sfnObject.stateMachineName) {
       case 'launchIcav2Analysis': {
         lambdaFunction.addEnvironment(
@@ -62,14 +62,14 @@ export function buildApiInterfaceLambda(scope: Construct, props: LambdaApiProps)
     'DYNAMODB_HOST',
     `https://dynamodb.${cdk.Aws.REGION}.amazonaws.com`
   );
-  props.table.grantReadWriteData(lambdaFunction.currentVersion);
+  props.table.grantReadWriteData(lambdaFunction);
 
   const tableIndexArns: string[] = props.tableIndexNames.map((index_name) => {
     return `arn:aws:dynamodb:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:table/${props.table.tableName}/index/${index_name}-index`;
   });
 
   // Add index arns to role policy
-  lambdaFunction.currentVersion.addToRolePolicy(
+  lambdaFunction.addToRolePolicy(
     new iam.PolicyStatement({
       actions: ['dynamodb:Query'],
       resources: tableIndexArns,
@@ -79,7 +79,7 @@ export function buildApiInterfaceLambda(scope: Construct, props: LambdaApiProps)
   // Add the event bus in as an environment variable
   // And allow the lambda to put events to the event bus
   lambdaFunction.addEnvironment('EVENT_BUS_NAME', props.eventBus.eventBusName);
-  props.eventBus.grantPutEventsTo(lambdaFunction.currentVersion);
+  props.eventBus.grantPutEventsTo(lambdaFunction);
 
   // Few extra env vars
   lambdaFunction.addEnvironment('EVENT_SOURCE', props.eventSource);
