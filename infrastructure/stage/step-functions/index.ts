@@ -43,8 +43,11 @@ function createStateMachineDefinitionSubstitutions(props: SfnProps): {
   for (const lambdaObject of lambdaFunctions) {
     const sfnSubtitutionKey = `__${camelCaseToSnakeCase(lambdaObject.lambdaName)}_lambda_function_arn__`;
     definitionSubstitutions[sfnSubtitutionKey] =
-      lambdaObject.lambdaFunction.currentVersion.functionArn;
+      lambdaObject.lambdaFunction.latestVersion.functionArn;
   }
+
+  /* Miscellaneous */
+  definitionSubstitutions['__one_hour_in_seconds__'] = String(3600);
 
   /* Add in fargate constructs */
   for (const ecsTaskObject of ecsTaskObjects) {
@@ -83,6 +86,26 @@ function createStateMachineDefinitionSubstitutions(props: SfnProps): {
   if (sfnRequirements.needsSetVisibilityTimeoutPermissions) {
     definitionSubstitutions['__icav2_wes_analysis_queue_url__'] =
       props.icaExternalSqsQueue.queueUrl;
+  }
+
+  if (sfnRequirements.needsNestedSfnStartExecutionPermissions) {
+    if (props.stateMachineName == 'handleIcav2AnalysisStateChange') {
+      for (const nestedSfnName of sfnNameList) {
+        // For each of the active nested sfn functions
+        // Add in the definition substitution
+        switch (nestedSfnName) {
+          case 'handleFilemanager':
+          case 'handleNextflowFiles':
+          case 'unlockCallbackId': {
+            definitionSubstitutions[
+              `__${camelCaseToSnakeCase(nestedSfnName)}_state_machine_arn__`
+            ] =
+              `arn:aws:states:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:stateMachine:${STACK_PREFIX}--${nestedSfnName}`;
+            break;
+          }
+        }
+      }
+    }
   }
 
   return definitionSubstitutions;
@@ -126,22 +149,19 @@ function wireUpStateMachinePermissions(scope: Construct, props: SfnObjectProps):
 
   /* Allow the state machine to invoke the lambda function */
   for (const lambdaObject of lambdaFunctions) {
-    lambdaObject.lambdaFunction.currentVersion.grantInvoke(props.stateMachineObj);
+    lambdaObject.lambdaFunction.grantInvoke(props.stateMachineObj);
   }
-
-  /* Nag Suppressions for express sfns */
-  // if (sfnRequirements.isExpressSfn) {
-  //   NagSuppressions.addResourceSuppressions(
-  //     props.stateMachineObj,
-  //     [
-  //       {
-  //         id: 'AwsSolutions-IAM5',
-  //         reason: 'Needs permissions to write to logs',
-  //       },
-  //     ],
-  //     true
-  //   );
-  // }
+  /* Will need cdk nag suppressions for this */
+  NagSuppressions.addResourceSuppressions(
+    props.stateMachineObj,
+    [
+      {
+        id: 'AwsSolutions-IAM5',
+        reason: 'Grant invocation to all versions of the lambda',
+      },
+    ],
+    true
+  );
 
   // Grant ECS permissions if needed
   if (sfnRequirements.needsEcsPermissions) {
@@ -237,6 +257,57 @@ function wireUpStateMachinePermissions(scope: Construct, props: SfnObjectProps):
       true
     );
   }
+
+  /*
+  Handle ICAv2 Analysis State Change also requires permissions to launch other objects
+   */
+  if (sfnRequirements.needsNestedSfnStartExecutionPermissions) {
+    if (props.stateMachineName == 'handleIcav2AnalysisStateChange') {
+      for (const nestedSfnName of sfnNameList) {
+        // For each of the active nested sfn functions
+        switch (nestedSfnName) {
+          case 'handleFilemanager':
+          case 'handleNextflowFiles':
+          case 'unlockCallbackId': {
+            props.stateMachineObj.addToRolePolicy(
+              new iam.PolicyStatement({
+                actions: ['states:StartExecution', 'states:DescribeExecution'],
+                resources: [
+                  `arn:aws:states:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:stateMachine:${STACK_PREFIX}--${nestedSfnName}`,
+                  `arn:aws:states:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:execution:${STACK_PREFIX}--${nestedSfnName}:*`,
+                ],
+              })
+            );
+            break;
+          }
+        }
+      }
+    }
+
+    // Because we run a nested state machine, we need to add the permissions to the state machine role
+    // See https://stackoverflow.com/questions/60612853/nested-step-function-in-a-step-function-unknown-error-not-authorized-to-cr
+    props.stateMachineObj.addToRolePolicy(
+      new iam.PolicyStatement({
+        resources: [
+          `arn:aws:events:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:rule/StepFunctionsGetEventsForStepFunctionsExecutionRule`,
+        ],
+        actions: ['events:PutTargets', 'events:PutRule', 'events:DescribeRule'],
+      })
+    );
+
+    // Suppress IAM5: Wildcard needed because execution ARNs include dynamic IDs
+    NagSuppressions.addResourceSuppressions(
+      props.stateMachineObj,
+      [
+        {
+          id: 'AwsSolutions-IAM5',
+          reason:
+            'Describe execution requires wildcard in resource ARN because execution IDs are dynamic',
+        },
+      ],
+      true
+    );
+  }
 }
 
 function buildStepFunction(scope: Construct, props: SfnProps): SfnObjectProps {
@@ -244,7 +315,7 @@ function buildStepFunction(scope: Construct, props: SfnProps): SfnObjectProps {
   // const sfnRequirements = sfnToRequirementsMap[props.stateMachineName];
 
   /* Create the state machine definition substitutions */
-  const stateMachine = new sfn.StateMachine(scope, props.stateMachineName, {
+  const stateMachine = new sfn.StateMachine(scope, `${props.stateMachineName}-sfn`, {
     stateMachineName: `${STACK_PREFIX}--${props.stateMachineName}`,
     definitionBody: sfn.DefinitionBody.fromFile(
       path.join(STEP_FUNCTIONS_DIR, sfnNameToSnakeCase + `_sfn_template.asl.json`)

@@ -112,7 +112,7 @@ def handler(event, context) -> Dict:
         stepsLaunchExecutionArn=steps_execution_arn,
         # Error messages
         errorType=error_type,
-        errorMessageUri=s3_payload_uri
+        errorMessageUri=s3_payload_uri,
     )
 
     # Return the response payload (We don't actually need this, since updating the API generates the event)

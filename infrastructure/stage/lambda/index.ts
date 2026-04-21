@@ -44,7 +44,7 @@ function buildLambda(scope: Construct, props: BuildLambdaProps): LambdaObject {
   const lambdaRequirements = lambdaToRequirementsMap[props.lambdaName];
 
   // Create the lambda function
-  const lambdaFunction = new PythonUvFunction(scope, props.lambdaName, {
+  const lambdaFunction = new PythonUvFunction(scope, `${props.lambdaName}-lambda`, {
     entry: path.join(LAMBDA_DIR, lambdaNameToSnakeCase + '_py'),
     runtime: lambda.Runtime.PYTHON_3_14,
     architecture: lambda.Architecture.ARM_64,
@@ -69,7 +69,7 @@ function buildLambda(scope: Construct, props: BuildLambdaProps): LambdaObject {
 
   // If the lambda has an SQS event source, we need to add this in
   // Generate Event Request uses the launch ICA Source Event Queue
-  if (props.lambdaName == 'generateWesPostRequestFromEvent') {
+  if (props.lambdaName === 'generateWesPostRequestFromEvent') {
     // Find the SQS queue from the props
     lambdaFunction.currentVersion.addEventSource(
       new SqsEventSource(props.generateWesPostRequestEventQueue, {
@@ -120,23 +120,14 @@ function buildLambda(scope: Construct, props: BuildLambdaProps): LambdaObject {
   // If the lambda needs the test-data / ref-data permissions we need to add these in
   if (lambdaRequirements.needsTestDataBucketPermissions) {
     // Grant list permissions to the test data bucket
-    props.testDataBucket.grantRead(lambdaFunction.currentVersion);
+    props.testDataBucket.grantRead(lambdaFunction);
 
     NagSuppressions.addResourceSuppressions(
       lambdaFunction,
       [
         {
           id: 'AwsSolutions-IAM5',
-          reason: 'Read-only access.', // Should be list-only, will fix later
-          appliesTo: [
-            // Read
-            'Action::s3:GetObject*',
-            'Action::s3:GetBucket*',
-            // List
-            'Action::s3:List*',
-            // Bucket Resource
-            `Resource::arn:<AWS::Partition>:s3:::${props.testDataBucket.bucketName}/*`,
-          ],
+          reason: 'Read-only access, and asterisk applied to multiple versions of the lambda',
         },
       ],
       true
@@ -146,23 +137,14 @@ function buildLambda(scope: Construct, props: BuildLambdaProps): LambdaObject {
   // If the lambda needs the test-data / ref-data permissions we need to add these in
   if (lambdaRequirements.needsReferenceDataBucketPermissions) {
     // Grant list permissions to the test data bucket
-    props.referenceDataBucket.grantRead(lambdaFunction.currentVersion);
+    props.referenceDataBucket.grantRead(lambdaFunction);
 
     NagSuppressions.addResourceSuppressions(
       lambdaFunction,
       [
         {
           id: 'AwsSolutions-IAM5',
-          reason: 'Read-only access.', // Should be list-only, will fix later
-          appliesTo: [
-            // Read
-            'Action::s3:GetObject*',
-            'Action::s3:GetBucket*',
-            // List
-            'Action::s3:List*',
-            // Bucket Resource
-            `Resource::arn:<AWS::Partition>:s3:::${props.referenceDataBucket.bucketName}/*`,
-          ],
+          reason: 'Read-only access and access applied to multiple versions',
         },
       ],
       true
@@ -172,7 +154,7 @@ function buildLambda(scope: Construct, props: BuildLambdaProps): LambdaObject {
   // If the lambda needs the permissions to write to the payloads bucket, we need to add these in
   if (lambdaRequirements.needsArtefactBucketPermissions) {
     // Grant write permissions to the payloads bucket
-    props.artefactsBucket.grantReadWrite(lambdaFunction.currentVersion);
+    props.artefactsBucket.grantReadWrite(lambdaFunction);
 
     // Add resource suppressions
     NagSuppressions.addResourceSuppressions(
@@ -180,19 +162,7 @@ function buildLambda(scope: Construct, props: BuildLambdaProps): LambdaObject {
       [
         {
           id: 'AwsSolutions-IAM5',
-          reason: 'Read-write access.',
-          appliesTo: [
-            // Read
-            'Action::s3:GetObject*',
-            'Action::s3:GetBucket*',
-            // List
-            'Action::s3:List*',
-            // Write
-            'Action::s3:DeleteObject*',
-            'Action::s3:Abort*',
-            // Resources
-            `Resource::arn:<AWS::Partition>:s3:::${props.artefactsBucket.bucketName}/*`,
-          ],
+          reason: 'Read-write access, and applied to multiple versions of the lambda function',
         },
       ],
       true
@@ -237,7 +207,7 @@ function buildLambda(scope: Construct, props: BuildLambdaProps): LambdaObject {
 
   if (lambdaRequirements.needsCallbackDbPermissions) {
     // Grant write permissions to allow the lambda to update the callback database table
-    props.callbackTable.grantReadWriteData(lambdaFunction.currentVersion);
+    props.callbackTable.grantReadWriteData(lambdaFunction);
 
     // Add the CALLBACK_DATABASE_NAME environment variable
     lambdaFunction.addEnvironment('CALLBACK_DATABASE_NAME', props.callbackTable.tableName);

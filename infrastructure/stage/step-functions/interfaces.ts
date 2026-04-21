@@ -8,12 +8,26 @@ import { IQueue } from 'aws-cdk-lib/aws-sqs';
 export type SfnName =
   | 'abortIcav2Analysis'
   | 'handleIcav2AnalysisStateChange'
-  | 'launchIcav2Analysis';
+  | 'launchIcav2Analysis'
+  // Nested handleIcav2AnalysisStateChange functions
+  | 'getTaskSummaries' // Not yet implemented
+  | 'getUsage' // Not yet implemented
+  | 'handleCorruptedFiles' // Not yet implemented, may not be necessary
+  | 'handleFilemanager'
+  | 'handleNextflowFiles'
+  | 'unlockCallbackId';
 
 export const sfnNameList: Array<SfnName> = [
   'abortIcav2Analysis',
   'handleIcav2AnalysisStateChange',
   'launchIcav2Analysis',
+  // Nested handleIcav2AnalysisStateChange functions
+  // 'getTaskSummaries',  // Not yet implemented
+  // 'getUsage',  // Not yet implemented
+  // 'handleCorruptedFiles',  // Not yet implemented, may not be necessary
+  'handleFilemanager',
+  'handleNextflowFiles',
+  'unlockCallbackId',
 ];
 
 export interface BuildSfnsProps {
@@ -42,10 +56,8 @@ export interface SfnObjectProps extends SfnProps {
 export const stepFunctionToLambdaMap: { [key in SfnName]: Array<LambdaName> } = {
   abortIcav2Analysis: ['abortAnalysis'],
   handleIcav2AnalysisStateChange: [
-    'addPortalRunIdAttributes',
     'updateStatusOnWesApi',
     'getIcav2WesObject',
-    'getPipelineType',
     'copyNextflowFilesFromLogsUri',
     'filemanagerSync',
     'getMatchingIngestIds',
@@ -60,12 +72,41 @@ export const stepFunctionToLambdaMap: { [key in SfnName]: Array<LambdaName> } = 
     'updateStatusOnWesApi',
     'unlockCallbackId',
   ],
+  // Nested handleIcav2AnalysisStateChange functions
+  getTaskSummaries: [
+    'listTasksInAnalysis',
+    'getAndRegisterAnalysisTasks',
+    'addTaskAnomaliesToWorkflowManager',
+  ],
+  getUsage: [
+    'collectNonPriceUsageMetrics',
+    'getIcav2WesCostUsagePrice',
+    'addUsageCosts',
+    'addCostSummariesCommentToWorkflowManager',
+  ],
+  handleCorruptedFiles: [
+    'getIcav2WesObject',
+    'getOutputFileIngestIds',
+    'getMatchingIngestIds',
+    'isBamFile',
+    'getFileUriFromIngestId',
+    'isFileCorrupted',
+  ],
+  handleFilemanager: ['getIcav2WesObject', 'addPortalRunIdAttributes', 'filemanagerSync'],
+  handleNextflowFiles: ['getIcav2WesObject', 'getPipelineType', 'copyNextflowFilesFromLogsUri'],
+  unlockCallbackId: ['unlockCallbackId'],
 };
 
 export const stepFunctionEcsMap: { [key in SfnName]: Array<EcsTaskName> } = {
   abortIcav2Analysis: [],
-  handleIcav2AnalysisStateChange: ['validateBamFile'],
+  handleIcav2AnalysisStateChange: [],
   launchIcav2Analysis: [],
+  getTaskSummaries: [],
+  getUsage: [],
+  handleCorruptedFiles: ['validateBamFile'],
+  handleFilemanager: [],
+  handleNextflowFiles: [],
+  unlockCallbackId: [],
 };
 
 export interface SfnRequirementsProps {
@@ -80,6 +121,7 @@ export interface SfnRequirementsProps {
   needsDistributedMapSupport?: boolean;
   needsEcsPermissions?: boolean;
   needsSetVisibilityTimeoutPermissions?: boolean;
+  needsNestedSfnStartExecutionPermissions?: boolean;
 }
 
 export type SfnToRequirementsMapType = { [key in SfnName]: SfnRequirementsProps };
@@ -90,14 +132,25 @@ export const sfnToRequirementsMap: SfnToRequirementsMapType = {
   },
   handleIcav2AnalysisStateChange: {
     needsExternalEventBusPutPermissions: true,
-    needsDistributedMapSupport: true,
-    needsEcsPermissions: true,
-    needsCallbackTablePermissions: true,
     needsSetVisibilityTimeoutPermissions: true,
+    needsNestedSfnStartExecutionPermissions: true,
   },
   launchIcav2Analysis: {
     needsExternalEventBusPutPermissions: false,
     needsPayloadDbPermissions: true,
+    needsCallbackTablePermissions: true,
+  },
+  getTaskSummaries: {
+    needsDistributedMapSupport: true,
+  },
+  getUsage: {}, // Just some lambdas
+  handleCorruptedFiles: {
+    needsDistributedMapSupport: true,
+    needsEcsPermissions: true,
+  },
+  handleFilemanager: {}, // Just some lambdas
+  handleNextflowFiles: {}, // Just some lambdas
+  unlockCallbackId: {
     needsCallbackTablePermissions: true,
   },
 };
