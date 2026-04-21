@@ -16,13 +16,16 @@ from aws_durable_execution_sdk_python import (
     durable_execution
 )
 from aws_durable_execution_sdk_python.config import (
-    CallbackConfig, Duration
+    Duration, WaitForCallbackConfig
 )
+from aws_durable_execution_sdk_python.retries import create_retry_strategy
+from aws_durable_execution_sdk_python.types import WaitForCallbackContext
 
-
+# Type hints
 if typing.TYPE_CHECKING:
     from mypy_boto3_stepfunctions.client import SFNClient
     from mypy_boto3_dynamodb.client import DynamoDBClient
+
 
 # Globals
 CALLBACK_DATABASE_NAME_ENV_VAR = "CALLBACK_DATABASE_NAME"
@@ -36,6 +39,67 @@ def get_dynamodb_client() -> 'DynamoDBClient':
 
 def get_sfn_client() -> 'SFNClient':
     return boto3.client('stepfunctions')
+
+
+# Durable step to handle scaling
+def handle_ica_execution(
+        icav2_wes_orcabus_id: str,
+        status: str,
+        icav2_analysis_id: str,
+        name: str,
+        error_message: str,
+        message_receipt_handle_token: str,
+        context: DurableContext
+):
+    def submitter(callback_id: str, callback_context: WaitForCallbackContext):
+        """
+        Write callback to dynamodb and then start the execution
+        """
+        callback_context.logger.info("Write to dynamodb")
+        get_dynamodb_client().put_item(
+            Item={
+                "id": {
+                    "S": icav2_wes_orcabus_id,
+                },
+                "id_type": {
+                    "S": status
+                },
+                "callback_id": {
+                    "S": callback_id
+                },
+            },
+            TableName=environ[CALLBACK_DATABASE_NAME_ENV_VAR]
+        )
+
+        # Step 3: Launch the step function (asynchronously)
+        callback_context.logger.info("Start sfn execution")
+        execution = get_sfn_client().start_execution(
+            stateMachineArn=environ[HANDLE_ICA_ANALYSIS_STATE_CHANGE_SFN_ARN_ENV_VAR],
+            input=json.dumps(
+                {
+                    "icav2AnalysisId": icav2_analysis_id,
+                    "status": status,
+                    "name": name,
+                    "errorMessage": error_message,
+                    "icav2WesOrcabusId": icav2_wes_orcabus_id,
+                    "messageReceiptHandleToken": message_receipt_handle_token
+                },
+                separators=(",", ":")
+            )
+        )
+        callback_context.logger.info(f"Running sfn execution {execution['executionArn']}")
+
+    # Wait here for the callback to be invoked by the step function
+    context.wait_for_callback(
+        submitter=submitter,
+        name=None,
+        config=WaitForCallbackConfig(
+            timeout=Duration.from_minutes(15),
+            retry_strategy=create_retry_strategy(
+                config=None
+            )
+        ),
+    )
 
 
 # Durable Lambda Handler
@@ -64,12 +128,7 @@ def handler(event, context: DurableContext):
         # Collect the payload
         payload = record_body.get("payload")
 
-        # Get the following attributes
-        icav2_analysis_id = payload.get("id")
-        status = payload.get("status")
-        name = payload.get("userReference")
-        error_message = payload.get("summary")
-        message_receipt_handle_token = record.get("receiptHandle")
+        # Get the wes orcabus id
         try:
             icav2_wes_orcabus_id = (
                 next(filter(
@@ -80,44 +139,13 @@ def handler(event, context: DurableContext):
         except StopIteration:
             raise ValueError("Missing icav2 wes orcabus id in technical tags")
 
-        # Run the durable execution callback configuration
-        # Step 1: Create the callback
-        callback = context.create_callback(
-            name="WESRequestCallback",
-            config=CallbackConfig(timeout=Duration.from_minutes(60)),
+        # Start handle ica execution with a callback step
+        handle_ica_execution(
+            icav2_wes_orcabus_id=icav2_wes_orcabus_id,
+            status = payload.get("status"),
+            icav2_analysis_id = payload.get("id"),
+            name = payload.get("userReference"),
+            error_message = payload.get("summary"),
+            message_receipt_handle_token = record.get("receiptHandle"),
+            context=context,
         )
-
-        # Step 2: Add the callback to the DynamoDb database
-        get_dynamodb_client().put_item(
-            Item={
-                "id": {
-                    "S": icav2_wes_orcabus_id,
-                },
-                "id_type": {
-                    "S": status
-                },
-                "callback_id": {
-                    "S": callback.callback_id
-                },
-            },
-            TableName=environ[CALLBACK_DATABASE_NAME_ENV_VAR]
-        )
-
-        # Step 3: Launch the step function (asynchronously)
-        get_sfn_client().start_execution(
-            stateMachineArn=environ[HANDLE_ICA_ANALYSIS_STATE_CHANGE_SFN_ARN_ENV_VAR],
-            input=json.dumps(
-                {
-                    "icav2AnalysisId": icav2_analysis_id,
-                    "status": status,
-                    "name": name,
-                    "errorMessage": error_message,
-                    "icav2WesOrcabusId": icav2_wes_orcabus_id,
-                    "messageReceiptHandleToken": message_receipt_handle_token
-                },
-                separators=(",", ":")
-            )
-        )
-
-        # Step 4: Wait here for the callback to be invoked
-        callback.result()
