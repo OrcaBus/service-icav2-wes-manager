@@ -94,7 +94,7 @@ def handle_ica_execution(
         submitter=submitter,
         name=None,
         config=WaitForCallbackConfig(
-            timeout=Duration.from_minutes(15),
+            timeout=Duration.from_minutes(60),
             retry_strategy=create_retry_strategy(
                 config=None
             )
