@@ -66,6 +66,7 @@ export function buildCallbackTable(scope: Construct, props: CallbackTableProps) 
       name: 'id_type',
       type: AttributeType.STRING,
     },
+    timeToLiveAttribute: 'ttl',
     tableName: props.tableName,
     // We don't need to keep the callback table
     removalPolicy: RemovalPolicy.DESTROY,
