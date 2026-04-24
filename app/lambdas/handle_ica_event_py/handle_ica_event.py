@@ -70,7 +70,7 @@ def handle_ica_execution(
                 },
                 "ttl": {
                     # Add 24 hours to current epoch timestamp
-                    "N": int(datetime.now().timestamp()) + SECONDS_PER_DAY
+                    "N": str(int(datetime.now().timestamp()) + SECONDS_PER_DAY)
                 }
             },
             TableName=environ[CALLBACK_DATABASE_NAME_ENV_VAR]
