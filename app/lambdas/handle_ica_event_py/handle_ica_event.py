@@ -9,6 +9,7 @@ import json
 from os import environ
 import boto3
 import typing
+from datetime import datetime, UTC
 
 # Durable context imports
 from aws_durable_execution_sdk_python import (
@@ -30,7 +31,7 @@ if typing.TYPE_CHECKING:
 # Globals
 CALLBACK_DATABASE_NAME_ENV_VAR = "CALLBACK_DATABASE_NAME"
 HANDLE_ICA_ANALYSIS_STATE_CHANGE_SFN_ARN_ENV_VAR = "HANDLE_ICA_ANALYSIS_STATE_CHANGE_SFN_ARN"
-
+SECONDS_PER_DAY = (60 * 60 * 24)  # 60 seconds per min * 60 minutes per hour * 24 hours per day
 
 # Helper functions
 def get_dynamodb_client() -> 'DynamoDBClient':
@@ -55,7 +56,7 @@ def handle_ica_execution(
         """
         Write callback to dynamodb and then start the execution
         """
-        callback_context.logger.info("Write to dynamodb")
+        callback_context.logger.info("Writing callback id to dynamodb")
         get_dynamodb_client().put_item(
             Item={
                 "id": {
@@ -67,6 +68,13 @@ def handle_ica_execution(
                 "callback_id": {
                     "S": callback_id
                 },
+                "ttl": {
+                    # Add 24 hours to current epoch timestamp
+                    "N": str(
+                        int(datetime.now(UTC).timestamp()) +
+                        SECONDS_PER_DAY
+                    )
+                }
             },
             TableName=environ[CALLBACK_DATABASE_NAME_ENV_VAR]
         )

@@ -10,7 +10,7 @@ import json
 from aws_durable_execution_sdk_python.retries import create_retry_strategy
 from aws_durable_execution_sdk_python.types import WaitForCallbackContext
 from requests import HTTPError
-import logging
+from datetime import datetime, UTC
 from os import environ
 import boto3
 import typing
@@ -37,6 +37,7 @@ if typing.TYPE_CHECKING:
 
 # Globals
 CALLBACK_DATABASE_NAME_ENV_VAR = "CALLBACK_DATABASE_NAME"
+SECONDS_PER_DAY = (60 * 60 * 24)  # 60 seconds per min * 60 minutes per hour * 24 hours per day
 
 
 def get_dynamodb_client() -> 'DynamoDBClient':
@@ -89,6 +90,13 @@ def map_and_wait(icav2_wes_analysis_id: str, context: DurableContext):
                 "callback_id": {
                     "S": callback_id
                 },
+                "ttl": {
+                    # Add 24 hours to current epoch timestamp
+                    "N": str(
+                        int(datetime.now(UTC).timestamp()) +
+                        SECONDS_PER_DAY
+                    )
+                }
             },
             TableName=environ[CALLBACK_DATABASE_NAME_ENV_VAR]
         )

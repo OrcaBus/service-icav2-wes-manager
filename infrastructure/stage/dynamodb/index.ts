@@ -4,6 +4,7 @@ import { AttributeType } from 'aws-cdk-lib/aws-dynamodb';
 import { TABLE_REMOVAL_POLICY } from '../constants';
 import { BuildICAv2WesDbProps, CallbackTableProps, PayloadsTableProps } from './interfaces';
 import { Construct } from 'constructs';
+import { RemovalPolicy } from 'aws-cdk-lib';
 
 export function buildICAv2WesDb(scope: Construct, props: BuildICAv2WesDbProps) {
   /*
@@ -65,8 +66,10 @@ export function buildCallbackTable(scope: Construct, props: CallbackTableProps) 
       name: 'id_type',
       type: AttributeType.STRING,
     },
+    timeToLiveAttribute: 'ttl',
     tableName: props.tableName,
-    removalPolicy: TABLE_REMOVAL_POLICY,
+    // We don't need to keep the callback table
+    removalPolicy: RemovalPolicy.DESTROY,
     pointInTimeRecoverySpecification: {
       pointInTimeRecoveryEnabled: true,
     },
