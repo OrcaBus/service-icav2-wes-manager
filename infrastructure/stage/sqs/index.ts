@@ -19,6 +19,7 @@ export function createMonitoredQueue(scope: Construct, props: SqsQueueConstructP
       visibilityTimeout: props.queueVizTimeout,
       receiveMessageWaitTime: props.receiveMessageWaitTime,
       fifo: props.isFifoQueue,
+      contentBasedDeduplication: props.isFifoQueue,
     },
     dlqProps: {
       queueName: props.queueName + '-dlq',
