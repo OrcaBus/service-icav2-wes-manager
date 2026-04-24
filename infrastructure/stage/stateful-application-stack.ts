@@ -85,6 +85,7 @@ export class StatefulApplicationStack extends cdk.Stack {
       icaAwsAccountNumber: DEFAULT_ICA_AWS_ACCOUNT_NUMBER,
       queueVizTimeout: DEFAULT_ICA_STATE_CHANGE_MAX_TIMEOUT,
       dlqMessageThreshold: 1,
+      isFifoQueue: true,
     });
 
     // // Build the ICAv2 WES database
