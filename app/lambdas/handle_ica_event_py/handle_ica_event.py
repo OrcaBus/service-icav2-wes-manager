@@ -9,7 +9,7 @@ import json
 from os import environ
 import boto3
 import typing
-from datetime import datetime
+from datetime import datetime, UTC
 
 # Durable context imports
 from aws_durable_execution_sdk_python import (
@@ -70,7 +70,10 @@ def handle_ica_execution(
                 },
                 "ttl": {
                     # Add 24 hours to current epoch timestamp
-                    "N": str(int(datetime.now().timestamp()) + SECONDS_PER_DAY)
+                    "N": str(
+                        int(datetime.now(UTC).timestamp()) +
+                        SECONDS_PER_DAY
+                    )
                 }
             },
             TableName=environ[CALLBACK_DATABASE_NAME_ENV_VAR]
