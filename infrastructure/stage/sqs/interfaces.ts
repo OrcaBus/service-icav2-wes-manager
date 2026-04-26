@@ -12,8 +12,6 @@ export interface SqsQueueConstructProps {
   queueVizTimeout: Duration;
   /* For long polling */
   receiveMessageWaitTime?: Duration;
-  /* Is fifo queue */
-  isFifoQueue?: boolean;
 }
 
 export interface IcaSqsQueueConstructProps extends SqsQueueConstructProps {

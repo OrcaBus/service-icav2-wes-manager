@@ -63,8 +63,7 @@ export const DEFAULT_MAX_ICA_STATE_CHANGE_API_CONCURRENCY = 5;
 // The SQS queue pushes directly to the handleAnalysisStateChange step function
 // The SQS name should be noted since the ARN is required when
 // setting up the notifications of the project
-// FIFO based queues must end in '.fifo'
-export const DEFAULT_EXTERNAL_ICA_EVENT_SQS_NAME = 'Icav2WesAnalysisSqsQueue.fifo';
+export const DEFAULT_EXTERNAL_ICA_EVENT_SQS_NAME = 'Icav2WesAnalysisSqsQueue';
 export const DEFAULT_EXTERNAL_ICA_EVENT_PIPE_NAME = 'Icav2WesSqsEventPipe';
 export const DEFAULT_ICA_AWS_ACCOUNT_NUMBER = '079623148045';
 
