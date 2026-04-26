@@ -22,7 +22,10 @@ export function createMonitoredQueue(scope: Construct, props: SqsQueueConstructP
       contentBasedDeduplication: props.isFifoQueue,
     },
     dlqProps: {
-      queueName: props.queueName + '-dlq',
+      // Remove .fifo from the end of the queue name if present
+      queueName: props.isFifoQueue
+        ? `${props.queueName.replace('.fifo$', '')}`
+        : `${props.queueName}-dlq`,
       enforceSSL: true,
       visibilityTimeout: props.queueVizTimeout,
     },
