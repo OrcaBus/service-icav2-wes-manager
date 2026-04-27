@@ -10,6 +10,7 @@ from os import environ
 import boto3
 import typing
 from datetime import datetime, UTC
+from botocore.exceptions import ClientError
 
 # Durable context imports
 from aws_durable_execution_sdk_python import (
@@ -40,6 +41,36 @@ def get_dynamodb_client() -> 'DynamoDBClient':
 
 def get_sfn_client() -> 'SFNClient':
     return boto3.client('stepfunctions')
+
+
+# Atomically write the message id to the database.
+# Returns True if the message is a duplicate (already exists), False if newly written.
+def is_duplicate_message(message_id: str) -> bool:
+    try:
+        get_dynamodb_client().put_item(
+            Item={
+                "id": {
+                    "S": message_id,
+                },
+                "id_type": {
+                    "S": "MESSAGE_SQS"
+                },
+                "ttl": {
+                    # Add 24 hours to current epoch timestamp
+                    "N": str(
+                        int(datetime.now(UTC).timestamp()) +
+                        SECONDS_PER_DAY
+                    )
+                }
+            },
+            TableName=environ[CALLBACK_DATABASE_NAME_ENV_VAR],
+            ConditionExpression='attribute_not_exists(id)',
+        )
+        return False
+    except ClientError as e:
+        if e.response['Error']['Code'] == 'ConditionalCheckFailedException':
+            return True
+        raise
 
 
 # Durable step to handle scaling
@@ -135,6 +166,11 @@ def handler(event, context: DurableContext):
 
         # Collect the payload
         payload = record_body.get("payload")
+
+        # Message id
+        message_id = record.get("messageId")
+        if is_duplicate_message(message_id):
+            continue
 
         # Get the wes orcabus id
         try:
