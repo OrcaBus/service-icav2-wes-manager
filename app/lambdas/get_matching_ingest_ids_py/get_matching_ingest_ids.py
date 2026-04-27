@@ -106,7 +106,11 @@ def handler(event, context):
                 # Not divisible by 1024, file not of interest
                 not divmod(file_object_size, FILESIZE_DENOMINATOR)[-1] == 0 or
                 # File empty, also not of interest
-                file_object_size == 0
+                file_object_size == 0 or
+                # Known bug for lilac fragments, we ignore these
+                file_object_iter_.get("fileObject", {}).get("key", "").endswith(".lilac.hlay.fragments.tsv") or
+                # And we ignore '/logs' for now too
+                "/logs/" in file_object_iter_.get("fileObject", {}).get("key", "")
         ):
             continue
 
