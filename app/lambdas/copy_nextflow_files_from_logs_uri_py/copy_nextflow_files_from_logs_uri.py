@@ -17,12 +17,14 @@ from typing import List
 
 from libica.openapi.v3 import ProjectData
 
+from build.lib.wrapica.project_data import list_project_data_non_recursively
 # Wrapica imports
 from wrapica.project_data import (
     convert_uri_to_project_data_obj,
     find_project_data_bulk,
     create_file_with_upload_url,
-    create_download_url
+    create_download_url,
+    get_file_by_file_name_from_project_data_list,
 )
 
 # Layer imports
@@ -141,6 +143,20 @@ def handler(event, context):
 
     # For each file, copy it to the output folder
     for log_data in logs_project_data:
+        try:
+            get_file_by_file_name_from_project_data_list(
+                file_name=log_data.data.details.name,
+                project_data_list=list_project_data_non_recursively(
+                    project_id=output_folder.project_id,
+                    parent_folder_id=output_folder.data.id,
+                )
+            )
+        except ValueError as e:
+            pass
+        else:
+            # File already exists
+            continue
+
         # Create the destination file object
         # Get the shell script
         shell_script_path = generate_shell_script(

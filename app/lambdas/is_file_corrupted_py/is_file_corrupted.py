@@ -74,6 +74,7 @@ def handler(event, context):
                 return {
                     "corruptedS3Uri": get_s3_uri_from_ingest_id(ingest_id)
                 }
+        return None
 
     # Check if the file's last file character is a new line
     with open(local_file_obj.name, 'r') as file_h:

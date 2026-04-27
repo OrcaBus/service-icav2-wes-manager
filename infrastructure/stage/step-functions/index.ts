@@ -96,7 +96,8 @@ function createStateMachineDefinitionSubstitutions(props: SfnProps): {
         switch (nestedSfnName) {
           case 'handleFilemanager':
           case 'handleNextflowFiles':
-          case 'unlockCallbackId': {
+          case 'unlockCallbackId':
+          case 'handleCorruptedFiles': {
             definitionSubstitutions[
               `__${camelCaseToSnakeCase(nestedSfnName)}_state_machine_arn__`
             ] =

@@ -164,7 +164,7 @@
       "Type": "Choice",
       "Choices": [
         {
-          "Next": "Checking corrupted files (false)",
+          "Next": "Handle Corrupted Files (sync)",
           "Condition": "{% $status = 'SUCCEEDED' %}",
           "Comment": "Workflow is SUCCEEDED status"
         }
@@ -174,24 +174,21 @@
         "errorType": "{% $status = 'FAILED' ? 'AnalysisFailure' : null  %}"
       }
     },
-    "Checking corrupted files (false)": {
-      "Type": "Choice",
-      "Choices": [
-        {
-          "Next": "Handle Corrupted Files (sync)",
-          "Condition": "{% false %}"
-        }
-      ],
-      "Default": "Update WES API"
-    },
     "Handle Corrupted Files (sync)": {
       "Type": "Task",
       "Resource": "arn:aws:states:::states:startExecution.sync:2",
       "Arguments": {
         "StateMachineArn": "${__handle_corrupted_files_state_machine_arn__}",
-        "Input": {}
+        "Input": {
+          "name": "{% $name %}"
+        }
       },
-      "Next": "Update WES API"
+      "Next": "Update WES API",
+      "Assign": {
+        "status": "{% $states.result.Output.status ? $states.result.Output.status : $status %}",
+        "errorMessage": "{% $states.result.Output.errorMessage ? $states.result.Output.errorMessage : null %}",
+        "errorType": "{% $states.result.Output.status ? 'AnalysisOutputFileCorruption' : null %}"
+      }
     }
   },
   "QueryLanguage": "JSONata"

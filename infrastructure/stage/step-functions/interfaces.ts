@@ -12,7 +12,7 @@ export type SfnName =
   // Nested handleIcav2AnalysisStateChange functions
   | 'getTaskSummaries' // Not yet implemented
   | 'getUsage' // Not yet implemented
-  | 'handleCorruptedFiles' // Not yet implemented, may not be necessary
+  | 'handleCorruptedFiles'
   | 'handleFilemanager'
   | 'handleNextflowFiles'
   | 'unlockCallbackId';
@@ -24,7 +24,7 @@ export const sfnNameList: Array<SfnName> = [
   // Nested handleIcav2AnalysisStateChange functions
   // 'getTaskSummaries',  // Not yet implemented
   // 'getUsage',  // Not yet implemented
-  // 'handleCorruptedFiles',  // Not yet implemented, may not be necessary
+  'handleCorruptedFiles',
   'handleFilemanager',
   'handleNextflowFiles',
   'unlockCallbackId',
