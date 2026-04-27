@@ -103,7 +103,7 @@ def handler(event, context):
 
         # Check if file object size is divisible by 65536
         if (
-                # Not divisible by 65536, file not of interest
+                # Not divisible by 1024, file not of interest
                 not divmod(file_object_size, FILESIZE_DENOMINATOR)[-1] == 0 or
                 # File empty, also not of interest
                 file_object_size == 0
