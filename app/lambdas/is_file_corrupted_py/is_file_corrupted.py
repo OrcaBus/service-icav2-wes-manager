@@ -51,7 +51,7 @@ def handler(event, context):
                         ).content
                     ).decode()
                 )
-            except BadGzipFile:
+            except (BadGzipFile, EOFError):
                 return {
                     "corruptedS3Uri": get_s3_uri_from_ingest_id(ingest_id)
                 }
