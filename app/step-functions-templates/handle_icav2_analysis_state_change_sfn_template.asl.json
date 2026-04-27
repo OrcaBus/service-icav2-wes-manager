@@ -187,7 +187,7 @@
       "Assign": {
         "status": "{% $states.result.Output.status ? $states.result.Output.status : $status %}",
         "errorMessage": "{% $states.result.Output.errorMessage ? $states.result.Output.errorMessage : null %}",
-        "errorType": "{% $states.result.Output.status ? 'AnalysisOutputFileCorruption' : null %}"
+        "errorType": "{% ($states.result.Output.status = 'FAILED' or $states.result.Output.errorMessage) ? 'AnalysisOutputFileCorruption' : null %}"
       }
     }
   },
