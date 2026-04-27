@@ -68,11 +68,11 @@ export const lambdaNameList: Array<LambdaName> = [
   // 'getAndRegisterAnalysisTasks', // Not yet implemented
   // 'addTaskAnomaliesToWorkflowManager', // Not yet implemented
   // Handle corrupted files
-  // 'getOutputFileIngestIds',  // Not yet implemented
-  // 'getMatchingIngestIds',  // Not yet implemented
-  // 'isBamFile',  // Not yet implemented
-  // 'getFileUriFromIngestId',  // Not yet implemented
-  // 'isFileCorrupted',  // Not yet implemented
+  'getOutputFileIngestIds',
+  'getMatchingIngestIds',
+  'isBamFile',
+  'getFileUriFromIngestId',
+  'isFileCorrupted',
   // Unlock callback id
   // Get Usage
   // 'collectNonPriceUsageMetrics',  // Not yet implemented
@@ -164,19 +164,19 @@ export const lambdaToRequirementsMap: LambdaToRequirementsMapType = {
   },
   // Handle corrupted files
   getOutputFileIngestIds: {
-    // Not yet implemented
+    needsOrcabusTookitLayer: true,
   },
   getMatchingIngestIds: {
-    // Not yet implemented
+    needsOrcabusTookitLayer: true,
   },
   isBamFile: {
-    // Not yet implemented
+    needsOrcabusTookitLayer: true,
   },
   getFileUriFromIngestId: {
-    // Not yet implemented
+    needsOrcabusTookitLayer: true,
   },
   isFileCorrupted: {
-    // Not yet implemented
+    needsOrcabusTookitLayer: true,
   },
   // Unlock callback id
   // Get Usage

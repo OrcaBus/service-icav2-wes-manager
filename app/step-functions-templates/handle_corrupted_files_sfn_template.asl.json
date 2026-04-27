@@ -266,12 +266,12 @@
       },
       "Items": "{% $states.input.ingestIdList %}",
       "Label": "ForeachIngestIdbatched",
-      "MaxConcurrency": 1000,
+      "MaxConcurrency": 1,
       "ItemBatcher": {
         "MaxItemsPerBatch": 50
       },
       "Output": {
-        "corruptedS3UriList": "{% $states.result.(corruptedS3UriList) %}"
+        "corruptedS3UriList": "{% $states.result.(corruptedS3UriList) ? $states.result.(corruptedS3UriList) : [] %}"
       },
       "Next": "Handle corrupted file error"
     },
@@ -296,6 +296,10 @@
     },
     "Handle corrupted files placeholder (default)": {
       "Type": "Pass",
+      "Output": {
+        "status": "SUCCEEDED",
+        "errorMessage": null
+      },
       "End": true
     }
   },
