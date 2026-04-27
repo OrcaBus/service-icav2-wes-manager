@@ -24,10 +24,11 @@ export function createMonitoredQueue(scope: Construct, props: SqsQueueConstructP
     dlqProps: {
       // Remove .fifo from the end of the queue name if present
       queueName: props.isFifoQueue
-        ? `${props.queueName.replace('.fifo$', '')}`
+        ? `${props.queueName.replace('.fifo', '')}-dlq.fifo`
         : `${props.queueName}-dlq`,
       enforceSSL: true,
       visibilityTimeout: props.queueVizTimeout,
+      fifo: props.isFifoQueue,
     },
     messageThreshold: props.dlqMessageThreshold,
     topic: props.slackTopic,

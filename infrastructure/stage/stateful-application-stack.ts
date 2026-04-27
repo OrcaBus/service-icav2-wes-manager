@@ -88,7 +88,7 @@ export class StatefulApplicationStack extends cdk.Stack {
       isFifoQueue: true,
     });
 
-    // // Build the ICAv2 WES database
+    // Build the ICAv2 WES database
     buildICAv2WesDb(this, {
       tableName: props.wesTableName,
       indexNames: props.indexNames,
