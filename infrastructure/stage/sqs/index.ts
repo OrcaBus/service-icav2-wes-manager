@@ -18,11 +18,9 @@ export function createMonitoredQueue(scope: Construct, props: SqsQueueConstructP
       enforceSSL: true,
       visibilityTimeout: props.queueVizTimeout,
       receiveMessageWaitTime: props.receiveMessageWaitTime,
-      fifo: props.isFifoQueue,
-      contentBasedDeduplication: props.isFifoQueue,
     },
     dlqProps: {
-      queueName: props.queueName + '-dlq',
+      queueName: `${props.queueName}-dlq`,
       enforceSSL: true,
       visibilityTimeout: props.queueVizTimeout,
     },
@@ -42,7 +40,6 @@ export function createExternalIcaMonitoredQueue(
     slackTopic: props.slackTopic,
     dlqMessageThreshold: props.dlqMessageThreshold,
     queueVizTimeout: props.queueVizTimeout,
-    isFifoQueue: props.isFifoQueue,
   });
 
   // Grant send message permissions to the ICA account
