@@ -269,7 +269,8 @@ function wireUpStateMachinePermissions(scope: Construct, props: SfnObjectProps):
         switch (nestedSfnName) {
           case 'handleFilemanager':
           case 'handleNextflowFiles':
-          case 'unlockCallbackId': {
+          case 'unlockCallbackId':
+          case 'handleCorruptedFiles': {
             props.stateMachineObj.addToRolePolicy(
               new iam.PolicyStatement({
                 actions: ['states:StartExecution', 'states:DescribeExecution'],
