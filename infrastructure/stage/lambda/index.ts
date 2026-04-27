@@ -61,7 +61,7 @@ function buildLambda(scope: Construct, props: BuildLambdaProps): LambdaObject {
     includeOrcabusApiToolsLayer: lambdaRequirements.needsOrcabusTookitLayer,
     durableConfig: lambdaRequirements.needsDurableExecutionPermissions
       ? {
-          executionTimeout: Duration.minutes(15),
+          executionTimeout: Duration.minutes(60),
           retentionPeriod: Duration.days(1),
         }
       : undefined,
