@@ -128,7 +128,7 @@
           "status": "{% /* https://try.jsonata.org/WVD2IGYzV */\n(\n  $statusMap := {\n    \"INITIALIZING\": \"STARTING\",\n    \"IN_PROGRESS\": \"RUNNING\",\n    \"SUCCEEDED\": \"SUCCEEDED\",\n    \"FAILED\": \"FAILED\",\n    \"FAILED_FINAL\": \"FAILED\",\n    \"ABORTED\": \"ABORTED\"\n  };\n  $lookup($statusMap, $status)\n) %}",
           "icav2AnalysisId": "{% $icav2AnalysisId %}",
           "errorMessage": "{% $status != 'SUCCEEDED' ? $errorMessage : null %}",
-          "errorType": "{% $errorType ? $errorType : \n(\n  $status != 'SUCCEEDED' ? 'AnalysisFailure' : null\n) %}"
+          "errorType": "{% (\n  $errorType ? $errorType :\n  (\n    $errorMap := {\n      \"INITIALIZING\": null,\n      \"IN_PROGRESS\": null,\n      \"SUCCEEDED\": null,\n      \"FAILED\": \"AnalysisFailure\",\n      \"FAILED_FINAL\": \"AnalysisFailure\",\n      \"ABORTED\": null\n    };\n    $lookup($errorMap, $status)\n  )\n) %}"
         }
       },
       "Retry": [
@@ -169,10 +169,7 @@
           "Comment": "Workflow is SUCCEEDED status"
         }
       ],
-      "Default": "Update WES API",
-      "Assign": {
-        "errorType": "{% $status = 'FAILED' ? 'AnalysisFailure' : null  %}"
-      }
+      "Default": "Update WES API"
     },
     "Checking corrupted files (false)": {
       "Type": "Choice",
