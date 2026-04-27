@@ -64,7 +64,7 @@ def is_duplicate_message(message_id: str) -> bool:
                 }
             },
             TableName=environ[CALLBACK_DATABASE_NAME_ENV_VAR],
-            ConditionExpression='attribute_not_exists(id) AND attribute_not_exists(id_type)'
+            ConditionExpression='attribute_not_exists(id)',
         )
         return False
     except ClientError as e:
