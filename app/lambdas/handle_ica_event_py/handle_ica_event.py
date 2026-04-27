@@ -10,6 +10,7 @@ from os import environ
 import boto3
 import typing
 from datetime import datetime, UTC
+from botocore.exceptions import ClientError
 
 # Durable context imports
 from aws_durable_execution_sdk_python import (
@@ -42,45 +43,34 @@ def get_sfn_client() -> 'SFNClient':
     return boto3.client('stepfunctions')
 
 
-# Create an item in the dynamodb database
-# Based on the message id
-def add_message_to_db(message_id: str):
-    get_dynamodb_client().put_item(
-        Item={
-            "id": {
-                "S": message_id,
+# Atomically write the message id to the database.
+# Returns True if the message is a duplicate (already exists), False if newly written.
+def is_duplicate_message(message_id: str) -> bool:
+    try:
+        get_dynamodb_client().put_item(
+            Item={
+                "id": {
+                    "S": message_id,
+                },
+                "id_type": {
+                    "S": "MESSAGE_SQS"
+                },
+                "ttl": {
+                    # Add 24 hours to current epoch timestamp
+                    "N": str(
+                        int(datetime.now(UTC).timestamp()) +
+                        SECONDS_PER_DAY
+                    )
+                }
             },
-            "id_type": {
-                "S": "MESSAGE_SQS"
-            },
-            "ttl": {
-                # Add 24 hours to current epoch timestamp
-                "N": str(
-                    int(datetime.now(UTC).timestamp()) +
-                    SECONDS_PER_DAY
-                )
-            }
-        },
-        TableName=environ[CALLBACK_DATABASE_NAME_ENV_VAR]
-    )
-
-
-def check_if_message_in_db(message_id: str) -> bool:
-    db_response = get_dynamodb_client().get_item(
-        Key={
-            "id": {
-                "S": message_id
-            },
-            "id_type": {
-                "S": "MESSAGE_SQS"
-            }
-        },
-        TableName=environ[CALLBACK_DATABASE_NAME_ENV_VAR]
-    )
-
-    if 'Item' in db_response:
-        return True
-    return False
+            TableName=environ[CALLBACK_DATABASE_NAME_ENV_VAR],
+            ConditionExpression='attribute_not_exists(id) AND attribute_not_exists(id_type)'
+        )
+        return False
+    except ClientError as e:
+        if e.response['Error']['Code'] == 'ConditionalCheckFailedException':
+            return True
+        raise
 
 
 # Durable step to handle scaling
@@ -179,9 +169,8 @@ def handler(event, context: DurableContext):
 
         # Message id
         message_id = record.get("messageId")
-        if check_if_message_in_db(message_id):
+        if is_duplicate_message(message_id):
             continue
-        add_message_to_db(message_id)
 
         # Get the wes orcabus id
         try:
