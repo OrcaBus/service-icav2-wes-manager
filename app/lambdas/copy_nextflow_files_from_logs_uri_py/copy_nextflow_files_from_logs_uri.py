@@ -152,7 +152,7 @@ def handler(event, context):
                 file_name=log_data.data.details.name,
                 project_data_list=project_data_output_list
             )
-        except ValueError as e:
+        except ValueError:
             pass
         else:
             # File already exists
