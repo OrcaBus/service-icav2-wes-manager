@@ -61,7 +61,9 @@ function buildLambda(scope: Construct, props: BuildLambdaProps): LambdaObject {
     includeOrcabusApiToolsLayer: lambdaRequirements.needsOrcabusTookitLayer,
     durableConfig: lambdaRequirements.needsDurableExecutionPermissions
       ? {
-          executionTimeout: Duration.minutes(60),
+          // Cannot exceed 15 minutes as an event source
+          // https://docs.aws.amazon.com/lambda/latest/dg/durable-invoking-esm.html#durable-esm-duration-limit
+          executionTimeout: Duration.minutes(15),
           retentionPeriod: Duration.days(1),
         }
       : undefined,

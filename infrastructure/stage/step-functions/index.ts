@@ -47,7 +47,7 @@ function createStateMachineDefinitionSubstitutions(props: SfnProps): {
   }
 
   /* Miscellaneous */
-  definitionSubstitutions['__one_hour_in_seconds__'] = String(3600);
+  definitionSubstitutions['__fifteen_minutes_in_seconds__'] = String(900);
 
   /* Add in fargate constructs */
   for (const ecsTaskObject of ecsTaskObjects) {
