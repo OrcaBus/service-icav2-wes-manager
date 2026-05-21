@@ -1,5 +1,5 @@
-ignoredBuiltDependencies:
-  - unrs-resolver
-
-overrides:
-  diff@<8.0.3: '>=8.0.3'
+allowBuilds:
+  unrs-resolver: true
+minimumReleaseAgeExclude:
+  - aws-cdk-lib@2.256.1
+  - aws-cdk@2.1124.1
