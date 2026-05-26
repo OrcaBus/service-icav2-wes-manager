@@ -78,6 +78,20 @@ def handler(event, context):
             "corruptedS3Uri": None
         }
 
+    # HTML Files may not have a line ending, confirm that they end in '</html>'
+    if (
+        file_object["key"].endswith(".html")
+    ):
+        with open(local_file_obj.name, 'r') as html_h:
+            file_contents = html_h.read()
+            if file_contents.rstrip().endswith("</html>"):
+                return {
+                    "corruptedS3Uri": None
+                }
+            return {
+                "corruptedS3Uri": get_s3_uri_from_ingest_id(ingest_id)
+            }
+
     # Check if the file's last file character is a new line
     with open(local_file_obj.name, 'r') as file_h:
         file_str = file_h.read()
@@ -89,3 +103,16 @@ def handler(event, context):
     return {
         "corruptedS3Uri": None
     }
+
+if __name__ == "__main__":
+    from os import environ
+
+    environ['AWS_PROFILE'] = 'umccr-production'
+    environ['HOSTNAME_SSM_PARAMETER_NAME'] = '/hosted_zone/umccr/name'
+    environ['ORCABUS_TOKEN_SECRET_ID'] = 'orcabus/token-service-jwt'
+    print(handler(
+        {
+                "ingestId": "019e5e93-a794-7b01-8a14-a91b396656e5"
+        },
+        None
+    ))
