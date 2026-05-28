@@ -103,16 +103,3 @@ def handler(event, context):
     return {
         "corruptedS3Uri": None
     }
-
-if __name__ == "__main__":
-    from os import environ
-
-    environ['AWS_PROFILE'] = 'umccr-production'
-    environ['HOSTNAME_SSM_PARAMETER_NAME'] = '/hosted_zone/umccr/name'
-    environ['ORCABUS_TOKEN_SECRET_ID'] = 'orcabus/token-service-jwt'
-    print(handler(
-        {
-                "ingestId": "019e5e93-a794-7b01-8a14-a91b396656e5"
-        },
-        None
-    ))
