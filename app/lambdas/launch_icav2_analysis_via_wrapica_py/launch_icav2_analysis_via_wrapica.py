@@ -211,7 +211,7 @@ def handler(event, context):
         )
     except Exception as e:
         logger.error(f"Error generating the analysis object: {e}")
-        raise CreateAnalysisInputFailure("Failed to create analysis input object") from e
+        raise CreateAnalysisInputFailure(f"Failed to create analysis input object, error was {e}") from e
 
     # Wait a few seconds for the samplesheet to be available in ICAv2
     sleep(5)
