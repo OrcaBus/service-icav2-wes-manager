@@ -63,6 +63,9 @@ def handler(event, context) -> Dict:
     # And then we add the S3 uri to the database.
     s3_payload_uri = None
     if error_message is not None:
+        # icav2 analysis id might be none if this is a CreateFailure
+        if icav2_analysis_id is None:
+            icav2_analysis_id = get_icav2_wes_analysis_by_name(name)
         # Get the current date and upload path
         logger.info("Uploading the error logs to S3")
         now = datetime.now(timezone.utc)
