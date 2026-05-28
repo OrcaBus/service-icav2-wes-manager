@@ -112,12 +112,12 @@
               "States": {
                 "Set env vars (map)": {
                   "Type": "Pass",
-                  "Next": "Check is bam file",
+                  "Next": "Check is bam file or vcf index file",
                   "Assign": {
                     "ingestIdMapIter": "{% $states.input %}"
                   }
                 },
-                "Check is bam file": {
+                "Check is bam file or vcf index file": {
                   "Type": "Task",
                   "Resource": "arn:aws:states:::lambda:invoke",
                   "Arguments": {
@@ -140,17 +140,17 @@
                       "JitterStrategy": "FULL"
                     }
                   ],
-                  "Next": "Is bam file",
+                  "Next": "Is bam or vcf index file",
                   "Output": {
-                    "isBamFile": "{% $states.result.Payload.isBamFile %}"
+                    "isBamOrVcfIndexFile": "{% $states.result.Payload.isBamOrVcfIndexFile ? true : false %}"
                   }
                 },
-                "Is bam file": {
+                "Is bam or vcf index file": {
                   "Type": "Choice",
                   "Choices": [
                     {
                       "Next": "Get file uri from ingest id",
-                      "Condition": "{% $states.input.isBamFile ? true : false %}"
+                      "Condition": "{% $states.input.isBamOrVcfIndexFile ? true : false %}"
                     }
                   ],
                   "Default": "Check is file corrupted"
@@ -178,10 +178,59 @@
                       "JitterStrategy": "FULL"
                     }
                   ],
-                  "Next": "Validate BAM File",
+                  "Next": "Is bam file",
                   "Output": {
                     "outputFileUri": "{% $states.result.Payload.outputFileUri %}"
                   }
+                },
+                "Is bam file": {
+                  "Type": "Choice",
+                  "Choices": [
+                    {
+                      "Next": "Validate BAM File",
+                      "Condition": "{% $substring($states.input.outputFileUri, -4) = \".bai\"  %}"
+                    }
+                  ],
+                  "Default": "Validate VCF Index File"
+                },
+                "Validate VCF Index File": {
+                  "Type": "Task",
+                  "Resource": "arn:aws:states:::ecs:runTask.sync",
+                  "Arguments": {
+                    "LaunchType": "FARGATE",
+                    "Cluster": "${__validate_vcf_file_cluster_arn__}",
+                    "TaskDefinition": "${__validate_vcf_file_task_definition_arn__}",
+                    "NetworkConfiguration": {
+                      "AwsvpcConfiguration": {
+                        "Subnets": "{% $split('${__validate_vcf_file_subnets__}', ',') %}",
+                        "SecurityGroups": "{% [ '${__validate_vcf_file_security_group__}' ] %}"
+                      }
+                    },
+                    "Overrides": {
+                      "ContainerOverrides": [
+                        {
+                          "Name": "${__validate_vcf_file_container_name__}",
+                          "Environment": [
+                            {
+                              "Name": "INPUT_VCF_URI",
+                              "Value": "{% $substringBefore($states.input.outputFileUri, '.tbi') %}"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  },
+                  "End": true,
+                  "Catch": [
+                    {
+                      "ErrorEquals": ["States.Task"],
+                      "Next": "Catch invalid bam / vcf",
+                      "Comment": "Catch Invalid Vcf",
+                      "Output": {
+                        "corruptedS3Uri": "{% $states.input.outputFileUri %}"
+                      }
+                    }
+                  ]
                 },
                 "Validate BAM File": {
                   "Type": "Task",
@@ -216,13 +265,13 @@
                       "Output": {
                         "corruptedS3Uri": "{% $states.input.outputFileUri %}"
                       },
-                      "Next": "Catch invalid bam",
+                      "Next": "Catch invalid bam / vcf",
                       "Comment": "Catch invalid bam"
                     }
                   ],
                   "End": true
                 },
-                "Catch invalid bam": {
+                "Catch invalid bam / vcf": {
                   "Type": "Pass",
                   "End": true
                 },
