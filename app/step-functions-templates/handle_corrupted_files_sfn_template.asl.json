@@ -121,7 +121,7 @@
                   "Type": "Task",
                   "Resource": "arn:aws:states:::lambda:invoke",
                   "Arguments": {
-                    "FunctionName": "${__is_bam_file_lambda_function_arn__}",
+                    "FunctionName": "${__is_bam_or_vcf_file_lambda_function_arn__}",
                     "Payload": {
                       "ingestId": "{% $ingestIdMapIter %}"
                     }
@@ -140,17 +140,17 @@
                       "JitterStrategy": "FULL"
                     }
                   ],
-                  "Next": "Is bam or vcf index file",
+                  "Next": "Is bam or vcf file",
                   "Output": {
-                    "isBamOrVcfIndexFile": "{% $states.result.Payload.isBamOrVcfIndexFile ? true : false %}"
+                    "isBamOrVcfFile": "{% $states.result.Payload.isBamOrVcfFile ? true : false %}"
                   }
                 },
-                "Is bam or vcf index file": {
+                "Is bam or vcf file": {
                   "Type": "Choice",
                   "Choices": [
                     {
                       "Next": "Get file uri from ingest id",
-                      "Condition": "{% $states.input.isBamOrVcfIndexFile ? true : false %}"
+                      "Condition": "{% $states.input.isBamOrVcfFile ? true : false %}"
                     }
                   ],
                   "Default": "Check is file corrupted"

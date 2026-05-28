@@ -104,8 +104,14 @@ def handler(event, context):
 
         # Check if file object size is divisible by 65536
         if (
-                # Not divisible by 1024, file not of interest (unless a vcf file)
-                (not divmod(file_object_size, FILESIZE_DENOMINATOR)[-1] == 0 and not file_object_key.endswith("vcf.gz")) or
+                # Not divisible by 1024, file not of interest (unless a vcf / bam file)
+                (
+                        not divmod(file_object_size, FILESIZE_DENOMINATOR)[-1] == 0 and
+                        not (
+                                file_object_key.endswith(".vcf.gz") or
+                                file_object_key.endswith(".bam")
+                        )
+                ) or
                 # File empty, also not of interest
                 file_object_size == 0 or
                 # Known bug for lilac fragments, we ignore these
