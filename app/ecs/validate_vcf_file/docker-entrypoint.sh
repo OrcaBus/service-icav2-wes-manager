@@ -36,6 +36,9 @@ ORCABUS_TOKEN="$( \
 )"
 export ORCABUS_TOKEN
 
+# Set error logs file
+ERROR_LOGS_FILE="error_logs.txt"
+
 # Get filemanager parameter inputs
 bucket="$(
 	python3 -c "from urllib.parse import urlparse; print(urlparse('${INPUT_VCF_URI}').netloc)"
@@ -53,15 +56,32 @@ download_file_from_filemanager(){
   local key="${2}"
 
   # Input vars
+  local CURL_GET_S3_QUERY_ARGS_ARRAY
   local CURL_GET_S3_PRESIGNED_URL_ARGS_ARRAY
 
-  # Get vcf presigned url
+  # Get query args array
+  CURL_GET_S3_QUERY_ARGS_ARRAY=( \
+    "--fail" "--silent" "--location" "--show-error" \
+    "--header" "Accept: application/json" \
+    "--header" "Authorization: Bearer ${ORCABUS_TOKEN}" \
+    "https://file.${HOSTNAME}/api/v1/s3?bucket=${bucket}&key=${key}" \
+  )
+
+  # Get presigned url
   CURL_GET_S3_PRESIGNED_URL_ARGS_ARRAY=( \
     "--fail" "--silent" "--location" "--show-error" \
     "--header" "Accept: application/json" \
     "--header" "Authorization: Bearer ${ORCABUS_TOKEN}" \
-    "https://file.${HOSTNAME}/api/v1/s3/presign?&responseContentDisposition=inline&bucket=${bucket}&key=${key}" \
+    "https://file.${HOSTNAME}/api/v1/s3/presign?responseContentDisposition=inline&bucket=${bucket}&key=${key}" \
   )
+
+  # Check the file is available
+  if ! ( \
+    curl "${CURL_GET_S3_QUERY_ARGS_ARRAY[@]}" \
+    jq --exit-status '(.results | length > 0)'
+  ); then
+    return 1
+  fi
 
   # Download the file
   wget \
@@ -70,17 +90,29 @@ download_file_from_filemanager(){
       curl "${CURL_GET_S3_PRESIGNED_URL_ARGS_ARRAY[@]}" | \
       jq --raw-output '.results[0]' \
     )"
-
 }
 
-# Download the files from the filemanager
+# Download the file from the filemanager
 download_file_from_filemanager "${bucket}" "${key}"
-download_file_from_filemanager "${bucket}" "${key}.tbi"
+
+# Set VCF Vars
+vcf_file_name="$(basename "${key}")"
 
 # Try and view the vcf file from vcf tools
-bcftools view "$(basename "${key}")" 1>/dev/null 2>error_logs.txt
+# Also generate the vcf stats
+bcftools view "${vcf_file_name}" 1>/dev/null 2>"${ERROR_LOGS_FILE}"
 
-if [[ -s "error_logs.txt" ]]; then
-  echo "Error viewing the vcf s3://${bucket}/${key}"
+if [[ -s "${ERROR_LOGS_FILE}" ]]; then
+  echo "Error viewing the vcf s3://${bucket}/${key}, vcf is corrupted" 1>&2
   exit 1
+fi
+
+# Download the index file from the filemanager
+if ! (
+  download_file_from_filemanager "${bucket}" "${key}.tbi"
+) then
+  echo "No vcf index to validate, skipping" 1>&2
+else
+  echo "Checking with vcf index" 1>&2
+  bcftools index --stats "${vcf_file_name}"
 fi
