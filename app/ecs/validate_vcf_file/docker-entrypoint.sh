@@ -77,14 +77,15 @@ download_file_from_filemanager(){
 
   # Check the file is available
   if ! ( \
-    curl "${CURL_GET_S3_QUERY_ARGS_ARRAY[@]}" \
-    jq --exit-status '(.results | length > 0)'
+    curl "${CURL_GET_S3_QUERY_ARGS_ARRAY[@]}" | \
+    jq --exit-status '(.results | length > 0)' 2>/dev/null
   ); then
     return 1
   fi
 
   # Download the file
   wget \
+    --quiet \
     --output-document "$(basename "${key}")" \
     "$( \
       curl "${CURL_GET_S3_PRESIGNED_URL_ARGS_ARRAY[@]}" | \
