@@ -114,5 +114,11 @@ if ! (
   echo "No vcf index to validate, skipping" 1>&2
 else
   echo "Checking with vcf index" 1>&2
-  bcftools index --stats "${vcf_file_name}"
+  bcftools view "${vcf_file_name}" 1>/dev/null 2>"${ERROR_LOGS_FILE}"
+
+  if [[ -s "${ERROR_LOGS_FILE}" ]]; then
+    echo "Error viewing the vcf s3://${bucket}/${key}, but because vcf-index is corrupted" 1>&2
+    exit 1
+  fi
+
 fi
