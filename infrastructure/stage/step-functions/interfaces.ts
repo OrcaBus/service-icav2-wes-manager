@@ -103,7 +103,7 @@ export const stepFunctionEcsMap: { [key in SfnName]: Array<EcsTaskName> } = {
   launchIcav2Analysis: [],
   getTaskSummaries: [],
   getUsage: [],
-  handleCorruptedFiles: ['validateBamFile'],
+  handleCorruptedFiles: ['validateBamFile', 'validateVcfFile'],
   handleFilemanager: [],
   handleNextflowFiles: [],
   unlockCallbackId: [],
