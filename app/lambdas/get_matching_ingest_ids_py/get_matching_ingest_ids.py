@@ -51,11 +51,11 @@ SUFFIX_LIST = [
     "sf",
     "tsv",
     "txt",
-    "vcf",
     "xml",
-    # Add bam files
+    # Add bam/vcf files
     # Since these are important
     # And we can use tools to check their integrity
+    "vcf",
     "bam"
 ]
 
@@ -95,6 +95,7 @@ def handler(event, context):
     for file_object_iter_ in file_objects_dict_list:
         # Get file object size
         file_object_size = file_object_iter_.get("fileObject", {}).get("size")
+        file_object_key = file_object_iter_.get("fileObject", {}).get("key", "")
 
         # Check if file object size to None
         if file_object_size is None:
@@ -103,19 +104,24 @@ def handler(event, context):
 
         # Check if file object size is divisible by 65536
         if (
-                # Not divisible by 1024, file not of interest
-                not divmod(file_object_size, FILESIZE_DENOMINATOR)[-1] == 0 or
+                # Not divisible by 1024, file not of interest (unless a vcf / bam file)
+                (
+                        not divmod(file_object_size, FILESIZE_DENOMINATOR)[-1] == 0 and
+                        not (
+                                file_object_key.endswith(".vcf.gz") or
+                                file_object_key.endswith(".bam")
+                        )
+                ) or
                 # File empty, also not of interest
                 file_object_size == 0 or
                 # Known bug for lilac fragments, we ignore these
-                file_object_iter_.get("fileObject", {}).get("key", "").endswith(".lilac.hlay.fragments.tsv") or
+                file_object_key.endswith(".lilac.hlay.fragments.tsv") or
                 # And we ignore '/logs' for now too
-                "/logs/" in file_object_iter_.get("fileObject", {}).get("key", "")
+                "/logs/" in file_object_key
         ):
             continue
 
         # Check if file key endswith text or text.gz
-        file_object_key = file_object_iter_.get("fileObject", {}).get("key")
         if file_object_key is None:
             logger.warning("Didn't expect to get none for file object key")
             continue

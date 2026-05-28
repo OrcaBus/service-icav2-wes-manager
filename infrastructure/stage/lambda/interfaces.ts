@@ -31,7 +31,7 @@ export type LambdaName =
   // Handle corrupted files
   | 'getOutputFileIngestIds' // Not yet implemented
   | 'getMatchingIngestIds' // Not yet implemented
-  | 'isBamFile' // Not yet implemented
+  | 'isBamOrVcfFile' // Not yet implemented
   | 'getFileUriFromIngestId' // Not yet implemented
   | 'isFileCorrupted' // Not yet implemented
   // Unlock callback id
@@ -70,7 +70,7 @@ export const lambdaNameList: Array<LambdaName> = [
   // Handle corrupted files
   'getOutputFileIngestIds',
   'getMatchingIngestIds',
-  'isBamFile',
+  'isBamOrVcfFile',
   'getFileUriFromIngestId',
   'isFileCorrupted',
   // Unlock callback id
@@ -169,7 +169,7 @@ export const lambdaToRequirementsMap: LambdaToRequirementsMapType = {
   getMatchingIngestIds: {
     needsOrcabusTookitLayer: true,
   },
-  isBamFile: {
+  isBamOrVcfFile: {
     needsOrcabusTookitLayer: true,
   },
   getFileUriFromIngestId: {
