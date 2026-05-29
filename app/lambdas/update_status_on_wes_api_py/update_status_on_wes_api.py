@@ -119,7 +119,7 @@ def handler(event, context) -> Dict:
                 # Error messages
                 "errorType": error_type,
                 "errorMessageUri": s3_payload_uri,
-            }
+            }.items()
         ))
     )
 
