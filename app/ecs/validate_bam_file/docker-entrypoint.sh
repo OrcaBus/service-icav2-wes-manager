@@ -57,15 +57,15 @@ bam_presigned_url="$( \
 )"
 
 # Run samtools quickcheck
-echo "bam is valid" 1>&2
 samtools quickcheck "${bam_presigned_url}"
+echo "bam is valid" 1>&2
 
 # Checking if bam index is valid
 CURL_GET_S3_PRESIGNED_URL_BAI_ARGS_ARRAY=( \
   "--fail" "--silent" "--location" "--show-error" \
   "--header" "Accept: application/json" \
   "--header" "Authorization: Bearer ${ORCABUS_TOKEN}" \
-  "https://file.${HOSTNAME}/api/v1/s3/presign?&responseContentDisposition=inline&bucket=${bucket}&key=${key}.bai" \
+  "https://file.${HOSTNAME}/api/v1/s3/presign?responseContentDisposition=inline&bucket=${bucket}&key=${key}.bai" \
 )
 
 if ! "$(
@@ -107,7 +107,7 @@ jq --raw-input --raw-output \
     # To bed format
     join("\t")
     # Output will look like
-    HLA-DRB1*16:02:01    0  11005
+    # HLA-DRB1*16:02:01    0  11005
   ' > "targets.txt"
 
 # Ensure we can view the last item with a corrupted index
