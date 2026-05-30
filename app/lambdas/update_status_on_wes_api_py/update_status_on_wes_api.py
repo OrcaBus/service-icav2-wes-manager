@@ -63,6 +63,10 @@ def handler(event, context) -> Dict:
     # And then we add the S3 uri to the database.
     s3_payload_uri = None
     if error_message is not None:
+        # icav2 analysis id might be none if this is a CreateFailure
+        # use the orcabus id instead
+        if icav2_analysis_id is None:
+            icav2_analysis_id = get_icav2_wes_analysis_by_name(name)['id']
         # Get the current date and upload path
         logger.info("Uploading the error logs to S3")
         now = datetime.now(timezone.utc)
@@ -103,16 +107,20 @@ def handler(event, context) -> Dict:
 
     # Update the status on the ICAv2 WES API
     update_response = update_icav2_wes_analysis_status(
-        # Positional args in snake_case
-        icav2_wes_orcabus_id=analysis_object['id'],
-        # Keyword (packed) args in camelCase
-        status=status,
-        icav2AnalysisId=icav2_analysis_id,
-        # Steps execution arn (not yet implemented)
-        stepsLaunchExecutionArn=steps_execution_arn,
-        # Error messages
-        errorType=error_type,
-        errorMessageUri=s3_payload_uri,
+        analysis_object['id'],
+        **dict(filter(
+            lambda kv_iter_: kv_iter_ is not None,
+            {
+                # Keyword (packed) args in camelCase
+                "status": status,
+                "icav2AnalysisId": icav2_analysis_id,
+                # Steps execution arn (not yet implemented)
+                "stepsLaunchExecutionArn": steps_execution_arn,
+                # Error messages
+                "errorType": error_type,
+                "errorMessageUri": s3_payload_uri,
+            }.items()
+        ))
     )
 
     # Return the response payload (We don't actually need this, since updating the API generates the event)

@@ -11,7 +11,7 @@ import typing
 from copy import copy
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import Dict, Optional, cast, Literal
+from typing import Dict, Optional, cast, Literal, Any
 from fastapi.encoders import jsonable_encoder
 import boto3
 from datetime import datetime, timezone
@@ -119,22 +119,22 @@ def handler(event, context):
         raise ValueError("Event must contain 'name', 'inputs', 'engineParameters' and 'tags' attributes")
 
     # Extract the WES attributes from the event
-    id_ = event['id']
-    name = event['name']
-    inputs = event['inputs']
-    engine_parameters = event['engineParameters']
-    user_tags = flatten_user_tags(event.get('tags', {}))
-    technical_tags = event.get('technicalTags', None)
+    id_: str = event['id']
+    name: str = event['name']
+    inputs: Dict[str, Any] = event['inputs']
+    engine_parameters: Dict[str, str] = event['engineParameters']
+    user_tags: Dict[str, Any] = flatten_user_tags(event.get('tags', {}))
+    technical_tags: Dict[str, Any] = event.get('technicalTags', None)
 
     # Get the pipeline id from the engine parameters
-    pipeline_id = engine_parameters['pipelineId']
+    pipeline_id: str = engine_parameters['pipelineId']
 
     # Get the project id from the engine parameters
-    project_id = engine_parameters['projectId']
+    project_id: str = engine_parameters['projectId']
 
     # Get the analysis output uri and ica logs uri from the engine parameters
-    analysis_output_uri = engine_parameters['outputUri']
-    ica_logs_uri = engine_parameters['logsUri']
+    analysis_output_uri: str = engine_parameters['outputUri']
+    ica_logs_uri: str = engine_parameters['logsUri']
 
     # Get the pipeline object (to get the workflow language type)
     logger.info("Getting the pipeline object")
@@ -149,7 +149,10 @@ def handler(event, context):
 
     # Get the analysis storage size from the event
     logger.info("Getting the analysis storage size")
-    wes_analysis_storage_size: Optional[WesAnalysisStorageSizeType] = engine_parameters.get("analysisStorageSize", None)
+    wes_analysis_storage_size = cast(
+        Optional[WesAnalysisStorageSizeType],
+        engine_parameters.get("analysisStorageSize", None)
+    )
     if wes_analysis_storage_size is not None:
         analysis_storage_size: AnalysisStorageSizeType = map_wes_analysis_storage_size_to_icav2(
             wes_analysis_storage_size)
@@ -208,7 +211,7 @@ def handler(event, context):
         )
     except Exception as e:
         logger.error(f"Error generating the analysis object: {e}")
-        raise CreateAnalysisInputFailure("Failed to create analysis input object") from e
+        raise CreateAnalysisInputFailure(f"Failed to create analysis input object, error was {e}") from e
 
     # Wait a few seconds for the samplesheet to be available in ICAv2
     sleep(5)
