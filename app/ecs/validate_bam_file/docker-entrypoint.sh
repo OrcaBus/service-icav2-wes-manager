@@ -57,4 +57,62 @@ bam_presigned_url="$( \
 )"
 
 # Run samtools quickcheck
+echo "bam is valid" 1>&2
 samtools quickcheck "${bam_presigned_url}"
+
+# Checking if bam index is valid
+CURL_GET_S3_PRESIGNED_URL_BAI_ARGS_ARRAY=( \
+  "--fail" "--silent" "--location" "--show-error" \
+  "--header" "Accept: application/json" \
+  "--header" "Authorization: Bearer ${ORCABUS_TOKEN}" \
+  "https://file.${HOSTNAME}/api/v1/s3/presign?&responseContentDisposition=inline&bucket=${bucket}&key=${key}.bai" \
+)
+
+if ! "$(
+  curl "${CURL_GET_S3_PRESIGNED_URL_BAI_ARGS_ARRAY[@]}" | \
+  jq --exit-status --raw-output '.results > 0 ' \
+)"; then
+  echo "No bam index, skipping bam index check!" 1>&2
+  exit
+fi
+
+# Download the bam index
+bai_presigned_url="$( \
+  curl "${CURL_GET_S3_PRESIGNED_URL_BAI_ARGS_ARRAY[@]}" | \
+  jq --raw-output '.results[0]' \
+)"
+wget --output-document "bam_index.bai" "${bai_presigned_url}"
+
+# Build the targets file containing the last chromosome in the file
+samtools view \
+  --header-only \
+  --customized-index \
+  "${bam_presigned_url}" \
+  "bam_index.bai" | \
+grep '^@SQ' | \
+tail -n1 | \
+jq --raw-input --raw-output \
+  '
+    # Input will look like this
+    # "@SQ\tSN:HLA-DRB1*16:02:01\tLN:11005"
+    split("\t") as $sq_line |
+    [
+      # Contig name
+      ($sq_line[1] | gsub("^SN:"; "")),
+      # Start
+      0,
+      # Contig end
+      ($sq_line[2] | gsub("^LN:"; ""))
+    ] |
+    # To bed format
+    join("\t")
+    # Output will look like
+    HLA-DRB1*16:02:01    0  11005
+  ' > "targets.txt"
+
+# Ensure we can view the last item with a corrupted index
+samtools view \
+  --targets-file "targets.txt" \
+  --customized-index \
+  "${bam_presigned_url}" \
+  "bam_index.bai" 1>/dev/null
