@@ -68,10 +68,10 @@ CURL_GET_S3_PRESIGNED_URL_BAI_ARGS_ARRAY=( \
   "https://file.${HOSTNAME}/api/v1/s3/presign?responseContentDisposition=inline&bucket=${bucket}&key=${key}.bai" \
 )
 
-if ! "$(
+if ! (
   curl "${CURL_GET_S3_PRESIGNED_URL_BAI_ARGS_ARRAY[@]}" | \
-  jq --exit-status --raw-output '.results > 0 ' \
-)"; then
+  jq --exit-status '(.results | length) > 0' 2>/dev/null \
+); then
   echo "No bam index, skipping bam index check!" 1>&2
   exit
 fi
