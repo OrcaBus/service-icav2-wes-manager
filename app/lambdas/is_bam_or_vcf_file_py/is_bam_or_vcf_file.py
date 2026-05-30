@@ -18,6 +18,7 @@ from orcabus_api_tools.filemanager.models import FileObject
 
 # Globals
 BAM_SUFFIX = ".bam"
+VCF_SUFFIX = ".vcf.gz"
 
 
 def handler(event, context) -> Dict[str, bool]:
@@ -29,5 +30,8 @@ def handler(event, context) -> Dict[str, bool]:
     file_object: FileObject = get_file_object_from_ingest_id(event.get("ingestId"))
 
     return {
-        "isBamFile": file_object["key"].endswith(BAM_SUFFIX)
+        "isBamOrVcfFile": (
+            file_object["key"].endswith(BAM_SUFFIX) or
+            file_object["key"].endswith(VCF_SUFFIX)
+        )
     }

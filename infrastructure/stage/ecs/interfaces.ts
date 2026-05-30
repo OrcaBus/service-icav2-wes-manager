@@ -6,9 +6,9 @@ import { IParameter } from 'aws-cdk-lib/aws-ssm';
 import { ISecret } from 'aws-cdk-lib/aws-secretsmanager';
 import { EcsFargateTaskConstruct } from '@orcabus/platform-cdk-constructs/ecs';
 
-export type EcsTaskName = 'validateBamFile';
+export type EcsTaskName = 'validateBamFile' | 'validateVcfFile';
 
-export const ecsTaskNameList: EcsTaskName[] = ['validateBamFile'];
+export const ecsTaskNameList: EcsTaskName[] = ['validateBamFile', 'validateVcfFile'];
 
 export interface BuildAllFargateEcsTasksProps {
   orcabusTokenSecretObj: ISecret;
