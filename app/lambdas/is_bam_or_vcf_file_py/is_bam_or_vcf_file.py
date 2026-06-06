@@ -17,8 +17,11 @@ from orcabus_api_tools.filemanager import get_file_object_from_ingest_id
 from orcabus_api_tools.filemanager.models import FileObject
 
 # Globals
-BAM_SUFFIX = ".bam"
-VCF_SUFFIX = ".vcf.gz"
+SUFFIX_LIST = [
+    ".bam",
+    ".vcf",
+    ".vcf.gz"
+]
 
 
 def handler(event, context) -> Dict[str, bool]:
@@ -31,7 +34,9 @@ def handler(event, context) -> Dict[str, bool]:
 
     return {
         "isBamOrVcfFile": (
-            file_object["key"].endswith(BAM_SUFFIX) or
-            file_object["key"].endswith(VCF_SUFFIX)
+            any([
+                file_object["key"].endswith(suffix_iter_)
+                for suffix_iter_ in SUFFIX_LIST
+            ])
         )
     }
