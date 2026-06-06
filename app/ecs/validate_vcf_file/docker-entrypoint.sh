@@ -105,6 +105,7 @@ if [[ ! "${vcf_file_name}" =~ \.gz$ ]]; then
     echo "Error viewing the vcf s3://${bucket}/${key}, final line does not end with newline" 1>&2
     exit 1
   fi
+  exit 0
 fi
 
 # Pipe through zcat to confirm valid file
