@@ -99,13 +99,29 @@ download_file_from_filemanager "${bucket}" "${key}"
 # Set VCF Vars
 vcf_file_name="$(basename "${key}")"
 
-# Try and view the vcf file from vcf tools
-# Also generate the vcf stats
-bcftools view "${vcf_file_name}" 1>/dev/null 2>"${ERROR_LOGS_FILE}"
+# Confirm vcf is gzipped; for plain-text VCF ensure the final line is newline-terminated
+if [[ ! "${vcf_file_name}" =~ \.gz$ ]]; then
+  if [[ -n "$(tail -c 1 "${vcf_file_name}")" ]]; then
+    echo "Error viewing the vcf s3://${bucket}/${key}, final line does not end with newline" 1>&2
+    exit 1
+  fi
+  exit 0
+fi
 
-if [[ -s "${ERROR_LOGS_FILE}" ]]; then
+# Pipe through zcat to confirm valid file
+if ! zcat "${vcf_file_name}" 1>/dev/null; then
   echo "Error viewing the vcf s3://${bucket}/${key}, vcf is corrupted" 1>&2
   exit 1
+fi
+
+# Try and view the vcf file from bcftools
+# Also generate the vcf stats
+if ! bcftools view "${vcf_file_name}" 1>/dev/null 2>"${ERROR_LOGS_FILE}"; then
+  echo "VCF file is not corrupted but not valid, nothing we can do, and we cannot check the index" 1>&2
+  if [[ -s "${ERROR_LOGS_FILE}" ]]; then
+    cat "${ERROR_LOGS_FILE}"
+  fi
+  exit 0
 fi
 
 # Download the index file from the filemanager

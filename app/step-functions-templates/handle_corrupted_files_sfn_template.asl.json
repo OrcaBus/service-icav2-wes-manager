@@ -223,7 +223,7 @@
                   "End": true,
                   "Catch": [
                     {
-                      "ErrorEquals": ["States.Task"],
+                      "ErrorEquals": ["States.TaskFailed"],
                       "Next": "Catch invalid bam / vcf",
                       "Comment": "Catch Invalid Vcf",
                       "Output": {

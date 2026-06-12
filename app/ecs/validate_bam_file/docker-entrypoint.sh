@@ -81,7 +81,10 @@ bai_presigned_url="$( \
   curl "${CURL_GET_S3_PRESIGNED_URL_BAI_ARGS_ARRAY[@]}" | \
   jq --raw-output '.results[0]' \
 )"
-wget --output-document "bam_index.bai" "${bai_presigned_url}"
+wget \
+  --quiet \
+  --output-document "bam_index.bai" \
+  "${bai_presigned_url}"
 
 # Build the targets file containing the last chromosome in the file
 samtools view \
@@ -113,6 +116,7 @@ jq --raw-input --raw-output \
 # Ensure we can view the last item with a corrupted index
 samtools view \
   --targets-file "targets.txt" \
+  --use-index \
   --customized-index \
   "${bam_presigned_url}" \
   "bam_index.bai" 1>/dev/null
