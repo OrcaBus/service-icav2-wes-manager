@@ -188,7 +188,7 @@
                   "Choices": [
                     {
                       "Next": "Validate BAM File",
-                      "Condition": "{% $substring($states.input.outputFileUri, -4) = \".bai\"  %}"
+                      "Condition": "{% $substring($states.input.outputFileUri, -4) = \".bam\"  %}"
                     }
                   ],
                   "Default": "Validate VCF Index File"
