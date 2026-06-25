@@ -64,7 +64,7 @@ def handler(event, context):
 
     # We try again in a few minutes
     if len(filemanager_files) != len(icav2_project_data_list):
-        logger.info(
+        logger.warning(
             f"Filemanager has {len(filemanager_files)} files, "
             f"ICAv2 has {len(icav2_project_data_list)} files"
         )

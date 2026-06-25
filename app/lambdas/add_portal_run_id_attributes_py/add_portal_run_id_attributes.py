@@ -9,7 +9,10 @@ from urllib.parse import urlparse
 from pathlib import Path
 
 # Layer imports
-from orcabus_api_tools.filemanager import file_manager_patch_request
+from orcabus_api_tools.filemanager import (
+    file_manager_patch_request,
+    crawl_filemanager_sync
+)
 from orcabus_api_tools.filemanager.globals import S3_LIST_ENDPOINT
 
 
@@ -27,18 +30,24 @@ def handler(event, context):
     # Get the output uri and key
     output_uri_parsed = urlparse(output_uri)
     output_bucket = output_uri_parsed.netloc
-    output_key = output_uri_parsed.path.lstrip('/')
+    output_prefix = output_uri_parsed.path.lstrip('/')
 
     # Confirm that the output uri endswith the portal run id
-    if not Path(output_key).name == portal_run_id:
+    if not Path(output_prefix).name == portal_run_id:
         raise ValueError(f"The output uri {output_uri} does not end with the portal run id {portal_run_id}")
+
+    # Sync filemanager at prefix
+    crawl_filemanager_sync(
+        bucket=output_bucket,
+        prefix=output_prefix
+    )
 
     # Add the portal run id attribute to the output uri
     file_manager_patch_request(
         endpoint=S3_LIST_ENDPOINT,
         params={
             "bucket": output_bucket,
-            "key": f"{output_key.rstrip('/')}/*",
+            "key": f"{output_prefix.rstrip('/')}/*",
         },
         json_data=[
             {

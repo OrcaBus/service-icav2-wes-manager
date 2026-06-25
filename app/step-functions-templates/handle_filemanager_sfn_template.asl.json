@@ -63,6 +63,11 @@
           "JitterStrategy": "FULL"
         }
       ],
+      "Next": "Wait 5 seconds"
+    },
+    "Wait 5 seconds": {
+      "Type": "Wait",
+      "Seconds": 5,
       "Next": "Filemanager sync"
     },
     "Filemanager sync": {
@@ -113,18 +118,18 @@
       "Choices": [
         {
           "Next": "Could not sync file manager",
-          "Condition": "{% $fmWaitCount > 12 %}"
+          "Condition": "{% $fmWaitCount > 60 %}"
         }
       ],
       "Default": "Wait for filemanager to sync"
     },
     "Wait for filemanager to sync": {
       "Type": "Wait",
-      "Seconds": 300,
+      "Seconds": 60,
       "Assign": {
         "fmWaitCount": "{% $fmWaitCount + 1 %}"
       },
-      "Next": "Filemanager sync"
+      "Next": "Update filemanager attributes"
     },
     "Could not sync file manager": {
       "Type": "Fail"
