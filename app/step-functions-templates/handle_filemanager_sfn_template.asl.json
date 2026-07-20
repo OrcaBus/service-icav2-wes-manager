@@ -5,7 +5,7 @@
       "Type": "Pass",
       "Next": "Get output dir and portal run id",
       "Assign": {
-        "name": "{% $states.input.name %}",
+        "icav2WesOrcabusId": "{% $states.input.icav2WesOrcabusId %}",
         "fmWaitCount": 0
       }
     },
@@ -15,7 +15,7 @@
       "Arguments": {
         "FunctionName": "${__get_icav2_wes_object_lambda_function_arn__}",
         "Payload": {
-          "name": "{% $name %}"
+          "icav2WesOrcabusId": "{% $icav2WesOrcabusId %}"
         }
       },
       "Retry": [

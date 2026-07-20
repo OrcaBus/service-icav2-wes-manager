@@ -5,7 +5,7 @@
       "Type": "Pass",
       "Next": "Get portal run id (corrupted files check)",
       "Assign": {
-        "name": "{% $states.input.name %}"
+        "icav2WesOrcabusId": "{% $states.input.icav2WesOrcabusId %}"
       }
     },
     "Get portal run id (corrupted files check)": {
@@ -15,7 +15,7 @@
       "Arguments": {
         "FunctionName": "${__get_icav2_wes_object_lambda_function_arn__}",
         "Payload": {
-          "name": "{% $name %}"
+          "icav2WesOrcabusId": "{% $icav2WesOrcabusId %}"
         }
       },
       "Retry": [
