@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 
 """
-Given an analysis id, find the analysis id in the database and update the status on the ICAv2 wes api.
+Given an orcabus id, update the status on the ICAv2 wes api.
+Uses the icav2WesOrcabusId directly for hash key lookup, avoiding GSI queries.
 """
 # Standard imports
 from tempfile import NamedTemporaryFile
@@ -16,15 +17,11 @@ from pathlib import Path
 
 # Layer imports
 from orcabus_api_tools.icav2_wes import (
-    get_icav2_wes_analysis_by_name,
     update_icav2_wes_analysis_status
 )
 
 if typing.TYPE_CHECKING:
     from mypy_boto3_s3 import S3Client
-
-# Globals
-ICAV2_WES_ORCABUS_ID_TAG_NAME = 'icav2_wes_orcabus_id'
 
 # Set up logging
 logger = logging.getLogger()
@@ -37,14 +34,18 @@ S3_ANALYSIS_ARTEFACTS_BUCKET_NAME_ENV_VAR = 'S3_ANALYSIS_ARTEFACTS_BUCKET_NAME'
 
 def handler(event, context) -> Dict:
     """
-    Update the status of analysis on the ICAv2 WES API
+    Update the status of analysis on the ICAv2 WES API.
+    Uses icav2WesOrcabusId for direct DynamoDB hash key lookup.
     :param event:
     :param context:
     :return:
     """
 
-    # Get the name from the event
-    name = event.get("name")
+    # Get the orcabus id from the event (direct hash key — no GSI query needed)
+    icav2_wes_orcabus_id = event.get("icav2WesOrcabusId")
+
+    if not icav2_wes_orcabus_id:
+        raise ValueError("No icav2WesOrcabusId provided")
 
     # Get the status from the event
     status = event.get("status")
@@ -63,10 +64,8 @@ def handler(event, context) -> Dict:
     # And then we add the S3 uri to the database.
     s3_payload_uri = None
     if error_message is not None:
-        # icav2 analysis id might be none if this is a CreateFailure
-        # use the orcabus id instead
-        if icav2_analysis_id is None:
-            icav2_analysis_id = get_icav2_wes_analysis_by_name(name)['id']
+        # Use icav2_analysis_id for the error log path, fall back to orcabus id
+        error_log_id = icav2_analysis_id if icav2_analysis_id is not None else icav2_wes_orcabus_id
         # Get the current date and upload path
         logger.info("Uploading the error logs to S3")
         now = datetime.now(timezone.utc)
@@ -75,7 +74,7 @@ def handler(event, context) -> Dict:
             f"year={now.year}" /
             f"month={now.month:02d}" /
             f"day={now.day:02d}" /
-            f"{icav2_analysis_id}.txt"
+            f"{error_log_id}.txt"
         )
         # Save the analysis object to a temporary file
         with (
@@ -100,16 +99,11 @@ def handler(event, context) -> Dict:
             None, None, None
         )))
 
-    # Get the analysis object
-    analysis_object = get_icav2_wes_analysis_by_name(
-        analysis_name=name
-    )
-
-    # Update the status on the ICAv2 WES API
+    # Update the status on the ICAv2 WES API directly using the orcabus id
     update_response = update_icav2_wes_analysis_status(
-        analysis_object['id'],
+        icav2_wes_orcabus_id,
         **dict(filter(
-            lambda kv_iter_: kv_iter_ is not None,
+            lambda kv_iter_: kv_iter_[1] is not None,
             {
                 # Keyword (packed) args in camelCase
                 "status": status,
