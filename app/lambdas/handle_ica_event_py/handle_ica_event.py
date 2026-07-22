@@ -78,7 +78,6 @@ def handle_ica_execution(
         icav2_wes_orcabus_id: str,
         status: str,
         icav2_analysis_id: str,
-        name: str,
         error_message: str,
         message_receipt_handle_token: str,
         context: DurableContext
@@ -118,7 +117,6 @@ def handle_ica_execution(
                 {
                     "icav2AnalysisId": icav2_analysis_id,
                     "status": status,
-                    "name": name,
                     "errorMessage": error_message,
                     "icav2WesOrcabusId": icav2_wes_orcabus_id,
                     "messageReceiptHandleToken": message_receipt_handle_token
@@ -189,7 +187,6 @@ def handler(event, context: DurableContext):
             icav2_wes_orcabus_id=icav2_wes_orcabus_id,
             status = payload.get("status"),
             icav2_analysis_id = payload.get("id"),
-            name = payload.get("userReference"),
             error_message = payload.get("summary"),
             message_receipt_handle_token = record.get("receiptHandle"),
             context=context,

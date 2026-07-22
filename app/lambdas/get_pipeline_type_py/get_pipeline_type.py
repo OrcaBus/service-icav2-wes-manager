@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """
-Get the icav2 analysis object from the workflow name
+Get the icav2 analysis object from the workflow orcabus id
 """
 
 # Standard Library Imports
@@ -12,24 +12,26 @@ from wrapica.project_analysis import get_analysis_obj_from_analysis_id
 
 # Layer imports
 from icav2_tools import set_icav2_env_vars
-from orcabus_api_tools.icav2_wes import get_icav2_wes_analysis_by_name
+from orcabus_api_tools.icav2_wes import get_icav2_wes_request
+from orcabus_api_tools.icav2_wes.globals import ANALYSES_ENDPOINT
 
 
 def handler(event, context) -> Dict[str, Any]:
     """
-    Get the ICAv2 WES Object
+    Get the ICAv2 WES Object and determine the pipeline language
     """
     # Set the environment variables for icav2
     set_icav2_env_vars()
 
-    # Get the analysis name from the event
-    name = event.get("name")
-    if not name:
-        raise ValueError("No analysis name provided")
+    # Prefer icav2WesOrcabusId for direct lookup by DynamoDB hash key
+    icav2_wes_orcabus_id = event.get("icav2WesOrcabusId")
 
-    # Get the ICAv2 WES Object
-    icav2_wes_object = get_icav2_wes_analysis_by_name(
-        analysis_name=name
+    if not icav2_wes_orcabus_id:
+        raise ValueError("No icav2WesOrcabusId provided")
+
+    # Direct GET by ID — uses DynamoDB hash key, avoids GSI query
+    icav2_wes_object = get_icav2_wes_request(
+        f"{ANALYSES_ENDPOINT}/{icav2_wes_orcabus_id}"
     )
 
     # Get the pipeline id
