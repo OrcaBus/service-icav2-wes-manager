@@ -21,7 +21,7 @@
         "FunctionName": "${__update_status_on_wes_api_lambda_function_arn__}",
         "Payload": {
           "status": "RUNNABLE",
-          "name": "{% $name %}",
+          "icav2WesOrcabusId": "{% $icav2WesOrcabusId %}",
           "stepsLaunchExecutionArn": "{% $states.context.Execution.Id %}"
         }
       },
@@ -227,7 +227,7 @@
       "Arguments": {
         "FunctionName": "${__update_status_on_wes_api_lambda_function_arn__}",
         "Payload": {
-          "name": "{% $name %}",
+          "icav2WesOrcabusId": "{% $icav2WesOrcabusId %}",
           "status": "FAILED",
           "errorType": "{% $errorType ? $errorType : null %}",
           "errorMessage": "{% $errorMessage ? $errorMessage : null %}"

@@ -4,12 +4,12 @@
   "States": {
     "Get Env vars": {
       "Type": "Pass",
-      "Next": "Get ICAv2 analysis object from name",
+      "Next": "Get ICAv2 analysis object from id",
       "Assign": {
-        "name": "{% $states.input.name %}"
+        "icav2WesOrcabusId": "{% $states.input.icav2WesOrcabusId %}"
       }
     },
-    "Get ICAv2 analysis object from name": {
+    "Get ICAv2 analysis object from id": {
       "Type": "Task",
       "Resource": "arn:aws:states:::lambda:invoke",
       "Output": {
@@ -18,7 +18,7 @@
       "Arguments": {
         "FunctionName": "${__get_pipeline_type_lambda_function_arn__}",
         "Payload": {
-          "name": "{% $name %}"
+          "icav2WesOrcabusId": "{% $icav2WesOrcabusId %}"
         }
       },
       "Retry": [
@@ -57,7 +57,7 @@
       "Arguments": {
         "FunctionName": "${__get_icav2_wes_object_lambda_function_arn__}",
         "Payload": {
-          "name": "{% $name %}"
+          "icav2WesOrcabusId": "{% $icav2WesOrcabusId %}"
         }
       },
       "Retry": [

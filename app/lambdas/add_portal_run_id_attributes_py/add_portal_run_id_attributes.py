@@ -23,7 +23,7 @@ def handler(event, context):
     :param context:
     :return:
     """
-
+    # Inputs
     output_uri = event.get("outputUri")
     portal_run_id = event.get("portalRunId")
 
