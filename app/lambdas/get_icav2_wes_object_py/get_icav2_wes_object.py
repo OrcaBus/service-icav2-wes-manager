@@ -15,7 +15,6 @@ from orcabus_api_tools.icav2_wes.globals import ANALYSES_ENDPOINT
 def handler(event, context) -> Dict[str, Any]:
     """
     Get the ICAv2 WES Object by its orcabus ID (direct hash key lookup).
-    Falls back to name-based lookup for backwards compatibility.
     """
     # Prefer icav2WesOrcabusId for direct lookup by DynamoDB hash key
     icav2_wes_orcabus_id = event.get("icav2WesOrcabusId")
