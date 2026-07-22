@@ -1,199 +1,217 @@
-# Service ICAv2 WES Manager
+# ICAv2 WES Manager
+
+- [Overview](#overview)
+- [Pipeline State Flow](#pipeline-state-flow)
+  - [1. Icav2WesRequest → Launch Analysis](#1-icav2wesrequest--launch-analysis)
+  - [2. ICA state changes → WES status updates](#2-ica-state-changes--wes-status-updates)
+  - [3. Abort Analysis](#3-abort-analysis)
+- [Post-Completion Features](#post-completion-features)
+  - [Nextflow Pipeline File Transfer](#nextflow-pipeline-file-transfer)
+  - [Filemanager Sync](#filemanager-sync)
+  - [Output File Integrity Validation](#output-file-integrity-validation)
+- [Event Contract](#event-contract)
+  - [Consumed Events](#consumed-events)
+  - [Published Events](#published-events)
+- [WES API](#wes-api)
+  - [Endpoints](#endpoints)
+  - [Status Lifecycle](#status-lifecycle)
+- [Submitting an Analysis](#submitting-an-analysis)
+  - [Via the WES API (curl)](#via-the-wes-api-curl)
+  - [Via EventBridge](#via-eventbridge)
+  - [CWL Pipeline Example](#cwl-pipeline-example)
+  - [Nextflow Pipeline Example](#nextflow-pipeline-example)
+- [Infrastructure](#infrastructure)
+  - [Stateful Resources](#stateful-resources)
+  - [Stateless Resources](#stateless-resources)
+  - [Stacks](#stacks)
+- [CI/CD and Release Management](#cicd-and-release-management)
+- [Related Services](#related-services)
+- [Setup](#setup)
+- [Glossary & References](#glossary--references)
 
 ## Overview
 
-Submit jobs / events via the WES API.
-We'll handle the rest of the 'icav2' drama for you!
+This service manages the full lifecycle of bioinformatics analyses on
+[Illumina Connected Analytics v2 (ICAv2)](https://help.ica.illumina.com/) —
+submission, monitoring, post-completion processing, and status reporting.
 
-## Events Overview
+It provides a unified interface (REST API + EventBridge events) that abstracts
+the complexity of ICAv2's native analysis API, handles state change monitoring
+via SQS notifications, and performs automated post-completion tasks including
+Nextflow log file transfer, filemanager synchronisation, and BAM/VCF integrity
+validation.
 
-Essentially we handle ICAv2 requests on an internal event bus
-but retrieve requests from the external event bus for the WES API.
+The service supports both **CWL** and **Nextflow** pipeline languages on ICAv2.
 
-We also send back 'important' state change events to the external event bus.
+**Upstream:** Any OrcaBus service that emits `Icav2WesRequest` events (e.g.
+[Dragen WGTS DNA Pipeline Manager](https://github.com/OrcaBus/service-dragen-wgts-dna-pipeline-manager),
+[Sash Pipeline Manager](https://github.com/OrcaBus/service-sash-pipeline-manager),
+[Analysis Glue](https://github.com/OrcaBus/service-analysis-glue))
 
-### Status Enum
+**Downstream:** Any OrcaBus service that consumes `Icav2WesAnalysisStateChange` events (e.g.
+[Dragen WGTS DNA Pipeline Manager](https://github.com/OrcaBus/service-dragen-wgts-dna-pipeline-manager),
+[Oncoanalyser WGTS DNA](https://github.com/OrcaBus/service-oncoanalyser-wgts-dna-pipeline-manager))
 
-ICAv2 state change events comprise the following list of statuses:
+## Pipeline State Flow
 
-<details>
+The service orchestrates multiple Step Functions state machines that manage an
+analysis from initial request through ICAv2 execution to completion reporting.
 
-<summary>Click to expand</summary>
+### 1. Icav2WesRequest → Launch Analysis
 
-* REQUESTED
-* QUEUED
-* INITIALIZING
-* PREPARING_INPUTS
-* IN_PROGRESS
-* GENERATING_OUTPUTS
-* AWAITING_INPUT
-* ABORTING
-* SUCCEEDED
-* FAILED
-* FAILED_FINAL
-* ABORTED
+State machine: [`launch_icav2_analysis_sfn_template`](app/step-functions-templates/launch_icav2_analysis_sfn_template.asl.json)
 
-</details>
+![Launch ICAv2 Analysis](docs/draw-io-exports/launch-icav2-analysis.svg)
 
-This is a lot and floods our external event bus.
-We trim this down and map these to the equivalent states in [AWS BATCH](https://docs.aws.amazon.com/batch/latest/APIReference/API_JobDetail.html)
-Although we keep the 'ABORTED' status as is.
+When an `Icav2WesRequest` event arrives (via the WES Request SQS queue or API),
+this state machine submits the analysis to ICAv2:
 
-<details>
+1. **Update WES API** — sets the analysis status to `RUNNABLE`
+2. **Launch ICAv2 Analysis** — calls the ICA API via wrapica to submit the
+   CWL/Nextflow analysis with the provided inputs, engine parameters, and tags
+3. **Store analysis payload** — writes the launch payload to DynamoDB for
+   auditability (retained 180 days)
+4. **Unlock callback ID** — releases the waiting event-source Lambda that
+   submitted the request
 
-<summary>Click to expand</summary>
+On launch failure, the status is set to `FAILED` with the appropriate error
+type (`CreateAnalysisInputFailure`, `AnalysisLaunchFailure`, or
+`PipelineNotFoundFailure`).
 
-* SUBMITTED: On post request from the WES API
-* PENDING: In the WES API Queue (:construction: Not yet implemented, will be added in the future when we add in the queue system)
-* RUNNABLE: Step Function to run the analysis has been triggered.
-* STARTING: Event from ICAv2 parsed through, the process has been registered on ICAv2
-  * (renamed from INITIALIZING)
-* RUNNING (renamed from IN_PROGRESS)
-* SUCCEEDED: The analysis has completed successfully.
-* FAILED: The analysis has failed.
-* ABORTED: The analysis has been aborted.
+### 2. ICA state changes → WES status updates
 
-</details>
+State machine: [`handle_icav2_analysis_state_change_sfn_template`](app/step-functions-templates/handle_icav2_analysis_state_change_sfn_template.asl.json)
 
-![Events Overview](./docs/drawio-exports/icav2-wes-handler-events.drawio.svg)
+![Handle ICAv2 Analysis State Change](docs/draw-io-exports/handle-icav2-analysis-state-change.svg)
 
-### WES State Change Requests
+Triggered by ICAv2 SQS notifications when an analysis changes state. This
+orchestrator state machine:
 
-<details>
+1. **Filters relevant statuses** — only processes `INITIALIZING`, `IN_PROGRESS`,
+   `SUCCEEDED`, `FAILED`, `FAILED_FINAL`, `ABORTED`
+2. **For terminal states** (SUCCEEDED, FAILED, ABORTED):
+   - Runs [Nextflow file transfer](#nextflow-pipeline-file-transfer)
+   - Runs [Filemanager sync](#filemanager-sync)
+   - For SUCCEEDED: runs [integrity validation](#output-file-integrity-validation)
+3. **Updates the WES API** — maps ICA status to WES status and emits a state
+   change event
+4. **Unlocks callback ID** — releases the waiting `handleIcaEvent` Lambda
 
-<summary>Click to expand!</summary>
+### 3. Abort Analysis
 
-```json5
-{
-  "DetailType": "Icav2WesAnalysisStateChange",
-  "source": "orcabus.icav2wesmanager",
-  "account": "843407916570",
-  "time": "2025-05-28T03:54:35Z",
-  "region": "ap-southeast-2",
-  "resources": [],
-  "detail": {
-    "id": "iwa.01JWAGE5PWS5JN48VWNPYSTJRN",
-    "name": "bclconvert-interop-qc",
-    "inputs": {
-      "bclconvert_report_directory": {
-        "class": "Directory",
-        "location": "s3://pipeline-dev-cache-503977275616-ap-southeast-2/byob-icav2/development/primary/20231010_pi1-07_0329_A222N7LTD3/202504179cac7411/Reports/"
-      },
-      "interop_directory": {
-        "class": "Directory",
-        "location": "s3://pipeline-dev-cache-503977275616-ap-southeast-2/byob-icav2/development/primary/20231010_pi1-07_0329_A222N7LTD3/202504179cac7411/InterOp/"
-      },
-      "instrument_run_id": "20231010_pi1-07_0329_A222N7LTD3"
-    },
-    "engineParameters": {
-      "pipelineId": "55a8bb47-d32b-48dd-9eac-373fd487ccec",
-      "projectId": "ea19a3f5-ec7c-4940-a474-c31cd91dbad4",
-      "outputUri": "s3://pipeline-dev-cache-503977275616-ap-southeast-2/byob-icav2/development/test_data/bclconvert-interop-qc-test/",
-      "logsUri": "s3://pipeline-dev-cache-503977275616-ap-southeast-2/byob-icav2/development/test_data/logs/bclconvert-interop-qc-test/"
-    },
-    "tags": {
-      "instrument_run_id": "20231010_pi1-07_0329_A222N7LTD3"
-    },
-    "status": "SUBMITTED",
-    "submissionTime": "2025-05-28T03:54:35.612655",
-    "stepsLaunchExecutionArn": "arn:aws:states:ap-southeast-2:843407916570:execution:icav2-wes-launchIcav2Analysis:3f176fc2-d8e0-4bd5-8d2f-f625d16f6bf6",
-    "icav2AnalysisId": null,
-    "startTime": "2025-05-28T03:54:35.662401+00:00",
-    "endTime": null
-  }
-}
-```
+State machine: [`abort_icav2_analysis_sfn_template`](app/step-functions-templates/abort_icav2_analysis_sfn_template.asl.json)
 
-Once an analysis has launched on ICAv2, we will forward sqs events in the ICAv2 WES analysis status changes enum list.
+A simple single-step state machine that calls the ICA API to abort a running
+analysis. Retries with 60-second intervals (max 3 attempts).
 
-We will also populate the analysis id in the `icav2AnalysisId` field once the analysis has been launched on ICAv2.
+## Post-Completion Features
 
-</details>
+When an analysis reaches a terminal state, the following post-processing steps
+run automatically before the final status is reported.
 
-### WES API Overview
+### Nextflow Pipeline File Transfer
 
-We support the following endpoints
+State machine: [`handle_nextflow_files_sfn_template`](app/step-functions-templates/handle_nextflow_files_sfn_template.asl.json)
 
-**GET**
+![Handle Nextflow Files](docs/draw-io-exports/handle-nextflow-files.svg)
 
-* api/v1/analyses/
-* api/v1/analyses/{id}/
+For Nextflow pipelines, ICAv2 places execution metadata (e.g. `nextflow.log`,
+`.command.*` files, `trace.txt`) in the `logsUri` rather than the `outputUri`.
+This state machine:
 
-**POST**
+1. Determines the pipeline language (CWL or Nextflow)
+2. If Nextflow: copies log files from `logsUri` to `outputUri` so all artefacts
+   are co-located
 
-* api/v1/analyses/
+CWL pipelines skip this step entirely.
 
-**PATCH**
+### Filemanager Sync
 
-* api/v1/analyses/{id}:abort
+State machine: [`handle_filemanager_sfn_template`](app/step-functions-templates/handle_filemanager_sfn_template.asl.json)
 
-### WES POST
+![Handle Filemanager](docs/draw-io-exports/handle-filemanager.svg)
 
-The WES POST endpoint is used to submit a new analysis job.
+Ensures the OrcaBus [Filemanager](https://github.com/OrcaBus/orcabus) has
+indexed all output files:
 
-The request body should contain the following keys:
+1. **Tags output files** with `portalRunId` attributes in the filemanager
+2. **Verifies sync** — compares the file count in the filemanager against ICAv2
+3. **Retries** every 60 seconds for up to 1 hour if counts don't match
+4. **Fails** if sync is not achieved within the timeout
 
-* **name**: The unique name of the analysis job,
-  * this will be mapped to the user-reference attribute.
+### Output File Integrity Validation
 
-* **inputs**:
-  * A key-value store of inputs.
-  * For CWL based workflows this will look like a standard CWL inputs object
-  * For nextflow based workflows, we assume URIs are provided for file / directory parameters
+State machine: [`handle_corrupted_files_sfn_template`](app/step-functions-templates/handle_corrupted_files_sfn_template.asl.json)
 
-* **tags**:
-  * A key-value store of tags.
-  * These will be added to the analysis jobs as user tags
+![Handle Corrupted Files](docs/draw-io-exports/handle-corrupted-files.svg)
 
-* **engineParameters**:
-  * projectId - the ICAv2 project context to run the analysis in
-  * pipelineId - the ICAv2 pipeline id to run
-  * outputUri - the output location to store the results of the analysis
-  * logsUri - the location to store the logs of the analysis (only available after the project has completed)
+For SUCCEEDED analyses, validates the integrity of critical output files:
 
+1. Queries the filemanager for all output file ingest IDs by `portalRunId`
+2. For each file (processed in batches of 50):
+   - **BAM files** → validates via `samtools quickcheck` (ECS Fargate task)
+   - **VCF index files** (`.tbi`) → validates the associated VCF via `tabix`
+     (ECS Fargate task)
+   - **Other files** → checks for corruption indicators via filemanager metadata
+3. If any corrupted files are found, the analysis status is overridden to
+   `FAILED` with error type `AnalysisOutputFileCorruption` and a message listing
+   the corrupted S3 URIs
 
-<details>
+## Event Contract
 
-<summary>Click to expand</summary>
+### Consumed Events
 
-```json5
- {
-  // The unique analysis name
-  "name": "bclconvert-interop-qc",
-  // The inputs to the analysis
-  "inputs": {
-    "bclconvert_report_directory": {
-      "class": "Directory",
-      "location": "s3://pipeline-dev-cache-503977275616-ap-southeast-2/byob-icav2/development/primary/20231010_pi1-07_0329_A222N7LTD3/202504179cac7411/Reports/"
-    },
-    "interop_directory": {
-      "class": "Directory",
-      "location": "s3://pipeline-dev-cache-503977275616-ap-southeast-2/byob-icav2/development/primary/20231010_pi1-07_0329_A222N7LTD3/202504179cac7411/InterOp/"
-    },
-    "instrument_run_id": "20231010_pi1-07_0329_A222N7LTD3"
-  },
-  // The engine parameters for the analysis
-  "engineParameters": {
-    // The ICAv2 pipeline id to run
-    "pipelineId": "55a8bb47-d32b-48dd-9eac-373fd487ccec",
-    // The ICAv2 project id to run the analysis in
-    "projectId": "ea19a3f5-ec7c-4940-a474-c31cd91dbad4",
-    // The output location to store the results of the analysis
-    "outputUri": "s3://pipeline-dev-cache-503977275616-ap-southeast-2/byob-icav2/development/test_data/bclconvert-interop-qc-test/",
-    // The location to store the logs of the analysis
-    "logsUri": "s3://pipeline-dev-cache-503977275616-ap-southeast-2/byob-icav2/development/test_data/logs/bclconvert-interop-qc-test/"
-  },
-  // Any tags to add to the analysis job (helpful for finding the analysis job later)
-  "tags": {
-    "instrument_run_id": "20231010_pi1-07_0329_A222N7LTD3"
-  },
-  "status": "SUBMITTED"
-}
-```
+| Event | Source | DetailType | Description |
+|-------|--------|------------|-------------|
+| WES Request | Any (not `orcabus.icav2wesmanager`) | `Icav2WesRequest` | Triggers a new ICAv2 analysis submission |
+| ICA State Change | ICAv2 (via SQS) | N/A (SQS notification) | ICAv2 analysis status updates filtered by `icav2_wes_orcabus_id` tag |
 
-</details>
+### Published Events
 
-To run this over the WES API, you can use the following curl command:
+| Event | Source | DetailType | Description |
+|-------|--------|------------|-------------|
+| Analysis State Change | `orcabus.icav2wesmanager` | `Icav2WesAnalysisStateChange` | Emitted on every WES status transition |
+
+## WES API
+
+The API is served via FastAPI on Lambda behind API Gateway with Cognito
+authentication.
+
+**Base URL:** `https://icav2-wes.<environment>.umccr.org`
+
+**Swagger:** `https://icav2-wes.<environment>.umccr.org/schema/swagger-ui`
+
+### Endpoints
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/api/v1/analysis/` | Cognito | List analyses (filterable by `name`, `status`) |
+| `GET` | `/api/v1/analysis/{id}` | Cognito | Get a single analysis by orcabus ID |
+| `POST` | `/api/v1/analysis/` | Cognito | Create and launch a new analysis |
+| `PATCH` | `/api/v1/analysis/{id}` | Internal | Update analysis status (used by Step Functions) |
+| `PATCH` | `/api/v1/analysis/{id}:abort` | Cognito | Abort a running analysis |
+
+### Status Lifecycle
+
+ICAv2 has many intermediate states. The WES Manager maps these to a simplified
+lifecycle inspired by [AWS Batch](https://docs.aws.amazon.com/batch/latest/APIReference/API_JobDetail.html):
+
+| WES Status | Trigger |
+|------------|---------|
+| `SUBMITTED` | Analysis record created in WES API |
+| `RUNNABLE` | Launch Step Function has started |
+| `STARTING` | ICAv2 reports `INITIALIZING` |
+| `RUNNING` | ICAv2 reports `IN_PROGRESS` |
+| `SUCCEEDED` | ICAv2 reports `SUCCEEDED` and integrity checks pass |
+| `FAILED` | ICAv2 reports `FAILED`/`FAILED_FINAL`, launch failure, or integrity check failure |
+| `ABORTED` | ICAv2 reports `ABORTED` |
+
+## Submitting an Analysis
+
+An analysis can be submitted either via the REST API or by putting an event on
+the `OrcaBusMain` EventBridge bus.
+
+### Via the WES API (curl)
 
 ```bash
 curl \
@@ -202,347 +220,232 @@ curl \
   --header "Accept: application/json" \
   --header "Authorization: Bearer ${ORCABUS_TOKEN}" \
   --header "Content-Type: application/json" \
-  --data "$( \
-    jq --raw-output \
-      '
-        {
-          "name": "bclconvert-interop-qc--20231010_pi1-07_0329_A222N7LTD3",
-          "inputs": {
-            "bclconvert_report_directory": {
-              "class": "Directory",
-              "location": "s3://pipeline-dev-cache-503977275616-ap-southeast-2/byob-icav2/development/primary/20231010_pi1-07_0329_A222N7LTD3/202504179cac7411/Reports/"
-            },
-            "interop_directory": {
-              "class": "Directory",
-              "location": "s3://pipeline-dev-cache-503977275616-ap-southeast-2/byob-icav2/development/primary/20231010_pi1-07_0329_A222N7LTD3/202504179cac7411/InterOp/"
-            },
-            "instrument_run_id": "20231010_pi1-07_0329_A222N7LTD3"
-          },
-          "engineParameters": {
-            "pipelineId": "55a8bb47-d32b-48dd-9eac-373fd487ccec",
-            "projectId": "ea19a3f5-ec7c-4940-a474-c31cd91dbad4",
-            "outputUri": "s3://pipeline-dev-cache-503977275616-ap-southeast-2/byob-icav2/development/test_data/bclconvert-interop-qc-test/",
-            "logsUri": "s3://pipeline-dev-cache-503977275616-ap-southeast-2/byob-icav2/development/test_data/logs/bclconvert-interop-qc-test/"
-          },
-          "tags": {
-            "instrument_run_id": "20231010_pi1-07_0329_A222N7LTD3"
-          }
-        }
-      ' \
-  )" \
-  --url "https://icav2-wes.dev.umccr.org/api/v1/analysis/"
+  --data '{
+    "name": "my-analysis--unique-run-name",
+    "inputs": { ... },
+    "engineParameters": {
+      "pipelineId": "<icav2-pipeline-uuid>",
+      "projectId": "<icav2-project-uuid>",
+      "outputUri": "s3://<bucket>/<output-prefix>/",
+      "logsUri": "s3://<bucket>/<logs-prefix>/",
+      "cacheUri": "s3://<bucket>/<cache-prefix>/"
+    },
+    "tags": {
+      "portalRunId": "<portal-run-id>",
+      "myCustomTag": "value"
+    }
+  }' \
+  --url "https://icav2-wes.${ENVIRONMENT}.umccr.org/api/v1/analysis/"
 ```
 
-You can also use an event bus to submit the analysis job, which will be handled by the WES API.
+### Via EventBridge
 
-```json5
+```json
 {
   "EventBusName": "OrcaBusMain",
-  "DetailType": "Icav2WesAnalysisRequest",
-  "Source": "your source",
+  "Source": "orcabus.yourservice",
+  "DetailType": "Icav2WesRequest",
   "Detail": {
-    // The same as the POST request body above as a json body
+    "name": "my-analysis--unique-run-name",
+    "inputs": { ... },
+    "engineParameters": {
+      "pipelineId": "<icav2-pipeline-uuid>",
+      "projectId": "<icav2-project-uuid>",
+      "outputUri": "s3://<bucket>/<output-prefix>/",
+      "logsUri": "s3://<bucket>/<logs-prefix>/",
+      "cacheUri": "s3://<bucket>/<cache-prefix>/"
+    },
+    "tags": {
+      "portalRunId": "<portal-run-id>"
+    }
   }
 }
 ```
 
+### CWL Pipeline Example
 
-### WES GET
+CWL inputs use the standard CWL object model with `class` and `location` fields:
 
-Get requests contain the same information as a POST request but with the following additional keys.
-
-* id:  The ICAv2 WES Handler Orcabus Id
-* status: The status of the analysis job
-* submissionTime: The time the analysis job was submitted to the WES API
-* startTime: The time the analysis job started running on ICAv2
-* endTime: The time the analysis job finished running on ICAv2
-* errorMessage: The error message if the analysis job failed
-
-> To keep compatibility with both CWL AND Nextflow, we do not use output jsons as available in CWL,
-> instead we expect all data and metadata to be available in the analysis job output location.
-
-You can retrieve the analysis job by name or id.
-
-You can also retrieve all analyses jobs by using the `GET /api/v1/analyses/` endpoint.
-
-#### By Name
-
-<details>
-
-<summary>Click to expand</summary>
-
-```bash
-curl \
-  --silent --show-error --location --fail \
-  --request "GET" \
-  --header "Accept: application/json" \
-  --header "Authorization: Bearer ${ORCABUS_TOKEN}" \
-  --url "https://icav2-wes.dev.umccr.org/api/v1/analysis?name=bclconvert-interop-qc--20231010_pi1-07_0329_A222N7LTD3"
-```
-
-Will retrieve the following response in pagination format
-
-```json
+```json5
 {
-  "links": {
-    "previous": null,
-    "next": null
-  },
-  "pagination": {
-    "page": 1,
-    "rowsPerPage": 100,
-    "count": 1
-  },
-  "results": [
-    {
-      "id": "iwa.01JWAGE5PWS5JN48VWNPYSTJRN",
-      "name": "bclconvert-interop-qc--20231010_pi1-07_0329_A222N7LTD3",
-      "inputs": {
-        "bclconvert_report_directory": {
-          "class": "Directory",
-          "location": "s3://pipeline-dev-cache-503977275616-ap-southeast-2/byob-icav2/development/primary/20231010_pi1-07_0329_A222N7LTD3/202504179cac7411/Reports/"
-        },
-        "instrument_run_id": "20231010_pi1-07_0329_A222N7LTD3",
-        "interop_directory": {
-          "class": "Directory",
-          "location": "s3://pipeline-dev-cache-503977275616-ap-southeast-2/byob-icav2/development/primary/20231010_pi1-07_0329_A222N7LTD3/202504179cac7411/InterOp/"
-        }
-      },
-      "engineParameters": {
-        "pipelineId": "55a8bb47-d32b-48dd-9eac-373fd487ccec",
-        "projectId": "ea19a3f5-ec7c-4940-a474-c31cd91dbad4",
-        "outputUri": "s3://pipeline-dev-cache-503977275616-ap-southeast-2/byob-icav2/development/test_data/bclconvert-interop-qc-test/",
-        "logsUri": "s3://pipeline-dev-cache-503977275616-ap-southeast-2/byob-icav2/development/test_data/logs/bclconvert-interop-qc-test/"
-      },
-      "tags": {
-        "instrument_run_id": "20231010_pi1-07_0329_A222N7LTD3"
-      },
-      "status": "SUCCEEDED",
-      "submissionTime": "2025-05-28T03:54:35.612655",
-      "stepsLaunchExecutionArn": "arn:aws:states:ap-southeast-2:843407916570:execution:icav2-wes-launchIcav2Analysis:3f176fc2-d8e0-4bd5-8d2f-f625d16f6bf6",
-      "icav2AnalysisId": "b7157552-74a1-4ff4-a6b3-b37a85a485cf",
-      "startTime": "2025-05-28T03:54:35.662401Z",
-      "endTime": "2025-05-28T04:32:26.456422Z"
-    }
-  ]
-}
-```
-
-</details>
-
-#### By Id
-
-Alternatively, you can retrieve the analysis job by id by appending the id to the endpoint.
-
-<details>
-
-<summary>Click to expand!</summary>
-
-```shell
-curl \
-  --silent --show-error --location --fail \
-  --request "GET" \
-  --header "Accept: application/json" \
-  --header "Authorization: Bearer ${ORCABUS_TOKEN}" \
-  --url "https://icav2-wes.dev.umccr.org/api/v1/analysis/iwa.01JWAGE5PWS5JN48VWNPYSTJRN"
-```
-
-Which will return the same response as above, but without the pagination links.
-
-```json
-{
-  "id": "iwa.01JWAGE5PWS5JN48VWNPYSTJRN",
   "name": "bclconvert-interop-qc--20231010_pi1-07_0329_A222N7LTD3",
   "inputs": {
     "bclconvert_report_directory": {
       "class": "Directory",
       "location": "s3://pipeline-dev-cache-503977275616-ap-southeast-2/byob-icav2/development/primary/20231010_pi1-07_0329_A222N7LTD3/202504179cac7411/Reports/"
     },
-    "instrument_run_id": "20231010_pi1-07_0329_A222N7LTD3",
     "interop_directory": {
       "class": "Directory",
       "location": "s3://pipeline-dev-cache-503977275616-ap-southeast-2/byob-icav2/development/primary/20231010_pi1-07_0329_A222N7LTD3/202504179cac7411/InterOp/"
-    }
+    },
+    "instrument_run_id": "20231010_pi1-07_0329_A222N7LTD3"
   },
   "engineParameters": {
     "pipelineId": "55a8bb47-d32b-48dd-9eac-373fd487ccec",
     "projectId": "ea19a3f5-ec7c-4940-a474-c31cd91dbad4",
-    "outputUri": "s3://pipeline-dev-cache-503977275616-ap-southeast-2/byob-icav2/development/test_data/bclconvert-interop-qc-test/",
-    "logsUri": "s3://pipeline-dev-cache-503977275616-ap-southeast-2/byob-icav2/development/test_data/logs/bclconvert-interop-qc-test/"
+    "outputUri": "s3://pipeline-dev-cache-503977275616-ap-southeast-2/byob-icav2/development/analysis-output/bclconvert-interop-qc/20231010_pi1-07_0329_A222N7LTD3/",
+    "logsUri": "s3://pipeline-dev-cache-503977275616-ap-southeast-2/byob-icav2/development/logs/bclconvert-interop-qc/20231010_pi1-07_0329_A222N7LTD3/"
   },
   "tags": {
+    "portalRunId": "202407015a1b2c3d",  // pragma: allowlist secret
     "instrument_run_id": "20231010_pi1-07_0329_A222N7LTD3"
-  },
-  "status": "SUCCEEDED",
-  "submissionTime": "2025-05-28T03:54:35.612655",
-  "stepsLaunchExecutionArn": "arn:aws:states:ap-southeast-2:843407916570:execution:icav2-wes-launchIcav2Analysis:3f176fc2-d8e0-4bd5-8d2f-f625d16f6bf6",
-  "icav2AnalysisId": "b7157552-74a1-4ff4-a6b3-b37a85a485cf",
-  "startTime": "2025-05-28T03:54:35.662401Z",
-  "endTime": "2025-05-28T04:32:26.456422Z"
+  }
 }
 ```
 
-</details>
+### Nextflow Pipeline Example
 
+Nextflow inputs use S3 URIs directly (no `class`/`location` wrapper). The
+`cacheUri` engine parameter enables Nextflow resume/caching:
 
+```json5
+{
+  "name": "oncoanalyser-wgts-dna--L2301368",
+  "inputs": {
+    "mode": "wgts",
+    "sample_name": "L2301368",
+    "tumor_wgs_bam": "s3://pipeline-prod-cache-503977275616-ap-southeast-2/byob-icav2/production/analysis-output/dragen-wgts-dna/L2301368/L2301368_tumor.bam",
+    "normal_wgs_bam": "s3://pipeline-prod-cache-503977275616-ap-southeast-2/byob-icav2/production/analysis-output/dragen-wgts-dna/L2301368/L2301368_normal.bam",
+    "ref_data_hmf_data_path": "s3://pipeline-prod-refdata-503977275616-ap-southeast-2/oncoanalyser/hmf_data/",
+    "ref_data_genome_version": "38"
+  },
+  "engineParameters": {
+    "pipelineId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "projectId": "ea19a3f5-ec7c-4940-a474-c31cd91dbad4",
+    "outputUri": "s3://pipeline-prod-cache-503977275616-ap-southeast-2/byob-icav2/production/analysis-output/oncoanalyser-wgts-dna/L2301368/",
+    "logsUri": "s3://pipeline-prod-cache-503977275616-ap-southeast-2/byob-icav2/production/logs/oncoanalyser-wgts-dna/L2301368/",
+    "cacheUri": "s3://pipeline-prod-cache-503977275616-ap-southeast-2/byob-icav2/production/cache/oncoanalyser-wgts-dna/",
+    "analysisStorageSize": "LARGE"
+  },
+  "tags": {
+    "portalRunId": "20240801abcdef12",  // pragma: allowlist secret
+    "libraryId": "L2301368",
+    "subjectId": "SBJ03456"
+  }
+}
+```
 
+**Engine Parameters Reference:**
 
-## Step Functions Overview
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `projectId` | Yes | ICAv2 project context for the analysis |
+| `pipelineId` | Yes | ICAv2 pipeline ID to execute |
+| `outputUri` | Yes | S3 output directory (must end with `/`) |
+| `logsUri` | Yes | S3 logs directory (must end with `/`) |
+| `cacheUri` | Yes | S3 cache directory for Nextflow resume |
+| `analysisStorageSize` | No | One of `SMALL`, `MEDIUM`, `LARGE`, `XLARGE`, `2XLARGE`, `3XLARGE` |
 
-### Submit job to ICA
+## Infrastructure
 
-This will become more complex as we add queueing and priority support to the WES API.
+The service is deployed via AWS CDK. Resources are split into two stacks:
+stateful (data/queues) and stateless (compute/events).
 
-Along with JSON-schema validation steps and pre-bundling support.
+Event bus: `OrcaBusMain`
+Event source: `orcabus.icav2wesmanager`
 
-![Submit job to ICA](./docs/workflow-studio-exports/launch-icav2-analysis-sfn.svg)
+### Stateful Resources
 
-### Retrieve ICAv2 Analysis State Change Event
+| Resource | Name | Purpose |
+|----------|------|---------|
+| DynamoDB Table | `icav2WesManagerApiDynamoDBTable` | Main API data store (indexes: `name`, `status`) |
+| DynamoDB Table | `icav2WesManagerPayloadsTable` | Stores compressed analysis launch payloads |
+| DynamoDB Table | `icav2WesManagerCallbackTable` | Durable execution callback tracking |
+| S3 Bucket | `icav2-wes-artifacts-<account>-<region>` | Analysis payloads and error logs |
+| SQS Queue | `Icav2WesRequestSqsQueue` | Buffers incoming WES request events |
+| SQS Queue | `Icav2WesAnalysisSqsQueue` | Receives ICAv2 state change notifications |
 
-This step function is triggered by an ICAv2 analysis state change event.
+### Stateless Resources
 
-![Retrieve ICAv2 Analysis State Change Event](./docs/workflow-studio-exports/handle-icav2-state-change-event-sfn.svg)
+| Resource | Count | Description |
+|----------|-------|-------------|
+| Lambda Functions | 17 | Python 3.14, ARM64 — one per task |
+| Step Functions | 6 | ASL templates in [`app/step-functions-templates/`](app/step-functions-templates) |
+| ECS Fargate Tasks | 2 | BAM validation, VCF validation |
+| EventBridge Rules | 1 | Routes `Icav2WesRequest` events to the SQS queue |
+| API Gateway | 1 | HTTP API with Cognito authorizer |
 
-### Abort ICAv2 Analysis
+### Stacks
 
-Handles an abort request from the WES API.
+The CDK project deploys a CodePipeline in the toolchain account that promotes
+changes to `beta`, `gamma`, and `prod`.
 
-While this step function is just a simple lambda, by placing in an SFN like this, we can
-set retries to 60 seconds and a max of 5 attempts.
+```sh
+# List stateless stacks
+pnpm cdk-stateless ls
+# OrcaBusStatelessICAv2WesStack
+# OrcaBusStatelessICAv2WesStack/.../OrcaBusBeta/DeployStack
+# OrcaBusStatelessICAv2WesStack/.../OrcaBusGamma/DeployStack
+# OrcaBusStatelessICAv2WesStack/.../OrcaBusProd/DeployStack
 
-![Abort ICAv2 Analysis](./docs/workflow-studio-exports/abort-analysis-sfn.svg)
+# List stateful stacks
+pnpm cdk-stateful ls
+# OrcabusStatefulICAv2WesStack
+# OrcabusStatefulICAv2WesStack/.../OrcaBusBeta/DeployStack
+# OrcabusStatefulICAv2WesStack/.../OrcaBusGamma/DeployStack
+# OrcabusStatefulICAv2WesStack/.../OrcaBusProd/DeployStack
+```
 
-:construction: EVERYTHING BELOW HERE :construction:
+## CI/CD and Release Management
 
-## Project Structure
+All changes merged to `main` are automatically built and deployed to `beta` and
+`gamma`. Promotion to `prod` requires manually enabling the CodePipeline
+transition in the AWS console.
 
-The project is organized into the following key directories:
+## Related Services
 
-- **`./app`**: Contains the main application logic. You can open the code editor directly in this folder, and the application should run independently.
-
-- **`./bin/deploy.ts`**: Serves as the entry point of the application. It initializes two root stacks: `stateless` and `stateful`. You can remove one of these if your service does not require it.
-
-- **`./infrastructure`**: Contains the infrastructure code for the project:
-  - **`./infrastructure/toolchain`**: Includes stacks for the stateless and stateful resources deployed in the toolchain account. These stacks primarily set up the CodePipeline for cross-environment deployments.
-  - **`./infrastructure/stage`**: Defines the stage stacks for different environments:
-    - **`./infrastructure/stage/config.ts`**: Contains environment-specific configuration files (e.g., `beta`, `gamma`, `prod`).
-    - **`./infrastructure/stage/stack.ts`**: The CDK stack entry point for provisioning resources required by the application in `./app`.
-
-- **`.github/workflows/pr-tests.yml`**: Configures GitHub Actions to run tests for `make check` (linting and code style), tests defined in `./test`, and `make test` for the `./app` directory. Modify this file as needed to ensure the tests are properly configured for your environment.
-
-- **`./test`**: Contains tests for CDK code compliance against `cdk-nag`. You should modify these test files to match the resources defined in the `./infrastructure` folder.
+| Relationship | Service | Description |
+|-------------|---------|-------------|
+| Upstream | [Dragen WGTS DNA Pipeline Manager](https://github.com/OrcaBus/service-dragen-wgts-dna-pipeline-manager) | Submits DRAGEN DNA analyses |
+| Upstream | [Sash Pipeline Manager](https://github.com/OrcaBus/service-sash-pipeline-manager) | Submits Sash analyses |
+| Upstream | [Analysis Glue](https://github.com/OrcaBus/service-analysis-glue) | Orchestrates pipeline trigger logic |
+| Downstream | [Dragen WGTS DNA Pipeline Manager](https://github.com/OrcaBus/service-dragen-wgts-dna-pipeline-manager) | Consumes state change events |
+| Downstream | [Oncoanalyser WGTS DNA](https://github.com/OrcaBus/service-oncoanalyser-wgts-dna-pipeline-manager) | Consumes state change events |
+| Dependency | [Filemanager](https://github.com/OrcaBus/orcabus) | File indexing and attribute tagging |
+| Dependency | [Workflow Manager](https://github.com/OrcaBus/orcabus) | Workflow state tracking |
+| External | [ICAv2 API](https://help.ica.illumina.com/) | Illumina Connected Analytics execution engine |
 
 ## Setup
 
 ### Requirements
 
 ```sh
-node --version
-v22.9.0
-
-# Update Corepack (if necessary, as per pnpm documentation)
-npm install --global corepack@latest
-
-# Enable Corepack to use pnpm
+node --version  # v22+
 corepack enable pnpm
-
 ```
 
 ### Install Dependencies
-
-To install all required dependencies, run:
 
 ```sh
 make install
 ```
 
+### Commands
+
+```sh
+make check     # Run linting, formatting, and audit checks
+make fix       # Auto-fix linting and formatting issues
+make test      # Run CDK nag tests
+```
+
 ### CDK Commands
 
-You can access CDK commands using the `pnpm` wrapper script.
-
-This template provides two types of CDK entry points: `cdk-stateless` and `cdk-stateful`.
-
-- **`cdk-stateless`**: Used to deploy stacks containing stateless resources (e.g., AWS Lambda), which can be easily redeployed without side effects.
-- **`cdk-stateful`**: Used to deploy stacks containing stateful resources (e.g., AWS DynamoDB, AWS RDS), where redeployment may not be ideal due to potential side effects.
-
-The type of stack to deploy is determined by the context set in the `./bin/deploy.ts` file. This ensures the correct stack is executed based on the provided context.
-
-For example:
-
 ```sh
-# Deploy a stateless stack
-pnpm cdk-stateless deploy OrcaBusStatelessICAv2WesStack/Icav2WesManagerStatelessDeploymentPipeline/OrcaBusBeta/Icav2WesManagerStatelessDeployStack
-
-# Deploy a stateful stack
-pnpm cdk-stateful deploy OrcabusStatefulICAv2WesStack/Icav2WesManagerStatefulDeployPipeline/OrcaBusBeta/Icav2WesManagerStatefulDeployStack
+pnpm cdk-stateless synth    # Synthesize stateless stack
+pnpm cdk-stateful synth     # Synthesize stateful stack
+pnpm cdk-stateless deploy OrcaBusStatelessICAv2WesStack/.../<stage>/DeployStack
 ```
 
-### Stacks
+## Glossary & References
 
-This CDK project manages multiple stacks. The root stack (the only one that does not include `DeploymentPipeline` in its stack ID) is deployed in the toolchain account and sets up a CodePipeline for cross-environment deployments to `beta`, `gamma`, and `prod`.
+| Term | Description |
+|------|-------------|
+| ICAv2 | Illumina Connected Analytics v2 — the cloud compute platform |
+| WES | Workflow Execution Service — the REST interface this service exposes |
+| Orcabus ID | ULID-based identifier with a 3-char prefix (e.g. `iwa.01JWAGE5PWS5JN48VWNPYSTJRN`) |
+| portalRunId | Unique run identifier used across OrcaBus services to correlate pipeline outputs |
+| Durable Execution | AWS Lambda pattern using callback IDs for long-running async coordination |
 
-To list all available stacks, run:
-
-```sh
-pnpm cdk-stateless ls
-```
-
-Example output:
-
-```sh
-OrcaBusStatelessICAv2WesStack
-OrcaBusStatelessICAv2WesStack/DeploymentPipeline/OrcaBusBeta/DeployStack (OrcaBusBeta-DeployStack)
-OrcaBusStatelessICAv2WesStack/DeploymentPipeline/OrcaBusGamma/DeployStack (OrcaBusGamma-DeployStack)
-OrcaBusStatelessICAv2WesStack/DeploymentPipeline/OrcaBusProd/DeployStack (OrcaBusProd-DeployStack)
-```
-
-## Linting and Formatting
-
-### Run Checks
-
-To run linting and formatting checks on the root project, use:
-
-```sh
-make check
-```
-
-### Fix Issues
-
-To automatically fix issues with ESLint and Prettier, run:
-
-```sh
-make fix
-```
-
-## Road map :construction:
-
-#### Scheduling support
-
-Support the following enums
-
-* queue: Enum - The queue to run the analysis in,
-  analyses are then not submitted to the ICAv2 API until a slot in the queue is available.
-* priority: int - The priority of the analysis,
-  this is a number between 1 and 10, with 10 being the highest priority.
-
-#### Data-to-compute support
-
-* preBundle: boolean - Whether to pre-bundle the analysis or not,
-  this is a boolean value, with true being pre-bundled and false being not pre-bundled.
-  Useful for if input data is not readily available in the project analysis context.
-  After the analysis is completed, bundles are unlinked from the project and deprecated.
-
-We also may look at storage Credentials options, in a later release of wrapica.
-
-#### JSON Schema validation support
-
-* Validate Schema - Whether to pull in the JSON Schema from the workflow first and validate the inputs
-  against the JSON schema before submitting the analysis job to ICAv2.'
-
-#### Pipeline endpoint support
-
-* Pipeline endpoint, push a pipeline in 'ZIP' format. This might be from nf-core or a CWL pipeline.
-  The pipeline can then be run via the WES API.
-  The pipeline endpoint will handle the 'icav2-drama' for you, for nextflow pipelines specifically,
-  this means adding in the icav2 config type. And for both CWL / nextflow pipelines, will generate
-  the correct input schema meaning the pipeline can be run both in the UI and API.
+- Platform glossary: [OrcaBus wiki](https://github.com/OrcaBus/wiki/blob/main/orcabus-platform/README.md#glossary--references)
+- ICAv2 pipeline orchestration pattern: [OrcaBus wiki — Pipeline Architecture](https://github.com/OrcaBus/wiki/blob/main/orcabus/platform/pipelines.md#pipeline-orchestration-general-logic)
+- Event schemas: [`app/event-schemas/`](app/event-schemas)

@@ -1,0 +1,52 @@
+<mxfile host="app.diagrams.net" modified="2026-07-21T00:00:00.000Z" agent="asl-to-drawio" version="24.0.0" type="device">
+  <diagram id="handle-corrupted-files" name="Handle Corrupted Files">
+    <mxGraphModel dx="900" dy="700" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="900" pageHeight="700" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <!-- Start -->
+        <mxCell id="n1" value="Start" style="ellipse;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#1a1a1a;strokeWidth=2;fontSize=13;fontFamily=Segoe UI;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="147" y="30" width="56" height="36" as="geometry"/>
+        </mxCell>
+        <!-- Get output file ingest IDs -->
+        <mxCell id="n2" value="&lt;b&gt;Get output file ingest IDs&lt;/b&gt;&lt;br&gt;&lt;i style=&quot;font-size:11px;color:#555555&quot;&gt;Query filemanager by portalRunId&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;fontSize=13;fontFamily=Segoe UI;" vertex="1" parent="1">
+          <mxGeometry x="25" y="118" width="300" height="62" as="geometry"/>
+        </mxCell>
+        <!-- For each file batch -->
+        <mxCell id="n3" value="&lt;b&gt;Validate each output file&lt;/b&gt;&lt;br&gt;&lt;i style=&quot;font-size:11px;color:#555555&quot;&gt;BAM: samtools quickcheck, VCF: tabix check&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;fontSize=13;fontFamily=Segoe UI;" vertex="1" parent="1">
+          <mxGeometry x="25" y="228" width="300" height="62" as="geometry"/>
+        </mxCell>
+        <!-- Decision: Any corrupted -->
+        <mxCell id="n4" value="Any files&lt;br&gt;corrupted?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;strokeWidth=2;fontSize=12;fontFamily=Segoe UI;" vertex="1" parent="1">
+          <mxGeometry x="55" y="338" width="240" height="62" as="geometry"/>
+        </mxCell>
+        <!-- Success -->
+        <mxCell id="n5" value="SUCCEEDED" style="ellipse;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=2;fontSize=13;fontFamily=Segoe UI;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="75" y="448" width="200" height="46" as="geometry"/>
+        </mxCell>
+        <!-- Failed with corrupted file list -->
+        <mxCell id="n6" value="FAILED" style="ellipse;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;strokeWidth=2;fontSize=13;fontFamily=Segoe UI;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="500" y="338" width="200" height="46" as="geometry"/>
+        </mxCell>
+        <!-- Edges -->
+        <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#555555;strokeWidth=2;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" source="n1" target="n2" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e2" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#555555;strokeWidth=2;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" source="n2" target="n3" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e3" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#555555;strokeWidth=2;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" source="n3" target="n4" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <!-- No corruption -->
+        <mxCell id="e4" value="all valid" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#555555;strokeWidth=2;fontSize=10;fontStyle=2;fontColor=#888888;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" source="n4" target="n5" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <!-- Corruption found -->
+        <mxCell id="e5" value="corrupted" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#b85450;strokeWidth=2;fontSize=10;fontStyle=2;fontColor=#888888;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" source="n4" target="n6" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

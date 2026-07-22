@@ -1,0 +1,67 @@
+<mxfile host="app.diagrams.net" modified="2026-07-21T00:00:00.000Z" agent="asl-to-drawio" version="24.0.0" type="device">
+  <diagram id="launch-icav2-analysis" name="Launch ICAv2 Analysis">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="1100" pageHeight="850" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <!-- Start -->
+        <mxCell id="n1" value="Start" style="ellipse;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#1a1a1a;strokeWidth=2;fontSize=13;fontFamily=Segoe UI;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="125" y="30" width="56" height="36" as="geometry"/>
+        </mxCell>
+        <!-- Update WES API to RUNNABLE -->
+        <mxCell id="n2" value="&lt;b&gt;Update WES API&lt;/b&gt;&lt;br&gt;&lt;i style=&quot;font-size:11px;color:#555555&quot;&gt;Set status to RUNNABLE&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;fontSize=13;fontFamily=Segoe UI;" vertex="1" parent="1">
+          <mxGeometry x="3" y="118" width="300" height="62" as="geometry"/>
+        </mxCell>
+        <!-- Launch ICAv2 API -->
+        <mxCell id="n3" value="&lt;b&gt;Launch ICAv2 Analysis&lt;/b&gt;&lt;br&gt;&lt;i style=&quot;font-size:11px;color:#555555&quot;&gt;Submit to ICA API via wrapica&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;fontSize=13;fontFamily=Segoe UI;" vertex="1" parent="1">
+          <mxGeometry x="3" y="228" width="300" height="62" as="geometry"/>
+        </mxCell>
+        <!-- Add to payloads database -->
+        <mxCell id="n4" value="&lt;b&gt;Store analysis payload&lt;/b&gt;&lt;br&gt;&lt;i style=&quot;font-size:11px;color:#555555&quot;&gt;Write launch details to DynamoDB&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;fontSize=13;fontFamily=Segoe UI;" vertex="1" parent="1">
+          <mxGeometry x="3" y="338" width="300" height="62" as="geometry"/>
+        </mxCell>
+        <!-- Unlock callback -->
+        <mxCell id="n5" value="&lt;b&gt;Unlock callback ID&lt;/b&gt;&lt;br&gt;&lt;i style=&quot;font-size:11px;color:#555555&quot;&gt;Release waiting event-source Lambda&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;fontSize=13;fontFamily=Segoe UI;" vertex="1" parent="1">
+          <mxGeometry x="3" y="448" width="300" height="62" as="geometry"/>
+        </mxCell>
+        <!-- Success -->
+        <mxCell id="n6" value="Success" style="ellipse;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=2;fontSize=13;fontFamily=Segoe UI;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="53" y="558" width="200" height="46" as="geometry"/>
+        </mxCell>
+        <!-- Failure path - Update WES API Failed -->
+        <mxCell id="n7" value="&lt;b&gt;Update WES API&lt;/b&gt;&lt;br&gt;&lt;i style=&quot;font-size:11px;color:#555555&quot;&gt;Set status to FAILED with error&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;strokeWidth=2;fontSize=13;fontFamily=Segoe UI;" vertex="1" parent="1">
+          <mxGeometry x="450" y="228" width="300" height="62" as="geometry"/>
+        </mxCell>
+        <!-- Edges -->
+        <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#555555;strokeWidth=2;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" source="n1" target="n2" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e2" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#555555;strokeWidth=2;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" source="n2" target="n3" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e3" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#555555;strokeWidth=2;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" source="n3" target="n4" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e4" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#555555;strokeWidth=2;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" source="n4" target="n5" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e5" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#555555;strokeWidth=2;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" source="n5" target="n6" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <!-- Failure edge from Launch to Failed Update -->
+        <mxCell id="e6" value="launch failure" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#b85450;strokeWidth=2;fontSize=10;fontStyle=2;fontColor=#888888;dashed=1;dashPattern=8 4;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" source="n3" target="n7" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <!-- Failure to Unlock -->
+        <mxCell id="e7" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#555555;strokeWidth=2;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" source="n7" target="n5" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="600" y="448"/>
+              <mxPoint x="600" y="479"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

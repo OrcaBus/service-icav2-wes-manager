@@ -1,0 +1,118 @@
+<mxfile host="app.diagrams.net" modified="2026-07-21T00:00:00.000Z" agent="asl-to-drawio" version="24.0.0" type="device">
+  <diagram id="handle-state-change" name="Handle ICAv2 Analysis State Change">
+    <mxGraphModel dx="1200" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="1200" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <!-- Column A -->
+        <!-- Start -->
+        <mxCell id="n1" value="Start" style="ellipse;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#1a1a1a;strokeWidth=2;fontSize=13;fontFamily=Segoe UI;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="147" y="30" width="56" height="36" as="geometry"/>
+        </mxCell>
+        <!-- Decision: Is Relevant Status -->
+        <mxCell id="n2" value="Is relevant&lt;br&gt;status?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;strokeWidth=2;fontSize=12;fontFamily=Segoe UI;" vertex="1" parent="1">
+          <mxGeometry x="55" y="118" width="240" height="62" as="geometry"/>
+        </mxCell>
+        <!-- Decision: Is Terminal Status -->
+        <mxCell id="n3" value="Is terminal&lt;br&gt;status?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;strokeWidth=2;fontSize=12;fontFamily=Segoe UI;" vertex="1" parent="1">
+          <mxGeometry x="55" y="228" width="240" height="62" as="geometry"/>
+        </mxCell>
+        <!-- Handle Nextflow Output Files -->
+        <mxCell id="n4" value="&lt;b&gt;Handle Nextflow output files&lt;/b&gt;&lt;br&gt;&lt;i style=&quot;font-size:11px;color:#555555&quot;&gt;Copy log files to output directory&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;fontSize=13;fontFamily=Segoe UI;" vertex="1" parent="1">
+          <mxGeometry x="25" y="338" width="300" height="62" as="geometry"/>
+        </mxCell>
+        <!-- Handle Filemanager -->
+        <mxCell id="n5" value="&lt;b&gt;Sync Filemanager&lt;/b&gt;&lt;br&gt;&lt;i style=&quot;font-size:11px;color:#555555&quot;&gt;Tag outputs with portalRunId and verify sync&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;fontSize=13;fontFamily=Segoe UI;" vertex="1" parent="1">
+          <mxGeometry x="25" y="448" width="300" height="62" as="geometry"/>
+        </mxCell>
+        <!-- Column B -->
+        <!-- Decision: Is workflow SUCCEEDED -->
+        <mxCell id="n6" value="Workflow&lt;br&gt;SUCCEEDED?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;strokeWidth=2;fontSize=12;fontFamily=Segoe UI;" vertex="1" parent="1">
+          <mxGeometry x="575" y="118" width="240" height="62" as="geometry"/>
+        </mxCell>
+        <!-- Handle Corrupted Files -->
+        <mxCell id="n7" value="&lt;b&gt;Validate output file integrity&lt;/b&gt;&lt;br&gt;&lt;i style=&quot;font-size:11px;color:#555555&quot;&gt;BAM/VCF validation via ECS tasks&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;fontSize=13;fontFamily=Segoe UI;" vertex="1" parent="1">
+          <mxGeometry x="545" y="228" width="300" height="62" as="geometry"/>
+        </mxCell>
+        <!-- Update WES API -->
+        <mxCell id="n8" value="&lt;b&gt;Update WES API&lt;/b&gt;&lt;br&gt;&lt;i style=&quot;font-size:11px;color:#555555&quot;&gt;Map ICA status to WES status, emit event&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;fontSize=13;fontFamily=Segoe UI;" vertex="1" parent="1">
+          <mxGeometry x="545" y="338" width="300" height="62" as="geometry"/>
+        </mxCell>
+        <!-- Unlock Callback -->
+        <mxCell id="n9" value="&lt;b&gt;Unlock callback ID&lt;/b&gt;&lt;br&gt;&lt;i style=&quot;font-size:11px;color:#555555&quot;&gt;Release waiting ICA event Lambda&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;fontSize=13;fontFamily=Segoe UI;" vertex="1" parent="1">
+          <mxGeometry x="545" y="448" width="300" height="62" as="geometry"/>
+        </mxCell>
+        <!-- Success -->
+        <mxCell id="n10" value="Success" style="ellipse;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=2;fontSize=13;fontFamily=Segoe UI;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="595" y="558" width="200" height="46" as="geometry"/>
+        </mxCell>
+        <!-- Edges Column A -->
+        <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#555555;strokeWidth=2;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" source="n1" target="n2" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <!-- Relevant status yes -->
+        <mxCell id="e2" value="yes" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#555555;strokeWidth=2;fontSize=10;fontStyle=2;fontColor=#888888;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" source="n2" target="n3" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <!-- Is Terminal yes -->
+        <mxCell id="e3" value="terminal" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#555555;strokeWidth=2;fontSize=10;fontStyle=2;fontColor=#888888;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" source="n3" target="n4" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e4" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#555555;strokeWidth=2;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" source="n4" target="n5" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <!-- Handoff Col A to Col B -->
+        <mxCell id="e5" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#555555;strokeWidth=2;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" source="n5" target="n6" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="175" y="560"/>
+              <mxPoint x="695" y="560"/>
+              <mxPoint x="695" y="100"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <!-- Column B edges -->
+        <!-- SUCCEEDED yes -->
+        <mxCell id="e6" value="SUCCEEDED" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#555555;strokeWidth=2;fontSize=10;fontStyle=2;fontColor=#888888;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" source="n6" target="n7" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e7" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#555555;strokeWidth=2;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" source="n7" target="n8" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <!-- SUCCEEDED no - skip to Update WES API -->
+        <mxCell id="e8" value="other" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#888888;strokeWidth=2;fontSize=10;fontStyle=2;fontColor=#888888;dashed=1;dashPattern=8 4;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" source="n6" target="n8" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="880" y="149"/>
+              <mxPoint x="880" y="369"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e9" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#555555;strokeWidth=2;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" source="n8" target="n9" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e10" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#555555;strokeWidth=2;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" source="n9" target="n10" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <!-- Not relevant - skip to unlock -->
+        <mxCell id="e11" value="not relevant" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#888888;strokeWidth=2;fontSize=10;fontStyle=2;fontColor=#888888;dashed=1;dashPattern=8 4;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" source="n2" target="n9" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="420" y="149"/>
+              <mxPoint x="420" y="479"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <!-- Not terminal - skip to Update WES API -->
+        <mxCell id="e12" value="non-terminal" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#888888;strokeWidth=2;fontSize=10;fontStyle=2;fontColor=#888888;dashed=1;dashPattern=8 4;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" source="n3" target="n8" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="450" y="259"/>
+              <mxPoint x="450" y="369"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
