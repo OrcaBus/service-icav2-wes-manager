@@ -132,9 +132,15 @@ class Icav2WesAnalysisCreate(Icav2WesAnalysisBase):
         validate_by_alias=True
     )
 
+    callback_token: Optional[str] = Field(
+        default=None,
+        alias='callbackToken',
+        description="Durable execution callback token for async unlock"
+    )
+
     def model_dump(self, **kwargs) -> 'Icav2WesAnalysisResponse':
         return (
-            Icav2WesAnalysisResponse(**super().model_dump()).
+            Icav2WesAnalysisResponse(**super().model_dump(exclude={'callback_token'})).
             model_dump()
         )
 
