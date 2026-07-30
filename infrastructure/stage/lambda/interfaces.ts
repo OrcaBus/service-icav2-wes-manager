@@ -11,6 +11,7 @@ export type LambdaName =
   | 'generateWesPostRequestFromEvent'
   // Run analysis
   | 'launchIcav2AnalysisViaWrapica'
+  | 'launchQueueConsumer'
   | 'unlockCallbackId'
   // Mid analysis
   | 'updateStatusOnWesApi'
@@ -50,6 +51,7 @@ export const lambdaNameList: Array<LambdaName> = [
   'generateWesPostRequestFromEvent',
   // Run analysis
   'launchIcav2AnalysisViaWrapica',
+  'launchQueueConsumer',
   'unlockCallbackId',
   // Mid analysis
   'updateStatusOnWesApi',
@@ -107,7 +109,6 @@ export const lambdaToRequirementsMap: LambdaToRequirementsMapType = {
     needsOrcabusTookitLayer: true,
     needsSqsEventSource: true,
     needsDurableExecutionPermissions: true,
-    needsCallbackDbPermissions: true,
   },
   // Run analysis
   launchIcav2AnalysisViaWrapica: {
@@ -116,6 +117,10 @@ export const lambdaToRequirementsMap: LambdaToRequirementsMapType = {
     needsTestDataBucketPermissions: true,
     needsReferenceDataBucketPermissions: true,
     needsArtefactBucketPermissions: true,
+  },
+  launchQueueConsumer: {
+    needsDurableExecutionPermissions: true,
+    needsSqsEventSource: true,
   },
   unlockCallbackId: {
     needsCallbackPermissions: true,
@@ -203,6 +208,7 @@ export interface BuildLambdaProps {
   errorLogsKeyPrefix: string;
   generateWesPostRequestEventQueue: IQueue;
   externalIcaEventQueue: IQueue;
+  launchAnalysisQueue: IQueue;
   callbackTable: ITableV2;
   handleIcaStateChangeSfnName: SfnName;
 }

@@ -52,7 +52,23 @@ export function buildApiInterfaceLambda(scope: Construct, props: LambdaApiProps)
         );
         break;
       }
+      case 'unlockCallbackId': {
+        lambdaFunction.addEnvironment(
+          'ICAV2_WES_UNLOCK_CALLBACK_STATE_MACHINE_ARN',
+          sfnObject.stateMachineObj.stateMachineArn
+        );
+        break;
+      }
     }
+  }
+
+  // Add SQS send permissions for the Launch_Analysis_Queue
+  if (props.launchAnalysisQueue) {
+    props.launchAnalysisQueue.grantSendMessages(lambdaFunction);
+    lambdaFunction.addEnvironment(
+      'LAUNCH_ANALYSIS_QUEUE_NAME',
+      props.launchAnalysisQueue.queueName
+    );
   }
 
   // Add the table in as an environment variable

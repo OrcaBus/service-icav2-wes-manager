@@ -112,6 +112,13 @@ export class StatelessApplicationStack extends GitStack {
       `arn:aws:sqs:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:${props.icaExternalSqsQueueName}`
     );
 
+    // Get the Launch Analysis SQS Queue from props
+    const launchAnalysisQueue: IQueue = sqs.Queue.fromQueueArn(
+      this,
+      props.launchAnalysisSqsQueueName,
+      `arn:aws:sqs:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:${props.launchAnalysisSqsQueueName}`
+    );
+
     // Build the lambdas
     const lambdaObjects = buildAllLambdas(this, {
       artefactsBucket: payloadsBucket,
@@ -121,6 +128,7 @@ export class StatelessApplicationStack extends GitStack {
       testDataBucket: testDataBucket,
       generateWesPostRequestEventQueue: icav2WesRequestSqsQueue,
       externalIcaEventQueue: icaExternalSqsQueue,
+      launchAnalysisQueue: launchAnalysisQueue,
       handleIcaStateChangeSfnName: 'handleIcav2AnalysisStateChange',
       callbackTable: callbackTable,
     });
@@ -171,7 +179,9 @@ export class StatelessApplicationStack extends GitStack {
 
       /* Step functions triggered by the API */
       stepFunctions: stepFunctionObjects.filter((stepFunctionObject) =>
-        ['launchIcav2Analysis', 'abortIcav2Analysis'].includes(stepFunctionObject.stateMachineName)
+        ['launchIcav2Analysis', 'abortIcav2Analysis', 'unlockCallbackId'].includes(
+          stepFunctionObject.stateMachineName
+        )
       ),
 
       /* Event bus */
@@ -181,6 +191,9 @@ export class StatelessApplicationStack extends GitStack {
 
       /* SSM and Secrets */
       hostedZoneSsmParameter: hostedZoneSsmParameterObj,
+
+      /* SQS Queues */
+      launchAnalysisQueue: launchAnalysisQueue,
     });
 
     // Build the API Gateway
