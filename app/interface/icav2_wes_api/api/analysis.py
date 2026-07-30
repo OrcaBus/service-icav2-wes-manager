@@ -10,6 +10,8 @@ This is the list of routes available
 """
 
 # Standard imports
+import json
+import logging
 from datetime import datetime, timezone
 from os import environ
 from textwrap import dedent
@@ -32,13 +34,18 @@ from ..models.analysis import (
 from ..models.analysis_query import AnalysisQueryParameters
 from ..globals import (
     ICAV2_WES_ABORT_MACHINE_ARN_ENV_VAR,
-    get_default_job_patch_entry, ICAV2_WES_LAUNCH_STATE_MACHINE_ARN_ENV_VAR,
+    ICAV2_WES_UNLOCK_CALLBACK_STATE_MACHINE_ARN_ENV_VAR,
+    LAUNCH_ANALYSIS_QUEUE_NAME_ENV_VAR,
+    get_default_job_patch_entry,
 )
 from ..utils import (
     sanitise_icav2_wes_analysis_orcabus_id,
-    launch_sfn
+    launch_sfn,
+    put_sqs_message
 )
 from ..events.events import put_icav2_wes_analysis_update_event
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -153,50 +160,71 @@ async def get_jobs(job_id: str = Depends(sanitise_icav2_wes_analysis_orcabus_id)
     """)
 )
 async def create_job(analysis_obj: Icav2WesAnalysisCreate) -> Icav2WesAnalysisResponse:
-    # First convert the CreateFastqListRow to a FastqListRow
-    analysis_obj = Icav2WesAnalysisData.from_dict(**dict(analysis_obj.model_dump(by_alias=True)))
+    # Extract callbackToken before converting to data model
+    callback_token = analysis_obj.callback_token
+
+    # Convert the CreateAnalysis to an AnalysisData object (excludes callbackToken)
+    analysis_data = Icav2WesAnalysisData.from_dict(**dict(analysis_obj.model_dump(by_alias=True)))
 
     if (
             # Check if the analysis name already exists in the database
             len(list(Icav2WesAnalysisData.query(
-                A.name == analysis_obj.name,
+                A.name == analysis_data.name,
                 index="name-index",
                 load_full_item=True
             ))) > 0
     ):
         raise HTTPException(
-        status_code=409,
-        detail=f"Analysis with name '{analysis_obj.name}' already exists"
-    )
+            status_code=409,
+            detail=f"Analysis with name '{analysis_data.name}' already exists"
+        )
 
+    # Enqueue the job to the Launch_Analysis_Queue
+    # If this fails, do NOT save with SUBMITTED status
+    # Use the original request payload (camelCase) for the SQS message, not the stored data model (snake_case)
+    sqs_message_body = {
+        "id": analysis_data.id,
+        "name": analysis_obj.name,
+        "inputs": analysis_obj.inputs,
+        "engineParameters": analysis_obj.engine_parameters.model_dump(by_alias=True, exclude_none=True),
+        "tags": analysis_obj.tags,
+    }
 
-    # Can't solve every race condition, but this is pretty close to immediate
-    analysis_obj.save()
+    try:
+        put_sqs_message(
+            queue_name=environ[LAUNCH_ANALYSIS_QUEUE_NAME_ENV_VAR],
+            message_body=sqs_message_body
+        )
+    except Exception as e:
+        logger.error(f"Failed to enqueue analysis to Launch_Analysis_Queue: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to enqueue analysis for launch: {e}"
+        )
 
-    # Now launch the job - we skip the 'PENDING' phase for now
-    # Instead we go straight to 'SUBMITTED'
-    analysis_obj.start_time = datetime.now(timezone.utc)
-    # Now launch the job - we skip the 'PENDING' phase for now
-    # Instead we go straight to 'SUBMITTED'
-    analysis_obj.start_time = datetime.now(timezone.utc)
-    analysis_obj.steps_launch_execution_arn = launch_sfn(
-        sfn_name=environ[ICAV2_WES_LAUNCH_STATE_MACHINE_ARN_ENV_VAR],
-        sfn_input=dict(analysis_obj.to_dict())
-    )
+    # On success, set status to SUBMITTED and save
+    analysis_data.start_time = datetime.now(timezone.utc)
+    analysis_data.status = 'SUBMITTED'
+    analysis_data.save()
 
-    # Save the analysis (so two events dont get created)
-    analysis_obj.status = 'SUBMITTED'
-
-    # Re-save the object
-    analysis_obj.save()
+    # If callbackToken is present and non-null, invoke Unlock_Callback_SFN (fire-and-forget)
+    if callback_token is not None:
+        try:
+            launch_sfn(
+                sfn_name=environ[ICAV2_WES_UNLOCK_CALLBACK_STATE_MACHINE_ARN_ENV_VAR],
+                sfn_input={"callbackToken": callback_token}
+            )
+        except Exception as e:
+            # Fire-and-forget: log error but still return success
+            logger.error(f"Failed to invoke Unlock_Callback_SFN: {e}")
 
     # Create the dictionary
-    analysis_dict = analysis_obj.to_dict()
+    analysis_dict = analysis_data.to_dict()
 
     # Generate a create event
     put_icav2_wes_analysis_update_event(analysis_dict)
 
-    # Return the fastq as a dictionary
+    # Return the analysis response
     return analysis_dict
 
 
