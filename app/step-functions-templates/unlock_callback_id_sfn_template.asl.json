@@ -1,55 +1,16 @@
 {
+  "StartAt": "Unlock callback token",
+  "QueryLanguage": "JSONata",
+  "Comment": "Unlock callback token directly without DynamoDB lookup",
   "States": {
-    "Get env vars": {
-      "Type": "Pass",
-      "Next": "Get callback id from icav2 wes id",
-      "Assign": {
-        "icav2WesOrcabusId": "{% $states.input.icav2WesOrcabusId %}",
-        "status": "{% $states.input.status %}"
-      }
-    },
-    "Get callback id from icav2 wes id": {
-      "Type": "Task",
-      "Resource": "arn:aws:states:::dynamodb:getItem",
-      "Arguments": {
-        "TableName": "${__icav2_wes_request_callback_table_name__}",
-        "Key": {
-          "id": {
-            "S": "{% $icav2WesOrcabusId %}"
-          },
-          "id_type": {
-            "S": "{% $status %}"
-          }
-        }
-      },
-      "Next": "Has callback id",
-      "Assign": {
-        "callbackId": "{% $states.result.Item.callback_id.S ? $states.result.Item.callback_id.S : null %}"
-      }
-    },
-    "Has callback id": {
-      "Type": "Choice",
-      "Choices": [
-        {
-          "Next": "Unlock callback id",
-          "Condition": "{% $callbackId ? true : false %}",
-          "Comment": "Callback id in database"
-        }
-      ],
-      "Default": "Pass"
-    },
-    "Pass": {
-      "Type": "Pass",
-      "End": true
-    },
-    "Unlock callback id": {
+    "Unlock callback token": {
       "Type": "Task",
       "Resource": "arn:aws:states:::lambda:invoke",
       "Output": "{% $states.result.Payload %}",
       "Arguments": {
         "FunctionName": "${__unlock_callback_id_lambda_function_arn__}",
         "Payload": {
-          "callbackId": "{% $callbackId %}"
+          "callbackId": "{% $states.input.callbackToken %}"
         }
       },
       "Retry": [
@@ -66,32 +27,16 @@
           "JitterStrategy": "FULL"
         }
       ],
-      "Next": "Delete Callback id from database",
       "Catch": [
         {
-          "ErrorEquals": ["States.TaskFailed"],
-          "Next": "Delete Callback id from database"
+          "ErrorEquals": ["States.ALL"],
+          "Next": "Complete"
         }
-      ]
+      ],
+      "Next": "Complete"
     },
-    "Delete Callback id from database": {
-      "Type": "Task",
-      "Resource": "arn:aws:states:::dynamodb:deleteItem",
-      "Arguments": {
-        "TableName": "${__icav2_wes_request_callback_table_name__}",
-        "Key": {
-          "id": {
-            "S": "{% $icav2WesOrcabusId %}"
-          },
-          "id_type": {
-            "S": "{% $status %}"
-          }
-        }
-      },
-      "End": true
+    "Complete": {
+      "Type": "Succeed"
     }
-  },
-  "StartAt": "Get env vars",
-  "QueryLanguage": "JSONata",
-  "Comment": "Unlock callback ID"
+  }
 }
