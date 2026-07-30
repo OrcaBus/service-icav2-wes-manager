@@ -2,6 +2,13 @@
 
 """
 Generate a WES POST request from a WES event.
+
+This Lambda consumes WES request events from the WES_Request_Event_Queue,
+calls the Create_Job_API passing its durable execution callback token in the request body,
+and waits for the callback to be unlocked (max 15 min).
+
+The callback token is passed directly to the API - no DynamoDB registration needed.
+The API invokes the Unlock_Callback_SFN with the token after setting status to SUBMITTED.
 """
 
 # Standard library imports
@@ -10,16 +17,11 @@ import json
 from aws_durable_execution_sdk_python.retries import create_retry_strategy
 from aws_durable_execution_sdk_python.types import WaitForCallbackContext
 from requests import HTTPError
-from datetime import datetime, UTC
-from os import environ
-import boto3
-import typing
-from typing import Dict, Any, Optional
 
 # Durable context imports
 from aws_durable_execution_sdk_python import (
     DurableContext,
-    durable_execution, StepContext, durable_step
+    durable_execution,
 )
 from aws_durable_execution_sdk_python.config import (
     Duration, WaitForCallbackConfig
@@ -27,107 +29,34 @@ from aws_durable_execution_sdk_python.config import (
 
 # Layer imports
 from orcabus_api_tools.icav2_wes import (
-    create_icav2_wes_analysis,
-    WESPostRequest, get_icav2_wes_analysis_by_name,
+    icav2_wes_post_request,
+    get_icav2_wes_analysis_by_name,
 )
-from orcabus_api_tools.icav2_wes.models import WESResponse
-
-if typing.TYPE_CHECKING:
-    from mypy_boto3_dynamodb.client import DynamoDBClient
-
-# Globals
-CALLBACK_DATABASE_NAME_ENV_VAR = "CALLBACK_DATABASE_NAME"
-SECONDS_PER_DAY = (60 * 60 * 24)  # 60 seconds per min * 60 minutes per hour * 24 hours per day
-
-
-def get_dynamodb_client() -> 'DynamoDBClient':
-    return boto3.client('dynamodb')
-
-
-@durable_step
-def create_icav2_wes_analysis_durable_step(ctx: StepContext, record_body: Dict[str, Any]) -> Optional[WESResponse]:
-    # Create the WES POST request
-    wes_post_request: WESPostRequest = {
-        "name": record_body['name'],
-        "inputs": record_body['inputs'],
-        "engineParameters": record_body['engineParameters'],
-        "tags": record_body['tags']
-    }
-
-    # Check if we haven't already tried to create this analysis
-    try:
-        get_icav2_wes_analysis_by_name(record_body['name'])
-    except ValueError:
-        pass
-    else:
-        ctx.logger.info(f"WES analysis with name '{record_body['name']}' already exists. Skipping creation.")
-        return None
-
-    # Get the ICAv2 WES analysis response
-    try:
-        icav2_wes_analysis_response = create_icav2_wes_analysis(
-            **wes_post_request
-        )
-    except HTTPError as e:
-        ctx.logger.error(f"Request '{wes_post_request}' failed with error: {e}")
-        raise e
-
-    return icav2_wes_analysis_response
-
-
-def map_and_wait(icav2_wes_analysis_id: str, context: DurableContext):
-    def submitter(callback_id: str, callback_context: WaitForCallbackContext):
-        # Step 2: Add the callback to the DynamoDb database
-        callback_context.logger.info("WES analysis submitted, mapping WES Id to callback ID so we can be unlocked")
-        get_dynamodb_client().put_item(
-            Item={
-                "id": {
-                    "S": icav2_wes_analysis_id,
-                },
-                "id_type": {
-                    "S": "LAUNCH_REQUEST"
-                },
-                "callback_id": {
-                    "S": callback_id
-                },
-                "ttl": {
-                    # Add 24 hours to current epoch timestamp
-                    "N": str(
-                        int(datetime.now(UTC).timestamp()) +
-                        SECONDS_PER_DAY
-                    )
-                }
-            },
-            TableName=environ[CALLBACK_DATABASE_NAME_ENV_VAR]
-        )
-
-    # Step 3: Wait here for the callback to be invoked
-    context.wait_for_callback(
-        submitter=submitter,
-        name=None,
-        config=WaitForCallbackConfig(
-            timeout=Duration.from_minutes(15),
-            retry_strategy=create_retry_strategy(
-                config=None
-            )
-        ),
-    )
+from orcabus_api_tools.icav2_wes.globals import ANALYSES_ENDPOINT
 
 
 @durable_execution
 def handler(event, context: DurableContext):
     """
-    Expect the following inputs from the event object:
+    Expect the following inputs from the event object (SQS record body):
+      * name
       * inputs
       * engineParameters
       * tags
+
+    The handler uses wait_for_callback with a submitter that:
+    1. Calls create_icav2_wes_analysis() passing callbackToken in the request body
+    2. The API invokes the unlock chain on its side
+    3. Waits for callback to be unlocked (max 15 min)
+
+    On API call failure, raises exception so the message stays in queue for retry.
 
     :param event:
     :param context:
     :return:
     """
 
-    # Not sure what this will look like from the sqs event source
+    # Process each SQS record
     for record in event.get("Records", []):
         record_body = json.loads(record.get("body", {}))
         # Check if the event contains the required keys
@@ -136,11 +65,60 @@ def handler(event, context: DurableContext):
             if key not in record_body:
                 raise ValueError(f"Missing required key: {key}")
 
-        # 1. Submit the external request
-        icav2_wes_analysis_response = context.step(create_icav2_wes_analysis_durable_step(record_body))
-
-        if icav2_wes_analysis_response is None:
+        # Check if we haven't already tried to create this analysis (idempotency)
+        try:
+            get_icav2_wes_analysis_by_name(record_body['name'])
+        except ValueError:
+            pass
+        else:
+            context.logger.info(
+                f"WES analysis with name '{record_body['name']}' already exists. Skipping creation."
+            )
             continue
 
-        # 2. Register in db and wait for callback
-        map_and_wait(icav2_wes_analysis_response['id'], context)
+        def submitter(callback_id: str, callback_context: WaitForCallbackContext):
+            """
+            Submit the WES analysis creation request with the callback token.
+            The API will invoke the Unlock_Callback_SFN with this token after
+            setting the analysis status to SUBMITTED.
+            """
+            # Build the request body including the callbackToken
+            wes_post_request_body = {
+                "name": record_body['name'],
+                "inputs": record_body['inputs'],
+                "engineParameters": record_body['engineParameters'],
+                "tags": record_body['tags'],
+                "callbackToken": callback_id,
+            }
+
+            callback_context.logger.info(
+                f"Submitting WES analysis '{record_body['name']}' with callback token"
+            )
+
+            # Call the Create_Job_API with callbackToken in the request body
+            # Using icav2_wes_post_request directly since the helper function
+            # doesn't support the callbackToken field in its TypedDict validation
+            try:
+                icav2_wes_post_request(
+                    endpoint=ANALYSES_ENDPOINT,
+                    json_data=wes_post_request_body,
+                )
+            except HTTPError as e:
+                callback_context.logger.error(
+                    f"API call failed for '{record_body['name']}': {e}"
+                )
+                # Raise exception so message stays in queue for retry
+                raise e
+
+        # Wait for the callback to be unlocked (max 15 min)
+        # The API will invoke the Unlock_Callback_SFN which sends the task success signal
+        context.wait_for_callback(
+            submitter=submitter,
+            name=None,
+            config=WaitForCallbackConfig(
+                timeout=Duration.from_minutes(15),
+                retry_strategy=create_retry_strategy(
+                    config=None
+                )
+            ),
+        )
