@@ -9,7 +9,8 @@
         "name": "{% $states.input.name %}",
         "inputs": "{% $states.input.inputs %}",
         "engineParameters": "{% $states.input.engineParameters %}",
-        "tags": "{% $states.input.tags %}"
+        "tags": "{% $states.input.tags %}",
+        "callbackToken": "{% $states.input.callbackToken ? $states.input.callbackToken : null %}"
       },
       "Next": "Update wes API"
     },
@@ -116,109 +117,53 @@
           }
         }
       },
-      "Next": "Unlock / remove callback id"
+      "Next": "Check Callback Token (Success)"
     },
-    "Unlock / remove callback id": {
-      "Type": "Parallel",
-      "End": true,
-      "Branches": [
+    "Check Callback Token (Success)": {
+      "Type": "Choice",
+      "Choices": [
         {
-          "StartAt": "Get callback id from icav2 wes id",
-          "States": {
-            "Get callback id from icav2 wes id": {
-              "Type": "Task",
-              "Resource": "arn:aws:states:::dynamodb:getItem",
-              "Arguments": {
-                "TableName": "${__icav2_wes_request_callback_table_name__}",
-                "Key": {
-                  "id": {
-                    "S": "{% $icav2WesOrcabusId %}"
-                  },
-                  "id_type": {
-                    "S": "LAUNCH_REQUEST"
-                  }
-                }
-              },
-              "Next": "Has callback id",
-              "Assign": {
-                "callbackId": "{% $states.result.Item.callback_id.S ? $states.result.Item.callback_id.S : null %}"
-              }
-            },
-            "Has callback id": {
-              "Type": "Choice",
-              "Choices": [
-                {
-                  "Next": "Unlock callback id",
-                  "Condition": "{% $callbackId ? true : false %}",
-                  "Comment": "Callback id in database"
-                }
-              ],
-              "Default": "Pass"
-            },
-            "Pass": {
-              "Type": "Pass",
-              "End": true
-            },
-            "Unlock callback id": {
-              "Type": "Task",
-              "Resource": "arn:aws:states:::lambda:invoke",
-              "Output": "{% $states.result.Payload %}",
-              "Arguments": {
-                "FunctionName": "${__unlock_callback_id_lambda_function_arn__}",
-                "Payload": {
-                  "callbackId": "{% $callbackId %}"
-                }
-              },
-              "Retry": [
-                {
-                  "ErrorEquals": [
-                    "Lambda.ServiceException",
-                    "Lambda.AWSLambdaException",
-                    "Lambda.SdkClientException",
-                    "Lambda.TooManyRequestsException"
-                  ],
-                  "IntervalSeconds": 1,
-                  "MaxAttempts": 3,
-                  "BackoffRate": 2,
-                  "JitterStrategy": "FULL"
-                }
-              ],
-              "Next": "Delete Callback id from database",
-              "Catch": [
-                {
-                  "ErrorEquals": ["States.TaskFailed"],
-                  "Next": "Delete Callback id from database"
-                }
-              ]
-            },
-            "Delete Callback id from database": {
-              "Type": "Task",
-              "Resource": "arn:aws:states:::dynamodb:deleteItem",
-              "Arguments": {
-                "TableName": "${__icav2_wes_request_callback_table_name__}",
-                "Key": {
-                  "id": {
-                    "S": "{% $icav2WesOrcabusId %}"
-                  },
-                  "id_type": {
-                    "S": "LAUNCH_REQUEST"
-                  }
-                }
-              },
-              "End": true
-            }
-          }
-        },
-        {
-          "StartAt": "Callback id placeholder",
-          "States": {
-            "Callback id placeholder": {
-              "Type": "Pass",
-              "End": true
-            }
-          }
+          "Next": "Unlock Callback Token (Success)",
+          "Condition": "{% $callbackToken ? true : false %}",
+          "Comment": "Callback token is present"
         }
-      ]
+      ],
+      "Default": "Success"
+    },
+    "Unlock Callback Token (Success)": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Output": "{% $states.result.Payload %}",
+      "Arguments": {
+        "FunctionName": "${__unlock_callback_id_lambda_function_arn__}",
+        "Payload": {
+          "callbackId": "{% $callbackToken %}"
+        }
+      },
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 1,
+          "MaxAttempts": 3,
+          "BackoffRate": 2,
+          "JitterStrategy": "FULL"
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "Success"
+        }
+      ],
+      "Next": "Success"
+    },
+    "Success": {
+      "Type": "Succeed"
     },
     "Update WES API with Failed Status": {
       "Type": "Task",
@@ -247,7 +192,59 @@
           "JitterStrategy": "FULL"
         }
       ],
-      "Next": "Unlock / remove callback id"
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "Check Callback Token (Failure)"
+        }
+      ],
+      "Next": "Check Callback Token (Failure)"
+    },
+    "Check Callback Token (Failure)": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Next": "Unlock Callback Token (Failure)",
+          "Condition": "{% $callbackToken ? true : false %}",
+          "Comment": "Callback token is present"
+        }
+      ],
+      "Default": "Fail"
+    },
+    "Unlock Callback Token (Failure)": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Output": "{% $states.result.Payload %}",
+      "Arguments": {
+        "FunctionName": "${__unlock_callback_id_lambda_function_arn__}",
+        "Payload": {
+          "callbackId": "{% $callbackToken %}"
+        }
+      },
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 1,
+          "MaxAttempts": 3,
+          "BackoffRate": 2,
+          "JitterStrategy": "FULL"
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "Fail"
+        }
+      ],
+      "Next": "Fail"
+    },
+    "Fail": {
+      "Type": "Succeed"
     }
   },
   "QueryLanguage": "JSONata"
