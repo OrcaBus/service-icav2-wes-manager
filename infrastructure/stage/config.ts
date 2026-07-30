@@ -22,6 +22,7 @@ import {
   DEFAULT_EXTERNAL_ICA_EVENT_SQS_NAME,
   ERROR_LOGS_KEY_PREFIX,
   DEFAULT_WES_REQUEST_SQS_QUEUE_NAME,
+  DEFAULT_LAUNCH_ICA_ANALYSIS_SQS_QUEUE_NAME,
   CALLBACK_TABLE_NAME,
 } from './constants';
 import { ICAV2_ACCESS_TOKEN_SECRET_ID } from '@orcabus/platform-cdk-constructs/shared-config/icav2';
@@ -55,6 +56,7 @@ export const getStatefulStackProps = (stage: StageName): StatefulApplicationStac
     // SQS Stuff
     icav2WesRequestEventRuleName: 'icav2WesPostRequestRule',
     icav2WesRequestSqsQueueName: DEFAULT_WES_REQUEST_SQS_QUEUE_NAME,
+    launchAnalysisSqsQueueName: DEFAULT_LAUNCH_ICA_ANALYSIS_SQS_QUEUE_NAME,
     icaExternalSqsQueueName: DEFAULT_EXTERNAL_ICA_EVENT_SQS_NAME,
     slackTopicName: SLACK_TOPIC_NAME,
   };
@@ -80,6 +82,7 @@ export const getStatelessStackProps = (stage: StageName): StatelessApplicationSt
     // Internal event handling stuff
     internalEventBusName: EVENT_BUS_NAME_INTERNAL,
     icav2WesRequestSqsQueueName: DEFAULT_WES_REQUEST_SQS_QUEUE_NAME,
+    launchAnalysisSqsQueueName: DEFAULT_LAUNCH_ICA_ANALYSIS_SQS_QUEUE_NAME,
     icav2AnalysisStateChangeEventCode: ICAV2_ANALYSIS_STATE_CHANGE_JOB_EVENT_CODE,
 
     // Table stuff

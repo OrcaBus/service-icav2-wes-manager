@@ -51,9 +51,10 @@ export const DEFAULT_WES_REQUEST_QUEUE_TIMEOUT = Duration.minutes(15); // Max ti
 export const DEFAULT_MAX_ICAV2_WES_REQUEST_API_CONCURRENCY = 5;
 export const DEFAULT_WES_REQUEST_SQS_QUEUE_NAME = 'Icav2WesRequestSqsQueue';
 
-// Launch ICA Analysis SQS (coming soon)
+// Launch ICA Analysis SQS
 // export const DEFAULT_LAUNCH_ICA_ANALYSIS_EVENT_PIPE_NAME = 'Icav2WesLaunchIcaAnalysisEventPipe';
-// export const DEFAULT_LAUNCH_ICA_ANALYSIS_SQS_QUEUE_NAME = 'Icav2WesLaunchIcaAnalysisSqsQueue';
+export const DEFAULT_LAUNCH_ICA_ANALYSIS_SQS_QUEUE_NAME = 'Icav2WesLaunchIcaAnalysisSqsQueue';
+export const DEFAULT_LAUNCH_ANALYSIS_QUEUE_TIMEOUT = Duration.minutes(90); // 6× consumer Lambda timeout of 15 min
 
 // Handle External ICA SQS
 export const DEFAULT_ICA_STATE_CHANGE_MAX_TIMEOUT = Duration.minutes(5);

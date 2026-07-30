@@ -20,6 +20,7 @@ import {
   DEFAULT_ICA_AWS_ACCOUNT_NUMBER,
   DEFAULT_ICA_STATE_CHANGE_MAX_TIMEOUT,
   DEFAULT_WES_REQUEST_QUEUE_TIMEOUT,
+  DEFAULT_LAUNCH_ANALYSIS_QUEUE_TIMEOUT,
 } from './constants';
 import {
   createExternalIcaMonitoredQueue,
@@ -78,6 +79,17 @@ export class StatefulApplicationStack extends GitStack {
         },
       })
     );
+
+    // Rate-limited buffer for launching ICA analyses
+    // Messages are consumed by the Launch_Queue_Consumer_Lambda with controlled concurrency
+    createMonitoredQueue(this, {
+      dlqMessageThreshold: 1,
+      queueName: props.launchAnalysisSqsQueueName,
+      queueVizTimeout: DEFAULT_LAUNCH_ANALYSIS_QUEUE_TIMEOUT,
+      slackTopic: slackTopic,
+      dlqRetentionPeriod: Duration.days(14),
+      maxReceiveCount: 3,
+    });
 
     // Buffer to handle ICA state change requests
     createExternalIcaMonitoredQueue(this, {

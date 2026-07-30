@@ -23,7 +23,9 @@ export function createMonitoredQueue(scope: Construct, props: SqsQueueConstructP
       queueName: `${props.queueName}-dlq`,
       enforceSSL: true,
       visibilityTimeout: props.queueVizTimeout,
+      ...(props.dlqRetentionPeriod && { retentionPeriod: props.dlqRetentionPeriod }),
     },
+    ...(props.maxReceiveCount && { maxReceiveCount: props.maxReceiveCount }),
     messageThreshold: props.dlqMessageThreshold,
     topic: props.slackTopic,
   });
