@@ -48,7 +48,7 @@ export const SLACK_TOPIC_NAME = 'AwsChatBotTopic';
 export const DEFAULT_WES_REQUEST_QUEUE_TIMEOUT = Duration.minutes(2); // 2× Lambda timeout of 60 seconds
 
 // WES Request
-export const DEFAULT_MAX_WES_REQUEST_CONCURRENCY = 1; // Throttle to 1 concurrent API request
+export const DEFAULT_MAX_WES_REQUEST_CONCURRENCY = 2; // Minimum allowed by AWS (must be 2–1000)
 export const DEFAULT_MAX_LAUNCH_QUEUE_CONSUMER_CONCURRENCY = 5; // Rate-limit ICA API launches
 export const DEFAULT_WES_REQUEST_SQS_QUEUE_NAME = 'Icav2WesRequestSqsQueue';
 
