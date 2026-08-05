@@ -75,15 +75,8 @@ tags_strategy = st.dictionaries(
     max_size=5
 )
 
-# Optional callback token strategy
-callback_token_strategy = st.one_of(
-    st.none(),
-    st.text(
-        alphabet=st.characters(whitelist_categories=("L", "N"), whitelist_characters="-_:/"),
-        min_size=10,
-        max_size=100
-    )
-)
+# Optional callback token strategy - no longer used in create schema
+# Kept for backwards-compatibility testing if needed
 
 # Full analysis creation payload strategy
 analysis_payload_strategy = st.fixed_dictionaries({
@@ -91,7 +84,6 @@ analysis_payload_strategy = st.fixed_dictionaries({
     "inputs": inputs_strategy,
     "engineParameters": engine_parameters_strategy,
     "tags": tags_strategy,
-    "callbackToken": callback_token_strategy,
 })
 
 
@@ -174,11 +166,6 @@ class TestSQSEnqueueFailurePreventsSubmitted:
             patch(
                 "icav2_wes_api.api.analysis.Icav2WesAnalysisData.save",
                 new=mock_save,
-            ),
-            # Mock launch_sfn to prevent any real SFN calls
-            patch(
-                "icav2_wes_api.api.analysis.launch_sfn",
-                return_value="arn:aws:states:us-east-1:123456789012:execution:test",
             ),
             # Mock the event bus call
             patch(

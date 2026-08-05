@@ -179,9 +179,7 @@ export class StatelessApplicationStack extends GitStack {
 
       /* Step functions triggered by the API */
       stepFunctions: stepFunctionObjects.filter((stepFunctionObject) =>
-        ['launchIcav2Analysis', 'abortIcav2Analysis', 'unlockCallbackId'].includes(
-          stepFunctionObject.stateMachineName
-        )
+        ['launchIcav2Analysis', 'abortIcav2Analysis'].includes(stepFunctionObject.stateMachineName)
       ),
 
       /* Event bus */

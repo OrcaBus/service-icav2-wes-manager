@@ -108,7 +108,6 @@ export const lambdaToRequirementsMap: LambdaToRequirementsMapType = {
   generateWesPostRequestFromEvent: {
     needsOrcabusTookitLayer: true,
     needsSqsEventSource: true,
-    needsDurableExecutionPermissions: true,
   },
   // Run analysis
   launchIcav2AnalysisViaWrapica: {

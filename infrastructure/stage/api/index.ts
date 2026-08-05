@@ -52,13 +52,6 @@ export function buildApiInterfaceLambda(scope: Construct, props: LambdaApiProps)
         );
         break;
       }
-      case 'unlockCallbackId': {
-        lambdaFunction.addEnvironment(
-          'ICAV2_WES_UNLOCK_CALLBACK_STATE_MACHINE_ARN',
-          sfnObject.stateMachineObj.stateMachineArn
-        );
-        break;
-      }
     }
   }
 
