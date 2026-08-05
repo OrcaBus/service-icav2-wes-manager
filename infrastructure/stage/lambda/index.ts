@@ -8,7 +8,8 @@ import {
 } from './interfaces';
 import {
   DEFAULT_MAX_ICA_STATE_CHANGE_API_CONCURRENCY,
-  DEFAULT_MAX_ICAV2_WES_REQUEST_API_CONCURRENCY,
+  DEFAULT_MAX_WES_REQUEST_CONCURRENCY,
+  DEFAULT_MAX_LAUNCH_QUEUE_CONSUMER_CONCURRENCY,
   LAMBDA_DIR,
   STACK_PREFIX,
 } from '../constants';
@@ -76,7 +77,7 @@ function buildLambda(scope: Construct, props: BuildLambdaProps): LambdaObject {
     // Find the SQS queue from the props
     lambdaFunction.currentVersion.addEventSource(
       new SqsEventSource(props.generateWesPostRequestEventQueue, {
-        maxConcurrency: DEFAULT_MAX_ICAV2_WES_REQUEST_API_CONCURRENCY,
+        maxConcurrency: DEFAULT_MAX_WES_REQUEST_CONCURRENCY,
         // Allow only one message per batch to be processed
         batchSize: 1,
       })
@@ -87,7 +88,7 @@ function buildLambda(scope: Construct, props: BuildLambdaProps): LambdaObject {
   if (props.lambdaName === 'launchQueueConsumer') {
     lambdaFunction.currentVersion.addEventSource(
       new SqsEventSource(props.launchAnalysisQueue, {
-        maxConcurrency: DEFAULT_MAX_ICAV2_WES_REQUEST_API_CONCURRENCY,
+        maxConcurrency: DEFAULT_MAX_LAUNCH_QUEUE_CONSUMER_CONCURRENCY,
         batchSize: 1,
       })
     );

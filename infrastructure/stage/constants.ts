@@ -45,10 +45,11 @@ export const ICAV2_WES_MANAGER_TAG_KEY = 'icav2_wes_orcabus_id';
 // SHARED QUEUE PARAMS
 export const DEFAULT_DLQ_ALARM_THRESHOLD = 1;
 export const SLACK_TOPIC_NAME = 'AwsChatBotTopic';
-export const DEFAULT_WES_REQUEST_QUEUE_TIMEOUT = Duration.minutes(15); // Max timeout for an event source mapping is 15 minutes
+export const DEFAULT_WES_REQUEST_QUEUE_TIMEOUT = Duration.minutes(2); // 2× Lambda timeout of 60 seconds
 
 // WES Request
-export const DEFAULT_MAX_ICAV2_WES_REQUEST_API_CONCURRENCY = 5;
+export const DEFAULT_MAX_WES_REQUEST_CONCURRENCY = 1; // Throttle to 1 concurrent API request
+export const DEFAULT_MAX_LAUNCH_QUEUE_CONSUMER_CONCURRENCY = 5; // Rate-limit ICA API launches
 export const DEFAULT_WES_REQUEST_SQS_QUEUE_NAME = 'Icav2WesRequestSqsQueue';
 
 // Launch ICA Analysis SQS
