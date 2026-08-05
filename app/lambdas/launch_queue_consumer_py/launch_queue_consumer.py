@@ -136,8 +136,8 @@ def handler(event, context: DurableContext):
             Start the Launch_Analysis_SFN execution with the analysis payload
             and the consumer's own callback token.
 
-            On SFN invocation failure: log error, delete message from queue,
-            and complete successfully (do not raise).
+            On SFN invocation failure: raise so wait_for_callback fails immediately
+            and does not hold a concurrency slot.
             """
             # Add the callback token to the SFN input
             execution_input = {
@@ -150,36 +150,29 @@ def handler(event, context: DurableContext):
                 f"with name '{sfn_payload['name']}'"
             )
 
-            try:
-                sfn_client = get_sfn_client()
-                sfn_client.start_execution(
-                    stateMachineArn=launch_analysis_sfn_arn,
-                    input=json.dumps(execution_input),
-                )
-            except Exception as e:
-                callback_context.logger.error(
-                    f"Failed to invoke Launch_Analysis_SFN for analysis "
-                    f"'{sfn_payload['id']}': {e}"
-                )
-                # Delete the message from the queue since the SFN invocation failed
-                delete_message_from_queue(queue_url, receipt_handle)
-                callback_context.logger.info(
-                    f"Deleted message for analysis '{sfn_payload['id']}' from queue "
-                    f"after SFN invocation failure."
-                )
-                # Complete successfully - do not raise
-                return
+            sfn_client = get_sfn_client()
+            sfn_client.start_execution(
+                stateMachineArn=launch_analysis_sfn_arn,
+                input=json.dumps(execution_input),
+            )
 
         # Wait for the callback to be unlocked by the Launch_Analysis_SFN
         # The SFN will invoke the unlock_callback_id Lambda with our token
         # upon completion (both success and failure paths)
-        context.wait_for_callback(
-            submitter=submitter,
-            name=None,
-            config=WaitForCallbackConfig(
-                timeout=Duration.from_minutes(15),
-                retry_strategy=create_retry_strategy(
-                    config=None
+        try:
+            context.wait_for_callback(
+                submitter=submitter,
+                name=None,
+                config=WaitForCallbackConfig(
+                    timeout=Duration.from_minutes(15),
+                    retry_strategy=create_retry_strategy(
+                        config=None
+                    ),
                 ),
-            ),
-        )
+            )
+        except Exception as e:
+            context.logger.error(
+                f"wait_for_callback failed for analysis '{sfn_payload['id']}': {e}. "
+                f"Deleting message from queue to prevent retry loop."
+            )
+            delete_message_from_queue(queue_url, receipt_handle)
