@@ -5,6 +5,20 @@ import { StatelessApplicationStack } from '../infrastructure/stage/stateless-app
 import { getStatefulStackProps, getStatelessStackProps } from '../infrastructure/stage/config';
 import { PROD_ENVIRONMENT } from '@orcabus/platform-cdk-constructs/deployment-stack-pipeline';
 
+interface IamPolicyStatement {
+  Action: string | string[];
+  Effect: string;
+  Resource?: unknown;
+}
+
+interface IamPolicyResource {
+  Properties?: {
+    PolicyDocument?: {
+      Statement?: IamPolicyStatement[];
+    };
+  };
+}
+
 describe('CDK Infrastructure Assertions - API Rate-Limiting and Async Callback', () => {
   let statefulTemplate: Template;
   let statelessTemplate: Template;
@@ -79,16 +93,14 @@ describe('CDK Infrastructure Assertions - API Rate-Limiting and Async Callback',
       // Verify that there's an IAM policy with sqs:SendMessage action on the launch analysis queue
       const policies = statelessTemplate.findResources('AWS::IAM::Policy');
       const hasSqsSendMessage = Object.values(policies).some((policy) => {
-        const statements = (policy as any).Properties?.PolicyDocument?.Statement;
+        const statements = (policy as IamPolicyResource).Properties?.PolicyDocument?.Statement;
         if (!Array.isArray(statements)) return false;
-        return statements.some((stmt: any) => {
+        return statements.some((stmt: IamPolicyStatement) => {
           const actions = Array.isArray(stmt.Action) ? stmt.Action : [stmt.Action];
           return (
             actions.some(
               (a: string) =>
-                a === 'sqs:SendMessage' ||
-                a === 'sqs:GetQueueAttributes' ||
-                a === 'sqs:GetQueueUrl'
+                a === 'sqs:SendMessage' || a === 'sqs:GetQueueAttributes' || a === 'sqs:GetQueueUrl'
             ) && stmt.Effect === 'Allow'
           );
         });
@@ -96,12 +108,12 @@ describe('CDK Infrastructure Assertions - API Rate-Limiting and Async Callback',
       expect(hasSqsSendMessage).toBe(true);
     });
 
-    test('API Lambda has states:StartExecution permission for unlockCallbackId SFN', () => {
+    test('API Lambda has states:StartExecution permission for step functions', () => {
       const policies = statelessTemplate.findResources('AWS::IAM::Policy');
       const hasStartExecution = Object.values(policies).some((policy) => {
-        const statements = (policy as any).Properties?.PolicyDocument?.Statement;
+        const statements = (policy as IamPolicyResource).Properties?.PolicyDocument?.Statement;
         if (!Array.isArray(statements)) return false;
-        return statements.some((stmt: any) => {
+        return statements.some((stmt: IamPolicyStatement) => {
           const actions = Array.isArray(stmt.Action) ? stmt.Action : [stmt.Action];
           return actions.includes('states:StartExecution') && stmt.Effect === 'Allow';
         });
