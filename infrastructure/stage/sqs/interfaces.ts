@@ -12,6 +12,10 @@ export interface SqsQueueConstructProps {
   queueVizTimeout: Duration;
   /* For long polling */
   receiveMessageWaitTime?: Duration;
+  /* The retention period for the DLQ (how long failed messages are kept) */
+  dlqRetentionPeriod?: Duration;
+  /* The number of times a message can be received before being moved to the DLQ */
+  maxReceiveCount?: number;
 }
 
 export interface IcaSqsQueueConstructProps extends SqsQueueConstructProps {

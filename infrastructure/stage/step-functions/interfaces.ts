@@ -138,7 +138,6 @@ export const sfnToRequirementsMap: SfnToRequirementsMapType = {
   launchIcav2Analysis: {
     needsExternalEventBusPutPermissions: false,
     needsPayloadDbPermissions: true,
-    needsCallbackTablePermissions: true,
   },
   getTaskSummaries: {
     needsDistributedMapSupport: true,
@@ -150,7 +149,5 @@ export const sfnToRequirementsMap: SfnToRequirementsMapType = {
   },
   handleFilemanager: {}, // Just some lambdas
   handleNextflowFiles: {}, // Just some lambdas
-  unlockCallbackId: {
-    needsCallbackTablePermissions: true,
-  },
+  unlockCallbackId: {},
 };

@@ -259,6 +259,32 @@ function wireUpStateMachinePermissions(scope: Construct, props: SfnObjectProps):
     );
   }
 
+  /* If we have the step function launchIcav2Analysis */
+  /* We need to allow the launchQueueConsumer lambda to start that step function */
+  if (props.stateMachineName === 'launchIcav2Analysis') {
+    /* Get the lambda object */
+    const launchQueueConsumerLambdaObject = <LambdaObject>(
+      props.lambdaFunctions.find(
+        (lambdaObject) => lambdaObject.lambdaName === 'launchQueueConsumer'
+      )
+    );
+    /* Grant permissions to the lambda object */
+    if (launchQueueConsumerLambdaObject) {
+      props.stateMachineObj.grantStartExecution(launchQueueConsumerLambdaObject.lambdaFunction);
+
+      NagSuppressions.addResourceSuppressions(
+        props.stateMachineObj,
+        [
+          {
+            id: 'AwsSolutions-IAM5',
+            reason: 'Needs permissions to start execution',
+          },
+        ],
+        true
+      );
+    }
+  }
+
   /*
   Handle ICAv2 Analysis State Change also requires permissions to launch other objects
    */

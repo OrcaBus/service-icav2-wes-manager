@@ -55,6 +55,15 @@ export function buildApiInterfaceLambda(scope: Construct, props: LambdaApiProps)
     }
   }
 
+  // Add SQS send permissions for the Launch_Analysis_Queue
+  if (props.launchAnalysisQueue) {
+    props.launchAnalysisQueue.grantSendMessages(lambdaFunction);
+    lambdaFunction.addEnvironment(
+      'LAUNCH_ANALYSIS_QUEUE_NAME',
+      props.launchAnalysisQueue.queueName
+    );
+  }
+
   // Add the table in as an environment variable
   // And allow the lambda to write + read from the table
   lambdaFunction.addEnvironment('DYNAMODB_ICAV2_WES_ANALYSIS_TABLE_NAME', props.table.tableName);

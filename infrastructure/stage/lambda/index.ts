@@ -8,7 +8,8 @@ import {
 } from './interfaces';
 import {
   DEFAULT_MAX_ICA_STATE_CHANGE_API_CONCURRENCY,
-  DEFAULT_MAX_ICAV2_WES_REQUEST_API_CONCURRENCY,
+  DEFAULT_MAX_WES_REQUEST_CONCURRENCY,
+  DEFAULT_MAX_LAUNCH_QUEUE_CONSUMER_CONCURRENCY,
   LAMBDA_DIR,
   STACK_PREFIX,
 } from '../constants';
@@ -52,7 +53,8 @@ function buildLambda(scope: Construct, props: BuildLambdaProps): LambdaObject {
     handler: 'handler',
     // We need a longer timeout for the launchIcav2AnalysisViaWrapica lambda
     timeout:
-      props.lambdaName === 'launchIcav2AnalysisViaWrapica'
+      props.lambdaName === 'launchIcav2AnalysisViaWrapica' ||
+      props.lambdaName === 'launchQueueConsumer'
         ? Duration.minutes(15)
         : Duration.seconds(60),
     // And if we have a lot of data to process, we need more memory
@@ -75,10 +77,26 @@ function buildLambda(scope: Construct, props: BuildLambdaProps): LambdaObject {
     // Find the SQS queue from the props
     lambdaFunction.currentVersion.addEventSource(
       new SqsEventSource(props.generateWesPostRequestEventQueue, {
-        maxConcurrency: DEFAULT_MAX_ICAV2_WES_REQUEST_API_CONCURRENCY,
+        maxConcurrency: DEFAULT_MAX_WES_REQUEST_CONCURRENCY,
         // Allow only one message per batch to be processed
         batchSize: 1,
       })
+    );
+  }
+
+  // Launch Queue Consumer uses the Launch Analysis Queue
+  if (props.lambdaName === 'launchQueueConsumer') {
+    lambdaFunction.currentVersion.addEventSource(
+      new SqsEventSource(props.launchAnalysisQueue, {
+        maxConcurrency: DEFAULT_MAX_LAUNCH_QUEUE_CONSUMER_CONCURRENCY,
+        batchSize: 1,
+      })
+    );
+
+    // Add the LAUNCH_ANALYSIS_SFN_ARN environment variable
+    lambdaFunction.addEnvironment(
+      'LAUNCH_ANALYSIS_SFN_ARN',
+      `arn:aws:states:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:stateMachine:${STACK_PREFIX}--launchIcav2Analysis`
     );
   }
 

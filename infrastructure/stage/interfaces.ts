@@ -30,6 +30,9 @@ export interface StatefulApplicationStackConfig extends cdk.StackProps {
   icav2WesRequestEventRuleName: EventBridgeRuleName;
   icav2WesRequestSqsQueueName: string;
 
+  /* Launch Analysis Queue */
+  launchAnalysisSqsQueueName: string;
+
   /* External sqs name */
   icaExternalSqsQueueName: string;
 }
@@ -66,6 +69,7 @@ export interface StatelessApplicationStackConfig extends cdk.StackProps {
   icav2AnalysisStateChangeEventCode: string;
   icav2WesManagerTagKey: string;
   icav2WesRequestSqsQueueName: string;
+  launchAnalysisSqsQueueName: string;
   icaExternalSqsQueueName: string;
 
   /* SSM - Secrets */

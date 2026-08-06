@@ -132,11 +132,12 @@ class Icav2WesAnalysisCreate(Icav2WesAnalysisBase):
         validate_by_alias=True
     )
 
-    def model_dump(self, **kwargs) -> 'Icav2WesAnalysisResponse':
-        return (
-            Icav2WesAnalysisResponse(**super().model_dump()).
-            model_dump()
-        )
+    def to_analysis_data_kwargs(self) -> dict:
+        """
+        Convert the create request to kwargs suitable for Icav2WesAnalysisData.from_dict().
+        Returns snake_case keys (matching from_dict expectations).
+        """
+        return super().model_dump()
 
 
 class Icav2WesAnalysisPatch(BaseModel):
