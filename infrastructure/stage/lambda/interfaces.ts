@@ -31,7 +31,6 @@ export type LambdaName =
   | 'addTaskAnomaliesToWorkflowManager' // Not yet implemented
   // Handle corrupted files
   | 'getOutputFileIngestIds' // Not yet implemented
-  | 'getMatchingIngestIds' // Not yet implemented
   | 'isBamOrVcfFile' // Not yet implemented
   | 'getFileUriFromIngestId' // Not yet implemented
   | 'isFileCorrupted' // Not yet implemented
@@ -71,7 +70,6 @@ export const lambdaNameList: Array<LambdaName> = [
   // 'addTaskAnomaliesToWorkflowManager', // Not yet implemented
   // Handle corrupted files
   'getOutputFileIngestIds',
-  'getMatchingIngestIds',
   'isBamOrVcfFile',
   'getFileUriFromIngestId',
   'isFileCorrupted',
@@ -168,9 +166,6 @@ export const lambdaToRequirementsMap: LambdaToRequirementsMapType = {
   },
   // Handle corrupted files
   getOutputFileIngestIds: {
-    needsOrcabusTookitLayer: true,
-  },
-  getMatchingIngestIds: {
     needsOrcabusTookitLayer: true,
   },
   isBamOrVcfFile: {
