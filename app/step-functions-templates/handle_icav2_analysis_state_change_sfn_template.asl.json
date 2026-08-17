@@ -10,7 +10,8 @@
         "status": "{% $states.input.status %}",
         "errorMessage": "{% $states.input.errorMessage %}",
         "icav2WesOrcabusId": "{% $states.input.icav2WesOrcabusId %}",
-        "messageReceiptHandleToken": "{% $states.input.messageReceiptHandleToken %}"
+        "messageReceiptHandleToken": "{% $states.input.messageReceiptHandleToken %}",
+        "callbackId": "{% $states.input.callbackId %}"
       }
     },
     "Is Relevant Status": {
@@ -153,8 +154,7 @@
       "Arguments": {
         "StateMachineArn": "${__unlock_callback_id_state_machine_arn__}",
         "Input": {
-          "icav2WesOrcabusId": "{% $icav2WesOrcabusId %}",
-          "status": "{% $status %}"
+          "callbackToken": "{% $callbackId %}"
         }
       },
       "End": true
