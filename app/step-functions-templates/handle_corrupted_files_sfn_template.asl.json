@@ -32,12 +32,12 @@
           "JitterStrategy": "FULL"
         }
       ],
-      "Next": "Get all output file ingest ids",
+      "Next": "Get matching output file ingest ids",
       "Assign": {
         "portalRunId": "{% $states.result.Payload.icav2WesObject.tags.portalRunId %}"
       }
     },
-    "Get all output file ingest ids": {
+    "Get matching output file ingest ids": {
       "Type": "Task",
       "Resource": "arn:aws:states:::lambda:invoke",
       "Arguments": {
@@ -72,36 +72,8 @@
           "Mode": "DISTRIBUTED",
           "ExecutionType": "STANDARD"
         },
-        "StartAt": "Filter to matching ingest ids",
+        "StartAt": "For each matching ingest id",
         "States": {
-          "Filter to matching ingest ids": {
-            "Type": "Task",
-            "Resource": "arn:aws:states:::lambda:invoke",
-            "Arguments": {
-              "FunctionName": "${__get_matching_ingest_ids_lambda_function_arn__}",
-              "Payload": {
-                "ingestIdList": "{% $states.input.Items %}"
-              }
-            },
-            "Retry": [
-              {
-                "ErrorEquals": [
-                  "Lambda.ServiceException",
-                  "Lambda.AWSLambdaException",
-                  "Lambda.SdkClientException",
-                  "Lambda.TooManyRequestsException"
-                ],
-                "IntervalSeconds": 1,
-                "MaxAttempts": 3,
-                "BackoffRate": 2,
-                "JitterStrategy": "FULL"
-              }
-            ],
-            "Output": {
-              "matchingIngestIds": "{% $states.result.Payload.matchingIngestIds %}"
-            },
-            "Next": "For each matching ingest id"
-          },
           "For each matching ingest id": {
             "Type": "Map",
             "ItemProcessor": {
@@ -306,7 +278,7 @@
               }
             },
             "End": true,
-            "Items": "{% $states.input.matchingIngestIds %}",
+            "Items": "{% $states.input.Items %}",
             "Output": {
               "corruptedS3UriList": "{% [\n    $states.result.(corruptedS3Uri) ~> \n    $filter(function($v){$v != null})\n] %}"
             }

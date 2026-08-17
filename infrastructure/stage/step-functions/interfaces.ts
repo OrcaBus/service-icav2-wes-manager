@@ -60,7 +60,6 @@ export const stepFunctionToLambdaMap: { [key in SfnName]: Array<LambdaName> } = 
     'getIcav2WesObject',
     'copyNextflowFilesFromLogsUri',
     'filemanagerSync',
-    'getMatchingIngestIds',
     'getOutputFileIngestIds',
     'getFileUriFromIngestId',
     'isBamOrVcfFile',
@@ -87,7 +86,6 @@ export const stepFunctionToLambdaMap: { [key in SfnName]: Array<LambdaName> } = 
   handleCorruptedFiles: [
     'getIcav2WesObject',
     'getOutputFileIngestIds',
-    'getMatchingIngestIds',
     'isBamOrVcfFile',
     'getFileUriFromIngestId',
     'isFileCorrupted',
