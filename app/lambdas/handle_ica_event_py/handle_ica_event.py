@@ -84,32 +84,10 @@ def handle_ica_execution(
 ):
     def submitter(callback_id: str, callback_context: WaitForCallbackContext):
         """
-        Write callback to dynamodb and then start the execution
+        Pass callback_id directly to the step function input so it can
+        unlock the durable execution without a DynamoDB lookup.
         """
-        callback_context.logger.info("Writing callback id to dynamodb")
-        get_dynamodb_client().put_item(
-            Item={
-                "id": {
-                    "S": icav2_wes_orcabus_id,
-                },
-                "id_type": {
-                    "S": status
-                },
-                "callback_id": {
-                    "S": callback_id
-                },
-                "ttl": {
-                    # Add 24 hours to current epoch timestamp
-                    "N": str(
-                        int(datetime.now(UTC).timestamp()) +
-                        SECONDS_PER_DAY
-                    )
-                }
-            },
-            TableName=environ[CALLBACK_DATABASE_NAME_ENV_VAR]
-        )
-
-        # Step 3: Launch the step function (asynchronously)
+        # Launch the step function with the callback_id in the payload
         callback_context.logger.info("Start sfn execution")
         execution = get_sfn_client().start_execution(
             stateMachineArn=environ[HANDLE_ICA_ANALYSIS_STATE_CHANGE_SFN_ARN_ENV_VAR],
@@ -119,7 +97,8 @@ def handle_ica_execution(
                     "status": status,
                     "errorMessage": error_message,
                     "icav2WesOrcabusId": icav2_wes_orcabus_id,
-                    "messageReceiptHandleToken": message_receipt_handle_token
+                    "messageReceiptHandleToken": message_receipt_handle_token,
+                    "callbackId": callback_id
                 },
                 separators=(",", ":")
             )
