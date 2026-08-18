@@ -4,5 +4,6 @@ minimumReleaseAgeExclude:
   - aws-cdk-lib@2.256.1
   - aws-cdk@2.1124.1
   - js-yaml@4.1.2
+  - '@orcabus/platform-cdk-constructs@1.9.1'
 overrides:
   js-yaml@<=4.1.1: ^4.1.2
