@@ -8,6 +8,14 @@ export default defineConfig([
   { files: ['**/*.{js,mjs,cjs,ts}'], languageOptions: { globals: globals.browser } },
   { files: ['**/*.{js,mjs,cjs,ts}'], plugins: { js }, extends: ['js/recommended'] },
   tseslint.configs.recommended,
+  {
+    // CommonJS bootstrap files run under Node and legitimately use require().
+    files: ['**/*.cjs'],
+    languageOptions: { globals: globals.node },
+    rules: {
+      '@typescript-eslint/no-require-imports': 'off',
+    },
+  },
   globalIgnores([
     '.venv/',
     'cdk.out/',

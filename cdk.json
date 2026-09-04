@@ -1,5 +1,5 @@
 {
-  "app": "pnpx ts-node bin/deploy.ts",
+  "app": "node bin/cdk-entry.cjs",
   "watch": {
     "include": ["**"],
     "exclude": [
