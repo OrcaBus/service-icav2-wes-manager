@@ -6,5 +6,3 @@ minimumReleaseAgeExclude:
   - js-yaml@4.1.2
   - '@orcabus/platform-cdk-constructs@1.9.1'
   - '@orcabus/platform-cdk-constructs@1.9.5'
-overrides:
-  js-yaml@<=4.1.1: ^4.1.2
