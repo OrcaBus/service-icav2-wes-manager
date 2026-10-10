@@ -16,7 +16,20 @@ Implementation note
 -------------------
 Files may be arbitrarily large, so we never hold the full (compressed or
 decompressed) contents in memory. Instead we stream the download in fixed-size
-chunks and:
+chunks.
+
+Whether a stream is gzip-compressed is decided by inspecting the *actual*
+leading bytes of the body (the gzip magic bytes 0x1f 0x8b), not by the key
+suffix. This matters because an S3 object stored with Content-Encoding: gzip is
+transparently decoded by requests/urllib3, so a ``.json.gz`` body can reach us
+as already-decompressed plaintext. Deciding on the real bytes handles both the
+already-decompressed case and the genuinely-gzipped case, while a stream that
+begins with the gzip magic but is corrupt mid-stream still raises and is
+reported as corrupted. As a defensive secondary measure we also set
+``response.raw.decode_content = False`` so requests does not transparently
+gunzip Content-Encoding on our behalf.
+
+Per content type we then:
 
   * gzip files      -> feed each chunk through an incremental decompressor and
                        discard the output; a corrupt stream raises while
@@ -47,6 +60,9 @@ CHUNK_SIZE = 1024 * 1024  # 1 MiB
 # gzip streams use a zlib window with the gzip header (16 + MAX_WBITS).
 _GZIP_WBITS = 16 + zlib.MAX_WBITS
 
+# Leading bytes that identify a gzip stream.
+_GZIP_MAGIC = b"\x1f\x8b"
+
 # Number of trailing bytes we retain to validate the HTML closing tag.
 # Kept comfortably larger than "</html>" plus any trailing whitespace.
 _HTML_TAIL_BYTES = 1024
@@ -57,12 +73,58 @@ def _iter_response_chunks(presigned_url: str):
     """
     Stream the response body in fixed-size byte chunks without buffering the
     whole payload in memory.
+
+    We disable requests' transparent content decoding so the raw stored bytes
+    reach us; the real disambiguation is the gzip magic-byte check performed by
+    the caller.
     """
     with requests.get(presigned_url, stream=True) as response:
         response.raise_for_status()
+        response.raw.decode_content = False
         for chunk in response.iter_content(chunk_size=CHUNK_SIZE):
             if chunk:
                 yield chunk
+
+
+def _iter_decoded_chunks(presigned_url: str):
+    """
+    Stream the body and yield plaintext bytes. If the stream actually begins
+    with the gzip magic bytes (0x1f 0x8b) we gunzip it with an incremental
+    decompressor; otherwise the bytes are already plaintext (e.g. requests/S3
+    transparently decoded a Content-Encoding: gzip object) and we pass them
+    through unchanged. Detection is on the real bytes, so it is independent of
+    the key suffix and response headers.
+
+    A stream that starts with the gzip magic but is corrupt mid-stream still
+    raises zlib.error, which callers map to "corrupted".
+    """
+    chunks = _iter_response_chunks(presigned_url)
+
+    first = b""
+    for first in chunks:
+        break  # first non-empty chunk (iterator already skips empties)
+
+    if not first:
+        return  # empty body -> no bytes to yield
+
+    if first[:2] != _GZIP_MAGIC:
+        # Already plaintext (or non-gzip) -> pass through unchanged.
+        yield first
+        for chunk in chunks:
+            yield chunk
+        return
+
+    decompressor = zlib.decompressobj(_GZIP_WBITS)
+    data = decompressor.decompress(first)
+    if data:
+        yield data
+    for chunk in chunks:
+        data = decompressor.decompress(chunk)
+        if data:
+            yield data
+    data = decompressor.flush()
+    if data:
+        yield data
 
 
 def handler(event, context):
@@ -79,7 +141,6 @@ def handler(event, context):
     presigned_url = get_presigned_url_from_ingest_id(ingest_id)
 
     key = file_object["key"]
-    is_gzipped = key.endswith(".gz")
     is_json = key.endswith(".json.gz") or key.endswith("json")
     is_html = key.endswith(".html")
 
@@ -92,16 +153,10 @@ def handler(event, context):
     # entire download in memory at once.
     # ------------------------------------------------------------------
     if is_json:
-        decompressor = zlib.decompressobj(_GZIP_WBITS) if is_gzipped else None
         with NamedTemporaryFile(suffix=".json") as tmp:
             try:
-                for chunk in _iter_response_chunks(presigned_url):
-                    if decompressor is not None:
-                        tmp.write(decompressor.decompress(chunk))
-                    else:
-                        tmp.write(chunk)
-                if decompressor is not None:
-                    tmp.write(decompressor.flush())
+                for chunk in _iter_decoded_chunks(presigned_url):
+                    tmp.write(chunk)
             except (zlib.error, EOFError):
                 # Corrupt gzip stream
                 return corrupted
@@ -118,17 +173,11 @@ def handler(event, context):
     # Non-JSON: we only ever need the trailing bytes of the (decompressed)
     # content, so we stream through and retain just the tail.
     # ------------------------------------------------------------------
-    decompressor = zlib.decompressobj(_GZIP_WBITS) if is_gzipped else None
     tail = b""
     tail_limit = _HTML_TAIL_BYTES if is_html else 1
 
     try:
-        for chunk in _iter_response_chunks(presigned_url):
-            data = decompressor.decompress(chunk) if decompressor is not None else chunk
-            if data:
-                tail = (tail + data)[-tail_limit:]
-        if decompressor is not None:
-            data = decompressor.flush()
+        for data in _iter_decoded_chunks(presigned_url):
             if data:
                 tail = (tail + data)[-tail_limit:]
     except (zlib.error, EOFError):
