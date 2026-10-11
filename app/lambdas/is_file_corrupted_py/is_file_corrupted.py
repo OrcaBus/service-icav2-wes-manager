@@ -29,10 +29,18 @@ reported as corrupted. As a defensive secondary measure we also set
 ``response.raw.decode_content = False`` so requests does not transparently
 gunzip Content-Encoding on our behalf.
 
+Multi-member / concatenated gzip streams (e.g. bgzip or streamed gzip, as
+produced by DRAGEN) are fully decompressed: every concatenated member is
+decoded, not just the first. A single ``zlib.decompressobj`` only decodes the
+first member and silently stops, so we loop over ``unused_data`` to continue
+with each subsequent member while still streaming low-memory and still raising
+on genuinely corrupt data.
+
 Per content type we then:
 
   * gzip files      -> feed each chunk through an incremental decompressor and
-                       discard the output; a corrupt stream raises while
+                       discard the output; concatenated gzip members are each
+                       decoded in turn; a corrupt stream raises while
                        decompressing.
   * json files      -> stream (decompressed if needed) to a temp file on disk,
                        then parse from disk.
@@ -41,6 +49,7 @@ Per content type we then:
                        newline.
 """
 # Standard imports
+import logging
 import zlib
 from json import JSONDecodeError, load as json_load
 from tempfile import NamedTemporaryFile
@@ -68,6 +77,12 @@ _GZIP_MAGIC = b"\x1f\x8b"
 _HTML_TAIL_BYTES = 1024
 _HTML_CLOSING_TAG = b"</html>"
 
+# Module logger. In Lambda the root handler is already configured, so this
+# emits to CloudWatch at INFO without extra setup; locally, configure logging
+# in the caller (see scratch/debug_is_file_corrupted.py).
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
 
 def _iter_response_chunks(presigned_url: str):
     """
@@ -79,11 +94,21 @@ def _iter_response_chunks(presigned_url: str):
     the caller.
     """
     with requests.get(presigned_url, stream=True) as response:
+        logger.info(
+            "GET presigned url -> status=%s content-length=%s content-type=%s content-encoding=%s",
+            response.status_code,
+            response.headers.get("Content-Length"),
+            response.headers.get("Content-Type"),
+            response.headers.get("Content-Encoding"),
+        )
         response.raise_for_status()
         response.raw.decode_content = False
+        total = 0
         for chunk in response.iter_content(chunk_size=CHUNK_SIZE):
             if chunk:
+                total += len(chunk)
                 yield chunk
+        logger.info("finished reading response body: %d raw bytes", total)
 
 
 def _iter_decoded_chunks(presigned_url: str):
@@ -105,26 +130,75 @@ def _iter_decoded_chunks(presigned_url: str):
         break  # first non-empty chunk (iterator already skips empties)
 
     if not first:
+        logger.info("empty response body: no bytes to decode")
         return  # empty body -> no bytes to yield
+
+    logger.info("first chunk leading bytes (hex): %s", first[:4].hex())
 
     if first[:2] != _GZIP_MAGIC:
         # Already plaintext (or non-gzip) -> pass through unchanged.
+        logger.info("stream is NOT gzip (no magic bytes) -> passing through as plaintext")
         yield first
         for chunk in chunks:
             yield chunk
         return
 
+    logger.info("stream IS gzip (magic bytes present) -> decompressing")
     decompressor = zlib.decompressobj(_GZIP_WBITS)
-    data = decompressor.decompress(first)
-    if data:
-        yield data
+    produced = 0
+    members = 1
+
+    def _feed(compressed: bytes):
+        # Feed one compressed chunk into the current decompressor, draining any
+        # member boundaries that complete within it. When a member ends,
+        # ``unused_data`` holds the start of the next member(s): flush the
+        # finished member, start a fresh decompressor seeded with the leftover
+        # bytes, and keep going until the chunk is fully consumed.
+        nonlocal decompressor, produced, members
+        data = decompressor.decompress(compressed)
+        while True:
+            if data:
+                produced += len(data)
+                yield data
+            leftover = decompressor.unused_data
+            if not leftover:
+                break
+            tail = decompressor.flush()
+            if tail:
+                produced += len(tail)
+                yield tail
+            members += 1
+            decompressor = zlib.decompressobj(_GZIP_WBITS)
+            data = decompressor.decompress(leftover)
+
+    yield from _feed(first)
     for chunk in chunks:
-        data = decompressor.decompress(chunk)
-        if data:
-            yield data
+        yield from _feed(chunk)
+
+    # Final drain: flush the last member, then keep consuming any trailing
+    # members whose boundary fell exactly at end-of-stream.
     data = decompressor.flush()
     if data:
+        produced += len(data)
         yield data
+    while decompressor.unused_data:
+        leftover = decompressor.unused_data
+        members += 1
+        decompressor = zlib.decompressobj(_GZIP_WBITS)
+        data = decompressor.decompress(leftover)
+        if data:
+            produced += len(data)
+            yield data
+        data = decompressor.flush()
+        if data:
+            produced += len(data)
+            yield data
+
+    logger.info(
+        "gzip decompression complete: %d decompressed bytes produced across %d member(s)",
+        produced,
+        members,
+    )
 
 
 def handler(event, context):
@@ -133,16 +207,26 @@ def handler(event, context):
     """
     # Get inputs
     ingest_id = event.get("ingestId")
+    logger.info("handler invoked with ingestId=%s", ingest_id)
 
     # Get the file object
     file_object: FileObject = get_file_object_from_ingest_id(ingest_id)
+    logger.info(
+        "resolved file object: s3ObjectId=%s storageClass=%s bucket=%s key=%s",
+        file_object.get("s3ObjectId"),
+        file_object.get("storageClass"),
+        file_object.get("bucket"),
+        file_object.get("key"),
+    )
 
     # Get the presigned url
     presigned_url = get_presigned_url_from_ingest_id(ingest_id)
+    logger.info("presigned url resolved (type=%s)", type(presigned_url).__name__)
 
     key = file_object["key"]
     is_json = key.endswith(".json.gz") or key.endswith("json")
     is_html = key.endswith(".html")
+    logger.info("content type flags: is_json=%s is_html=%s", is_json, is_html)
 
     corrupted = {"corruptedS3Uri": get_s3_uri_from_ingest_id(ingest_id)}
     not_corrupted = {"corruptedS3Uri": None}
@@ -153,26 +237,33 @@ def handler(event, context):
     # entire download in memory at once.
     # ------------------------------------------------------------------
     if is_json:
+        logger.info("taking JSON branch: streaming to temp file then json_load")
         with NamedTemporaryFile(suffix=".json") as tmp:
             try:
+                written = 0
                 for chunk in _iter_decoded_chunks(presigned_url):
+                    written += len(chunk)
                     tmp.write(chunk)
-            except (zlib.error, EOFError):
-                # Corrupt gzip stream
+                logger.info("wrote %d bytes to temp file %s", written, tmp.name)
+            except (zlib.error, EOFError) as e:
+                logger.warning("CORRUPTED verdict: gzip stream error while reading: %r", e)
                 return corrupted
 
             tmp.flush()
             tmp.seek(0)
             try:
                 json_load(tmp)
-            except (JSONDecodeError, UnicodeDecodeError):
+            except (JSONDecodeError, UnicodeDecodeError) as e:
+                logger.warning("CORRUPTED verdict: json parse error: %r", e)
                 return corrupted
+        logger.info("NOT corrupted: JSON parsed successfully")
         return not_corrupted
 
     # ------------------------------------------------------------------
     # Non-JSON: we only ever need the trailing bytes of the (decompressed)
     # content, so we stream through and retain just the tail.
     # ------------------------------------------------------------------
+    logger.info("taking non-JSON branch (is_html=%s): checking trailing bytes", is_html)
     tail = b""
     tail_limit = _HTML_TAIL_BYTES if is_html else 1
 
@@ -180,18 +271,24 @@ def handler(event, context):
         for data in _iter_decoded_chunks(presigned_url):
             if data:
                 tail = (tail + data)[-tail_limit:]
-    except (zlib.error, EOFError):
-        # Corrupt gzip stream
+    except (zlib.error, EOFError) as e:
+        logger.warning("CORRUPTED verdict: gzip stream error while reading: %r", e)
         return corrupted
+
+    logger.info("trailing bytes (repr): %r", tail[-64:])
 
     # HTML files may not have a line ending; confirm they end in '</html>'.
     if is_html:
         if tail.rstrip().endswith(_HTML_CLOSING_TAG):
+            logger.info("NOT corrupted: HTML ends with closing tag")
             return not_corrupted
+        logger.warning("CORRUPTED verdict: HTML missing closing tag")
         return corrupted
 
     # Everything else: the final character must be a newline.
     if not tail.endswith(b"\n"):
+        logger.warning("CORRUPTED verdict: file does not end with a newline")
         return corrupted
 
+    logger.info("NOT corrupted: trailing newline present")
     return not_corrupted

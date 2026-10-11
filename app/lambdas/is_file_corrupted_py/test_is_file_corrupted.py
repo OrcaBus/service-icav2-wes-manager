@@ -68,6 +68,20 @@ def _chunk(data: bytes, size: int):
     return [data[i : i + size] for i in range(0, len(data), size)] or [b""]
 
 
+def _multi_member_gzip(data: bytes, parts: int) -> bytes:
+    """
+    Build a multi-member (concatenated) gzip body by splitting ``data`` into
+    ``parts`` contiguous slices, gzip-compressing each slice independently, and
+    concatenating the resulting members. Decompressing the whole body yields
+    the original ``data`` back.
+    """
+    if parts < 1:
+        raise ValueError("parts must be >= 1")
+    step = max(1, len(data) // parts)
+    slices = [data[i : i + step] for i in range(0, len(data), step)] or [b""]
+    return b"".join(gzip.compress(s) for s in slices)
+
+
 @contextmanager
 def _fake_requests_get(body_chunks):
     """
@@ -120,6 +134,32 @@ def test_json_gz_real_gzip_valid_json_returns_not_corrupted():
     body = gzip.compress(b'{"a": 1, "b": [1, 2, 3]}')
     # Split across multiple chunks to exercise the streaming path.
     result = _run("path/to/output.json.gz", _chunk(body, 4))
+    assert result == {"corruptedS3Uri": None}
+
+
+def test_json_gz_multi_member_gzip_valid_json_returns_not_corrupted():
+    """
+    The production bug: a .json.gz object that is a multi-member (concatenated)
+    gzip stream (e.g. DRAGEN bgzip/streamed-gzip output). A single
+    ``zlib.decompressobj`` only decodes the first member, so valid JSON was
+    wrongly reported corrupted. All members must be decompressed.
+    """
+    items = b",".join(b'{"i": %d, "v": "x"}' % i for i in range(50))
+    json_doc = b'{"items": [' + items + b"]}"
+    body = _multi_member_gzip(json_doc, parts=6)
+    # Small chunk size so member boundaries fall across network chunks.
+    result = _run("path/to/output.json.gz", _chunk(body, 8))
+    assert result == {"corruptedS3Uri": None}
+
+
+def test_multi_member_gzip_plain_text_trailing_newline_not_corrupted():
+    """
+    The non-JSON (trailing-newline) branch must also decode every member of a
+    concatenated gzip stream.
+    """
+    plain = b"".join(b"log line %d\n" % i for i in range(50))
+    body = _multi_member_gzip(plain, parts=6)
+    result = _run("path/to/foo.txt.gz", _chunk(body, 8))
     assert result == {"corruptedS3Uri": None}
 
 
