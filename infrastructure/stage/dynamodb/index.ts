@@ -1,6 +1,5 @@
-import { GlobalSecondaryIndexPropsV2 } from 'aws-cdk-lib/aws-dynamodb/lib/table-v2';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
-import { AttributeType } from 'aws-cdk-lib/aws-dynamodb';
+import { AttributeType, GlobalSecondaryIndexPropsV2 } from 'aws-cdk-lib/aws-dynamodb';
 import { TABLE_REMOVAL_POLICY } from '../constants';
 import { BuildICAv2WesDbProps, CallbackTableProps, PayloadsTableProps } from './interfaces';
 import { Construct } from 'constructs';
