@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-import 'source-map-support/register';
 import * as cdk from 'aws-cdk-lib';
 import { StatelessStack } from '../infrastructure/toolchain/stateless-stack';
 import { StatefulStack } from '../infrastructure/toolchain/stateful-stack';
